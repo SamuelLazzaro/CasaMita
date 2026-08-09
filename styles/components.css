@@ -190,36 +190,74 @@
 
 /* ==========================================================================
    Feature cards (ristorante: sala, location estiva, terrazza)
+   Immersive style: the photo fills the whole card and the text sits on a
+   dark scrim along the bottom edge — no white box, no drop shadow.
+   On fine pointers the description starts collapsed and slides up on hover
+   (rules in the pointer: fine block below); on touch devices and under
+   prefers-reduced-motion it is always visible, so no content is reachable
+   only through hover.
    ========================================================================== */
 .card {
-    background: var(--c-white);
-    border-radius: 14px;
+    /* scrim color as bare RGB channels so the gradient stops below can
+       share one definition at different alpha values */
+    --card-scrim-rgb: 0, 0, 0;
+    /* one timing for the three properties animated by the hover reveal,
+       so the row expansion and the text fade never drift apart */
+    --card-desc-t: 0.45s ease;
+
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--radius-card);
     overflow: hidden;
-    box-shadow: 0 10px 28px rgba(36, 51, 58, 0.10);
-    display: flex;
-    flex-direction: column;
-    transition: transform var(--t-hover), box-shadow var(--t-hover);
 }
 
 .card-photo {
-    aspect-ratio: 3 / 2;
-    overflow: hidden;
+    position: absolute;
+    inset: 0;
 }
 
 .card-photo img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.6s ease;
+    /* the zoom keeps its slower 0.6s pace; the hover darkening follows
+       the same timing as the scrim deepening so the two read as one */
+    transition: transform 0.6s ease, filter var(--t-hover);
+}
+
+/* The scrim lives on its own pseudo-element instead of being the
+   .card-body background: gradients cannot be transitioned, but the
+   hover state can still deepen the scrim by animating opacity. Being
+   inside .card-photo it also paints below the positioned .card-body. */
+.card-photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(var(--card-scrim-rgb), 0) 34%,
+        rgba(var(--card-scrim-rgb), 0.55) 62%,
+        rgba(var(--card-scrim-rgb), 0.92) 100%
+    );
+    transition: opacity var(--t-hover);
 }
 
 .card-body {
-    padding: 24px 26px 28px;
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 24px 26px 26px;
+    color: rgba(255, 255, 255, 0.92);
 }
 
 .card-body h3 {
+    color: var(--c-white);
     font-size: 1.3rem;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+}
+
+.card-body p {
+    font-size: 0.95rem;
+    line-height: 1.55;
 }
 
 /* ==========================================================================
@@ -299,13 +337,14 @@
     border-radius: 12px;
 }
 
+/* Flat teal-wash tile, consistent with the immersive cards ("color
+   instead of box"): no border, no shadow, and — not being clickable —
+   no decorative hover either. */
 .service-tile {
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: 12px;
+    background: var(--c-teal-tint);
+    border-radius: var(--radius-card);
     padding: 22px 20px;
     text-align: center;
-    transition: transform var(--t-hover), box-shadow var(--t-hover), border-color var(--t-hover);
 }
 
 .service-tile svg {
@@ -413,10 +452,10 @@
 /* ==========================================================================
    Contact cards
    ========================================================================== */
+/* Same flat teal-wash treatment as .service-tile */
 .contact-card {
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: 14px;
+    background: var(--c-teal-tint);
+    border-radius: var(--radius-card);
     padding: 28px 24px;
     text-align: center;
 }
@@ -437,9 +476,10 @@
 
 .contact-card a {
     display: block;
-    color: var(--c-teal);
+    /* --c-teal on the teal-tint background is ~4.3:1, below the 4.5:1
+       WCAG AA minimum for normal text; --c-teal-dark reaches ~6.2:1 */
+    color: var(--c-teal-dark);
     font-weight: 600;
-    transition: color var(--t-hover);
 }
 
 .contact-card p {
@@ -498,23 +538,55 @@
         transform: translateY(-2px);
     }
 
-    .card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 18px 40px rgba(36, 51, 58, 0.16);
+    /* Immersive card reveal — fine pointers only. The description sits
+       in a grid row collapsed to 0fr and expands to 1fr on hover: the
+       0fr -> 1fr trick animates to the natural text height without
+       hard-coding any max-height. Touch devices never match this media
+       query, so there the description is simply always visible. */
+    .card-desc {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows var(--card-desc-t);
     }
 
+    /* overflow: hidden is what actually clips the text while its 0fr
+       row has no height */
+    .card-desc p {
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity var(--card-desc-t), transform var(--card-desc-t);
+    }
+
+    /* resting scrim slightly lighter than the touch one, so the hover
+       deepening below is perceivable */
+    .card-photo::after {
+        opacity: 0.85;
+    }
+
+    .card:hover .card-desc {
+        grid-template-rows: 1fr;
+    }
+
+    .card:hover .card-desc p {
+        opacity: 1;
+        transform: none;
+    }
+
+    .card:hover .card-photo::after {
+        opacity: 1;
+    }
+
+    /* darken the whole photo, not just the scrim area: the revealed
+       description climbs well above the gradient's dense zone and needs
+       contrast against the mid part of the image too */
     .card:hover .card-photo img {
         transform: scale(1.05);
-    }
-
-    .service-tile:hover {
-        transform: translateY(-4px);
-        border-color: var(--c-teal-light);
-        box-shadow: 0 12px 26px rgba(36, 51, 58, 0.10);
+        filter: brightness(0.72);
     }
 
     .contact-card a:hover {
-        color: var(--c-teal-dark);
+        text-decoration: underline;
     }
 
     .fab-lang:hover {
@@ -554,15 +626,45 @@
 }
 
 .contact-card a.is-tapped {
-    color: var(--c-teal-dark);
+    text-decoration: underline;
 }
 
 .fab-lang.is-tapped {
     background: var(--c-teal-dark);
 }
 
+/* With reduced motion the hover reveal would snap open instead of
+   sliding; keep the description permanently expanded instead, matching
+   the touch layout. Placed after the pointer: fine block above so it
+   wins the equal-specificity cascade tie when both media queries match. */
+@media (prefers-reduced-motion: reduce) {
+    .card-desc {
+        grid-template-rows: 1fr;
+    }
+
+    .card-desc p {
+        opacity: 1;
+        transform: none;
+    }
+}
+
 /* ----- responsive tweaks ----- */
+@media (max-width: 900px) {
+    /* grid-3 collapses to one column here (see layout.css): a portrait
+       card as wide as the container would grow far too tall, so switch
+       to landscape for the tablet range */
+    .card {
+        aspect-ratio: 3 / 2;
+    }
+}
+
 @media (max-width: 600px) {
+    /* back to portrait on phones, where landscape would leave the
+       always-visible description covering most of the photo */
+    .card {
+        aspect-ratio: 4 / 5;
+    }
+
     .booking-form {
         grid-template-columns: 1fr;
     }

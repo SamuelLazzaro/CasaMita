@@ -54,6 +54,9 @@
     --pad-page: 24px;
     --section-pad-y: 88px;
     --grid-gap: 28px;
+    /* rounding shared by the card-like surfaces (feature cards, service
+       tiles, contact cards) so they read as one family */
+    --radius-card: 14px;
     /* width of the classic scrollbar while page scroll is locked
        (menu open); published by ui.js so body and the right-anchored
        fixed elements can compensate and not shift */
