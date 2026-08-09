@@ -419,6 +419,23 @@
     width: 100%;
 }
 
+/* iOS Safari draws date inputs with the native widget, which forces an
+   intrinsic width (overflowing the form on narrow screens), centers the
+   value and collapses the height while the field is empty. Strip the
+   native chrome so the shared rules above apply, and rebuild the height
+   the other fields get from their text content (line-height 1.65em +
+   12px vertical padding + 1.5px border on each side). */
+.form-field input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    min-height: calc(1.65em + 24px + 3px);
+}
+
+.form-field input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+}
+
 .form-field input:focus,
 .form-field select:focus,
 .form-field textarea:focus {

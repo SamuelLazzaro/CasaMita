@@ -187,7 +187,6 @@ export const TRANSLATIONS = {
         "contacts.emailTitle": "Email",
         "contacts.phoneTitle": "Telefono",
         "contacts.addressTitle": "Indirizzo",
-        "contacts.followTitle": "Seguici",
 
         "footer.copy": "Casa Mita — Ristorante e B&B, Marina di Pulsano (TA)"
     },
@@ -320,7 +319,6 @@ export const TRANSLATIONS = {
         "contacts.emailTitle": "Email",
         "contacts.phoneTitle": "Phone",
         "contacts.addressTitle": "Address",
-        "contacts.followTitle": "Follow us",
 
         "footer.copy": "Casa Mita — Restaurant and B&B, Marina di Pulsano (TA), Italy"
     }

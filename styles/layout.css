@@ -174,10 +174,20 @@
     gap: var(--grid-gap);
 }
 
-.grid-4 {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+/* ----- contacts card row ----- */
+/* Flex instead of grid so the incomplete last row of the five contact
+   cards stays horizontally centered (3 + 2 on desktop, 2 + 2 + 1 on
+   tablet) instead of leaving a left-aligned orphan card. */
+.contact-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: var(--grid-gap);
+}
+
+.contact-grid > .contact-card {
+    /* three cards per row: a third of the width minus the two gaps' share */
+    flex: 0 1 calc((100% - 2 * var(--grid-gap)) / 3);
 }
 
 /* ----- "Dove siamo" distances list ----- */
@@ -230,13 +240,17 @@
         --section-pad-y: 64px;
     }
 
-    .split,
-    .grid-4 {
+    .split {
         grid-template-columns: 1fr 1fr;
     }
 
     .grid-3 {
         grid-template-columns: 1fr;
+    }
+
+    .contact-grid > .contact-card {
+        /* two cards per row */
+        flex-basis: calc((100% - var(--grid-gap)) / 2);
     }
 
     .split-photo {
@@ -245,8 +259,11 @@
 }
 
 @media (max-width: 600px) {
-    .split,
-    .grid-4 {
+    .split {
         grid-template-columns: 1fr;
+    }
+
+    .contact-grid > .contact-card {
+        flex-basis: 100%;
     }
 }
