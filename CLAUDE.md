@@ -5,11 +5,12 @@ Rifacimento completo di https://www.ristorantealbergocasamita.it/ mantenendone l
 
 ## Comandi
 
-- `npm run dev` — dev server locale (serve la root del progetto, aprire `/public/`)
+- `npm run dev` — dev server locale sulla root del progetto (`index.html` è servito su `/`)
 
 ## Struttura
 
-- `public/` — asset statici: `index.html`, favicon, `assets/img/`, `assets/fonts/`
+- `index.html` — la one-page, alla root del progetto
+- `public/` — asset statici: favicon, `assets/img/`, `assets/fonts/`
 - `styles/` — CSS (reset e custom properties in `main.css`, moduli separati per componenti/layout)
 - `src/` — JavaScript ES6+ a moduli (entry point `main.js`)
 
