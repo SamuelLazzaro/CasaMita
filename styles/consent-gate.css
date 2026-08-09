@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════
+   Consent gate — standalone, dependency-free component
+
+   Styles for the pre-consent placeholder (text + button) and
+   for the iframe created after consent.
+
+   Theming: override the --cg-* properties on the elements
+   themselves or on any ancestor. Every property carries a
+   self-contained, deliberately neutral default, so the
+   component works with no design system behind it.
+
+   Touch feedback: the `.is-tapped` rules mirror the :hover
+   ones for the tap-feedback pattern (the host site adds and
+   removes the class). Shared values live in custom
+   properties so the two states cannot diverge.
+   ═══════════════════════════════════════════════════════════ */
+
+.consent-gate-placeholder {
+    /* ── Geometry ─────────────────────────────────────────── */
+    --cg-min-height: 320px;
+    --cg-gap: 1rem;
+    --cg-padding: 2rem;
+    --cg-radius: 12px;
+
+    /* ── Appearance ───────────────────────────────────────── */
+    --cg-bg: rgba(127, 127, 127, 0.08);
+    --cg-border: 1px dashed rgba(127, 127, 127, 0.45);
+    --cg-text-color: inherit;
+    --cg-text-size: 0.9rem;
+    --cg-text-max-width: 420px;
+
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--cg-gap);
+    width: 100%;
+    height: 100%;
+    min-height: var(--cg-min-height);
+    padding: var(--cg-padding);
+    background: var(--cg-bg);
+    border: var(--cg-border);
+    border-radius: var(--cg-radius);
+    text-align: center;
+}
+
+.consent-gate-text {
+    margin: 0;
+    max-width: var(--cg-text-max-width);
+    font-size: var(--cg-text-size);
+    line-height: 1.6;
+    color: var(--cg-text-color);
+}
+
+.consent-gate-btn {
+    /* ── Appearance ───────────────────────────────────────── */
+    --cg-btn-bg: #3d3d3d;
+    --cg-btn-bg-active: #5a5a5a;
+    --cg-btn-color: #ffffff;
+    --cg-btn-radius: 8px;
+    --cg-btn-padding: 0.6rem 1.4rem;
+    --cg-btn-font-size: 0.8rem;
+    --cg-btn-transition: 0.25s ease;
+    --cg-focus-width: 2px;
+
+    /* Local reset: the component must not rely on a global one. */
+    box-sizing: border-box;
+    margin: 0;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    padding: var(--cg-btn-padding);
+    background: var(--cg-btn-bg);
+    color: var(--cg-btn-color);
+    font-size: var(--cg-btn-font-size);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: var(--cg-btn-radius);
+    transition: background var(--cg-btn-transition);
+}
+
+/* Hover only on devices with a precise pointer: on touch screens
+   it would stick after the tap. */
+@media (pointer: fine) {
+    .consent-gate-btn:hover {
+        background: var(--cg-btn-bg-active);
+    }
+}
+
+/* Twin of the :hover above for touch devices (tap-feedback
+   pattern: the host site toggles the class). */
+.consent-gate-btn.is-tapped {
+    background: var(--cg-btn-bg-active);
+}
+
+.consent-gate-btn:focus-visible {
+    outline: var(--cg-focus-width) solid currentColor;
+    outline-offset: 2px;
+}
+
+/* The embed created after consent. The height is the only value
+   the host page almost always wants to own: set --cg-height on
+   the container (or any ancestor) per breakpoint. */
+.consent-gate-iframe {
+    display: block;
+    width: 100%;
+    height: var(--cg-height, 450px);
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .consent-gate-btn {
+        transition: none;
+    }
+}

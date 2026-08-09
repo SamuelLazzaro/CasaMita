@@ -48,6 +48,40 @@ export const TAP_FEEDBACK_SELECTOR = 'a[href], button, [role="button"]';
 /** @type {string} address the booking request email is sent to */
 export const BOOKING_EMAIL = "info@ristorantealbergocasamita.it";
 
+/* ----- cookie consent (see cookie-banner.js and where-map.js) ----- */
+
+/** @type {string} localStorage key recording the visitor's banner choice */
+export const COOKIE_CONSENT_STORAGE_KEY = "casamita-cookie-consent";
+
+/** @type {string} banner choice value: every cookie category accepted */
+export const COOKIE_CONSENT_ALL = "all";
+
+/** @type {string} banner choice value: technical storage only */
+export const COOKIE_CONSENT_TECHNICAL = "technical";
+
+/** @type {string} localStorage consent key gating the Google Maps embed */
+export const MAPS_CONSENT_STORAGE_KEY = "casamita-maps-consent";
+
+/**
+ * @type {string} Google Maps embed URL of the venue. Never referenced from
+ * the HTML: the iframe is created by the consent gate only after consent.
+ */
+export const MAPS_EMBED_URL = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3040.264188542294!2d17.34757367558445!3d40.358666071449!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1346e162c7ce19f3%3A0x30e8baa3d6ee5575!2sCasa%20Mita!5e0!3m2!1sit!2sit!4v1786285578381!5m2!1sit!2sit";
+
+/* ----- dishes carousel (see carousel.js) ----- */
+
+/** @type {number} autoplay interval (ms) between automatic slide changes */
+export const CAROUSEL_AUTOPLAY_MS = 2000;
+
+/**
+ * @type {number} idle time (ms) after a manual interaction (arrow, dot,
+ * swipe) before the autoplay starts rotating again
+ */
+export const CAROUSEL_RESUME_MS = 6000;
+
+/** @type {number} minimum horizontal swipe distance (px) to change slide */
+export const CAROUSEL_SWIPE_MIN_PX = 40;
+
 /**
  * Translation dictionaries, flat "section.key" keys.
  * The HTML elements reference them through data attributes:
@@ -72,13 +106,15 @@ export const TRANSLATIONS = {
 
         "nav.home": "Home",
         "nav.about": "Chi siamo",
-        "nav.restaurant": "Ristorante – Menu",
+        "nav.restaurant": "Ristorante",
+        "nav.menu": "Menu",
         "nav.rooms": "B&B – Camere",
         "nav.booking": "Prenotazioni camere",
         "nav.where": "Dove siamo",
         "nav.contacts": "Contatti",
 
         "hero.kicker": "Marina di Pulsano · Taranto · Puglia",
+        "hero.h1": "Casa Mita: ristorante e bed & breakfast a Marina di Pulsano",
         "hero.sub": "Ristorante e bed & breakfast a pochi metri dal mare: buon cibo, camere accoglienti e l'ospitalità di una famiglia, dal 2013.",
         "hero.ctaBook": "Prenota il tuo soggiorno",
         "hero.ctaRestaurant": "Scopri il ristorante",
@@ -102,20 +138,69 @@ export const TRANSLATIONS = {
         "restaurant.card3t": "Terrazza sul mare",
         "restaurant.card3p": "Che cosa c'è di meglio di un aperitivo in terrazza alla fine di una giornata di mare? Dalla colazione all'aria aperta all'happy hour domenicale, bagnati dalla luce dorata del tramonto.",
         "restaurant.card3alt": "La terrazza sul mare con salottino e vista sulla costa",
+        "restaurant.ctaMenu": "Sfoglia il menu",
 
-        "menu.title": "I piatti della casa",
-        "menu.intro": "Il mare Jonio in tavola: qualche assaggio dei piatti che raccontano la nostra cucina.",
-        "menu.d1t": "Crudo di mare pugliese",
-        "menu.d1p": "Tutta la bontà del pescato del giorno, servito crudo secondo la tradizione pugliese.",
-        "menu.d2t": "Paccheri con la cernia",
-        "menu.d2p": "Il pranzo dell'estate made in Casa Mita: un primo gustoso e leggero per gli amanti del pesce.",
-        "menu.d3t": "Scampi",
-        "menu.d3p": "Da gustare crudi, insieme agli altri frutti di mare, o cotti in un primo dal sapore del mare.",
-        "menu.d4t": "Focaccia pugliese",
-        "menu.d4p": "Un vero comfort food: la ricetta della tradizione, fragrante e dorata.",
+        "dishes.title": "I piatti della casa",
+        "dishes.intro": "Il mare Jonio in tavola: qualche assaggio dei piatti che raccontano la nostra cucina.",
+        "dishes.carouselLabel": "Galleria dei piatti della casa",
+        "dishes.prev": "Foto precedente",
+        "dishes.next": "Foto successiva",
+        "dishes.dotsLabel": "Scegli la foto da mostrare",
+        "dishes.slide1alt": "Gambero gratinato servito su piatto azzurro",
+        "dishes.slide2alt": "Piatto gourmet con calice di vino",
+        "dishes.slide3alt": "Sauté di cozze e vongole con crostini di pane",
+        "dishes.slide4alt": "Spaghetti alle vongole serviti al tavolo",
+        "dishes.slide5alt": "Gran piatto di crudo di mare con ostriche, scampi e gamberi",
+        "dishes.slide6alt": "Focaccia pugliese con pomodorini e olive pronta per il forno",
+
+        /* ----- menu page (menu.html) ----- */
+        "menu.metaTitle": "Menu — Casa Mita, Ristorante a Marina di Pulsano",
+        "menu.metaDescription": "Il menu del ristorante Casa Mita a Marina di Pulsano (Taranto): antipasti di mare, primi della tradizione pugliese, pescato del giorno e dolci fatti in casa.",
+        "menu.title": "Il nostro menu",
+        "menu.intro": "Il mare Jonio in tavola: piatti della tradizione pugliese preparati con il pescato del giorno e i prodotti delle stagioni.",
+
+        "menu.starters": "Antipasti",
+        "menu.starter1t": "Crudo di mare pugliese",
+        "menu.starter1p": "Tutta la bontà del pescato del giorno, servito crudo secondo la tradizione pugliese.",
+        "menu.starter2t": "Polpo alla griglia",
+        "menu.starter2p": "Su crema di fave e cicorie ripassate, come vuole la tradizione.",
+        "menu.starter3t": "Focaccia pugliese",
+        "menu.starter3p": "Un vero comfort food: la ricetta della tradizione, fragrante e dorata.",
+
+        "menu.firsts": "Primi piatti",
+        "menu.first1t": "Paccheri con la cernia",
+        "menu.first1p": "Il pranzo dell'estate made in Casa Mita: un primo gustoso e leggero per gli amanti del pesce.",
+        "menu.first2t": "Orecchiette alle cime di rapa",
+        "menu.first2p": "Il piatto simbolo della Puglia, preparato come una volta.",
+        "menu.first3t": "Spaghetti agli scampi",
+        "menu.first3p": "Scampi freschissimi in un primo dal sapore del mare.",
+
+        "menu.seconds": "Secondi piatti",
+        "menu.second1t": "Pescato del giorno alla griglia",
+        "menu.second1p": "Il pesce del Mar Jonio scelto ogni mattina, servito con verdure di stagione.",
+        "menu.second2t": "Frittura di paranza",
+        "menu.second2p": "Croccante e leggera, con il pescato piccolo del giorno.",
+        "menu.second3t": "Tagliata di tonno",
+        "menu.second3p": "Cuore rosa e crosta di sesamo, accompagnata da misticanza.",
+
+        "menu.desserts": "Dolci",
+        "menu.dessert1t": "Pasticciotto leccese",
+        "menu.dessert1p": "Frolla dorata e crema pasticcera, servito tiepido.",
+        "menu.dessert2t": "Tiramisù della casa",
+        "menu.dessert2p": "La nostra versione del classico, preparata ogni giorno.",
+        "menu.dessert3t": "Sporcamuss",
+        "menu.dessert3p": "Sfoglia calda e crema: il dolce barese che \"sporca il muso\".",
+
+        "menu.drinks": "Vini e bevande",
+        "menu.drink1t": "Primitivo di Manduria DOP",
+        "menu.drink1p": "Il rosso simbolo di questa terra.",
+        "menu.drink2t": "Locorotondo DOC",
+        "menu.drink2p": "Bianco fresco e minerale, perfetto con il pesce.",
+        "menu.drink3t": "Vino della casa (½ litro)",
+        "menu.drink3p": "Bianco o rosso, dalle cantine della zona.",
+
         "menu.note": "Il menu segue il pescato e le stagioni: chiedici i piatti del giorno.",
-        "menu.dish1alt": "Gambero gratinato servito su piatto azzurro",
-        "menu.dish2alt": "Piatto gourmet con calice di vino",
+        "menu.backHome": "Torna alla home",
 
         "rooms.kicker": "B&B",
         "rooms.title": "Camere colorate come la Puglia",
@@ -180,15 +265,89 @@ export const TRANSLATIONS = {
         "where.d4": "350 metri dalle spiagge",
         "where.mapLink": "Apri l'indirizzo su Google Maps",
         "where.photoAlt": "Il mare cristallino di Marina di Pulsano con la pineta sullo sfondo",
+        "where.mapConsent": "Per mostrare la mappa interattiva serve il tuo consenso: al caricamento il browser si collega ai server di Google (Google Maps), che possono impostare cookie di terze parti.",
+        "where.mapConsentBtn": "Accetta e mostra la mappa",
+        "where.mapTitle": "Mappa di Casa Mita — Google Maps",
 
         "contacts.kicker": "Contatti",
         "contacts.title": "Scrivici o chiamaci",
         "contacts.intro": "Per prenotazioni del ristorante, richieste sulle camere o qualsiasi informazione siamo sempre a disposizione.",
         "contacts.emailTitle": "Email",
-        "contacts.phoneTitle": "Telefono",
+        "contacts.mobileTitle": "Cellulare",
+        "contacts.landlineTitle": "Telefono fisso",
         "contacts.addressTitle": "Indirizzo",
+        "contacts.addressLink": "Apri su Google Maps",
 
-        "footer.copy": "Casa Mita — Ristorante e B&B, Marina di Pulsano (TA)"
+        "footer.copy": "Casa Mita — Ristorante e B&B, Marina di Pulsano (TA)",
+        "footer.privacy": "Privacy & Cookie Policy",
+        "footer.tagline": "Ristorante e bed & breakfast a Marina di Pulsano.",
+        "footer.contactsTitle": "Contatti",
+        "footer.followTitle": "Seguici",
+        /* legal placeholders — replace with the real data before go-live
+           (see the TODO note next to the footer in index.html) */
+        "footer.legalName": "[Ragione sociale esatta — DA COMPLETARE] — P.IVA: [DA COMPLETARE]",
+        "footer.legalSeat": "Sede legale: Contrada Rotondella, Viale del Posto, 16 — Marina di Pulsano (TA), Italia",
+        "footer.legalRegister": "Registro Imprese di Taranto — REA: TA-[DA COMPLETARE] — Capitale sociale: [DA COMPLETARE]",
+        "footer.legalCin": "CIN: [DA COMPLETARE] — CIS Puglia: [DA COMPLETARE]",
+
+        "cookies.dialogLabel": "Preferenze cookie",
+        "cookies.text": "Questo sito non usa cookie di profilazione propri: nel tuo browser salviamo solo preferenze tecniche (lingua e scelte sui cookie). La mappa di Google Maps nella sezione «Dove siamo» si carica solo con il tuo consenso e può impostare cookie di terze parti (Google). Maggiori informazioni:",
+        "cookies.policyLink": "Privacy & Cookie Policy",
+        "cookies.acceptAll": "Accetta tutto",
+        "cookies.technicalOnly": "Solo tecnici",
+        "cookies.fabLabel": "Gestisci le preferenze cookie",
+
+        "policy.metaTitle": "Privacy & Cookie Policy — Casa Mita",
+        "policy.metaDescription": "Informativa privacy e cookie del sito di Casa Mita: dati salvati nel browser, servizi di terze parti utilizzati e diritti degli interessati.",
+        "policy.backHome": "Torna al sito",
+        "policy.title": "Privacy & Cookie Policy",
+        "policy.updated": "Ultimo aggiornamento: 9 agosto 2026",
+        "policy.intro": "Questa pagina descrive quali dati personali tratta il sito di Casa Mita, quali tecnologie di memorizzazione usa e quali diritti hanno i visitatori, ai sensi del Regolamento (UE) 2016/679 (GDPR) e della Direttiva ePrivacy.",
+
+        "policy.s1t": "1. Titolare del trattamento",
+        "policy.s1name": "Casa Mita — Ristorante e B&B",
+        "policy.s1todo": "[ragione sociale esatta e partita IVA da completare]",
+        "policy.s1addr": "Contrada Rotondella, Viale del Posto, 16 — Marina di Pulsano (TA), Italia",
+        "policy.s1p1": "Per qualsiasi richiesta relativa ai dati personali o per esercitare i tuoi diritti puoi scrivere a:",
+
+        "policy.s2t": "2. Cookie e localStorage: che cosa sono",
+        "policy.s2p1": "I cookie sono piccoli file di testo che i siti salvano sul tuo dispositivo tramite il browser. Il localStorage è un'area di memorizzazione del browser con uno scopo simile: i dati restano solo sul tuo dispositivo, non scadono automaticamente e non vengono trasmessi ad alcun server.",
+        "policy.s2p2": "Questo sito non imposta alcun cookie HTTP proprio e non usa strumenti di profilazione o di statistica: utilizza esclusivamente il localStorage per ricordare alcune preferenze tecniche. Cookie di terze parti possono essere impostati da Google soltanto dopo il tuo consenso alla mappa (vedi sezione 4).",
+
+        "policy.s3t": "3. Dati salvati nel tuo browser",
+        "policy.s3intro": "Chiavi localStorage usate dal sito:",
+        "policy.s3i1": "la lingua scelta per il sito (italiano o inglese). Tipo: tecnico. Durata: finché non la cancelli.",
+        "policy.s3i2": "la scelta espressa nel banner cookie («Accetta tutto» o «Solo tecnici»). Tipo: tecnico. Durata: finché non la revochi o cancelli.",
+        "policy.s3i3": "il consenso al caricamento della mappa Google Maps. Tipo: consenso a servizio di terza parte. Durata: finché non lo revochi o cancelli.",
+        "policy.s3note": "Le chiavi tecniche non richiedono consenso: memorizzano soltanto scelte fatte da te e non permettono di identificarti. Base giuridica: legittimo interesse del titolare al funzionamento del sito (art. 6, par. 1, lett. f GDPR).",
+
+        "policy.s4t": "4. Servizi di terze parti",
+        "policy.s4mapsT": "Google Maps",
+        "policy.s4p1": "La sezione «Dove siamo» può mostrare una mappa interattiva fornita da Google Maps (Google Ireland Limited, Gordon House, Barrow Street, Dublino 4, Irlanda, per gli utenti dello Spazio Economico Europeo; capogruppo Google LLC, USA).",
+        "policy.s4p2": "La mappa non viene caricata all'apertura della pagina: al suo posto compare un riquadro informativo. Solo dopo il tuo consenso esplicito (pulsante nel riquadro oppure «Accetta tutto» nel banner) il browser si collega ai server di Google, che ricevono il tuo indirizzo IP e altri dati tecnici e possono impostare propri cookie. Base giuridica: consenso (art. 6, par. 1, lett. a GDPR), revocabile in ogni momento (vedi sezione 9).",
+        "policy.s4p3": "Privacy policy di Google:",
+        "policy.s4hostT": "Hosting",
+        "policy.s4hostTodo": "[Da completare quando il fornitore di hosting sarà scelto: nome del provider, eventuale CDN sottostante, paese, log tecnici raccolti (indirizzo IP, user-agent, data e ora) e relativo periodo di conservazione.]",
+
+        "policy.s5t": "5. Font, immagini e altre risorse",
+        "policy.s5p1": "Tutti i font tipografici e tutte le immagini sono ospitati direttamente su questo sito (self-hosted): il loro caricamento non comporta alcuna trasmissione di dati a terze parti.",
+
+        "policy.s6t": "6. Form di richiesta prenotazione",
+        "policy.s6p1": "Il form della sezione «Prenotazioni camere» non invia dati a questo sito né a server di terzi: il pulsante apre il tuo programma di posta con un'email già compilata, che sei tu a inviare. I dati che ci comunichi via email (nome, email, telefono, date e camera richiesta) vengono usati solo per rispondere alla richiesta e gestire l'eventuale prenotazione (art. 6, par. 1, lett. b GDPR — misure precontrattuali) e conservati per il tempo necessario a tali finalità.",
+
+        "policy.s7t": "7. Trasferimenti di dati fuori dall'Unione Europea",
+        "policy.s7p1": "Se acconsenti alla mappa, i tuoi dati possono essere trattati anche da Google LLC negli Stati Uniti. Google LLC aderisce all'EU–U.S. Data Privacy Framework, il meccanismo riconosciuto dalla Commissione Europea come garanzia di un livello adeguato di protezione dei dati:",
+
+        "policy.s8t": "8. I tuoi diritti",
+        "policy.s8p1": "In qualità di interessato hai i diritti previsti dagli artt. 15–22 del GDPR: accesso, rettifica, cancellazione, limitazione del trattamento, portabilità, opposizione e revoca dei consensi prestati. Puoi esercitarli scrivendo a:",
+        "policy.s8p2": "Hai inoltre il diritto di proporre reclamo al Garante per la protezione dei dati personali:",
+
+        "policy.s9t": "9. Come gestire o cancellare i tuoi dati",
+        "policy.s9i1": "Revoca dei consensi: usa il pulsante cookie fisso in basso a destra, presente in ogni pagina; azzera le scelte salvate e ripresenta il banner.",
+        "policy.s9i2": "Cancellazione manuale: puoi eliminare in ogni momento le chiavi localStorage e i cookie di questo sito dalle impostazioni del tuo browser (di solito in Privacy e sicurezza → Dati dei siti).",
+
+        "policy.s10t": "10. Aggiornamenti di questa policy",
+        "policy.s10p1": "Eventuali modifiche a questa informativa saranno pubblicate su questa pagina, aggiornando la data riportata in alto. Ti invitiamo a consultarla periodicamente."
     },
 
     en: {
@@ -204,13 +363,15 @@ export const TRANSLATIONS = {
 
         "nav.home": "Home",
         "nav.about": "About us",
-        "nav.restaurant": "Restaurant – Menu",
+        "nav.restaurant": "Restaurant",
+        "nav.menu": "Menu",
         "nav.rooms": "B&B – Rooms",
         "nav.booking": "Room booking",
         "nav.where": "Where we are",
         "nav.contacts": "Contacts",
 
-        "hero.kicker": "Marina di Pulsano · Taranto · Puglia, Italy",
+        "hero.kicker": "Marina di Pulsano · Taranto · Puglia",
+        "hero.h1": "Casa Mita: restaurant and bed & breakfast in Marina di Pulsano",
         "hero.sub": "Restaurant and bed & breakfast a few metres from the sea: good food, welcoming rooms and the hospitality of a family, since 2013.",
         "hero.ctaBook": "Book your stay",
         "hero.ctaRestaurant": "Discover the restaurant",
@@ -234,20 +395,69 @@ export const TRANSLATIONS = {
         "restaurant.card3t": "Terrace over the sea",
         "restaurant.card3p": "What could be better than an aperitif on the terrace at the end of a day by the sea? From open-air breakfast to Sunday happy hour, bathed in the golden light of sunset.",
         "restaurant.card3alt": "The terrace over the sea with lounge seating and coastal view",
+        "restaurant.ctaMenu": "Browse the menu",
 
-        "menu.title": "Dishes of the house",
-        "menu.intro": "The Ionian Sea on your plate: a taste of the dishes that tell the story of our kitchen.",
-        "menu.d1t": "Apulian raw seafood",
-        "menu.d1p": "All the goodness of the day's catch, served raw following the Apulian tradition.",
-        "menu.d2t": "Paccheri with grouper",
-        "menu.d2p": "The summer lunch made in Casa Mita: a tasty, light pasta dish for fish lovers.",
-        "menu.d3t": "Scampi",
-        "menu.d3p": "Enjoy them raw with the rest of the seafood, or cooked in a pasta dish tasting of the sea.",
-        "menu.d4t": "Apulian focaccia",
-        "menu.d4p": "True comfort food: the traditional recipe, fragrant and golden.",
+        "dishes.title": "Dishes of the house",
+        "dishes.intro": "The Ionian Sea on your plate: a taste of the dishes that tell the story of our kitchen.",
+        "dishes.carouselLabel": "Gallery of the dishes of the house",
+        "dishes.prev": "Previous photo",
+        "dishes.next": "Next photo",
+        "dishes.dotsLabel": "Choose the photo to show",
+        "dishes.slide1alt": "Prawn gratin served on a blue plate",
+        "dishes.slide2alt": "Gourmet dish with a glass of wine",
+        "dishes.slide3alt": "Sautéed mussels and clams with bread croutons",
+        "dishes.slide4alt": "Spaghetti with clams served at the table",
+        "dishes.slide5alt": "Large raw seafood platter with oysters, scampi and prawns",
+        "dishes.slide6alt": "Apulian focaccia with cherry tomatoes and olives, ready for the oven",
+
+        /* ----- menu page (menu.html) ----- */
+        "menu.metaTitle": "Menu — Casa Mita, Restaurant in Marina di Pulsano, Puglia",
+        "menu.metaDescription": "The menu of the Casa Mita restaurant in Marina di Pulsano (Taranto), Italy: seafood starters, traditional Apulian pasta dishes, catch of the day and homemade desserts.",
+        "menu.title": "Our menu",
+        "menu.intro": "The Ionian Sea on your plate: traditional Apulian dishes made with the day's catch and seasonal produce.",
+
+        "menu.starters": "Starters",
+        "menu.starter1t": "Apulian raw seafood",
+        "menu.starter1p": "All the goodness of the day's catch, served raw following the Apulian tradition.",
+        "menu.starter2t": "Grilled octopus",
+        "menu.starter2p": "On broad-bean purée with sautéed chicory, as tradition demands.",
+        "menu.starter3t": "Apulian focaccia",
+        "menu.starter3p": "True comfort food: the traditional recipe, fragrant and golden.",
+
+        "menu.firsts": "First courses",
+        "menu.first1t": "Paccheri with grouper",
+        "menu.first1p": "The summer lunch made in Casa Mita: a tasty, light pasta dish for fish lovers.",
+        "menu.first2t": "Orecchiette with turnip tops",
+        "menu.first2p": "Puglia's signature dish, made the old way.",
+        "menu.first3t": "Spaghetti with scampi",
+        "menu.first3p": "The freshest scampi in a pasta dish tasting of the sea.",
+
+        "menu.seconds": "Main courses",
+        "menu.second1t": "Grilled catch of the day",
+        "menu.second1p": "Ionian Sea fish picked every morning, served with seasonal vegetables.",
+        "menu.second2t": "Fried paranza",
+        "menu.second2p": "Crisp and light, with the day's small catch.",
+        "menu.second3t": "Seared tuna steak",
+        "menu.second3p": "Pink at heart with a sesame crust, served with mixed leaves.",
+
+        "menu.desserts": "Desserts",
+        "menu.dessert1t": "Pasticciotto from Lecce",
+        "menu.dessert1p": "Golden shortcrust pastry and custard, served warm.",
+        "menu.dessert2t": "House tiramisù",
+        "menu.dessert2p": "Our take on the classic, made fresh every day.",
+        "menu.dessert3t": "Sporcamuss",
+        "menu.dessert3p": "Warm puff pastry and custard: the Bari dessert that \"dirties your face\".",
+
+        "menu.drinks": "Wines and drinks",
+        "menu.drink1t": "Primitivo di Manduria DOP",
+        "menu.drink1p": "The signature red of this land.",
+        "menu.drink2t": "Locorotondo DOC",
+        "menu.drink2p": "A fresh, mineral white, perfect with fish.",
+        "menu.drink3t": "House wine (½ litre)",
+        "menu.drink3p": "White or red, from local wineries.",
+
         "menu.note": "The menu follows the catch and the seasons: ask us about the dishes of the day.",
-        "menu.dish1alt": "Prawn gratin served on a blue plate",
-        "menu.dish2alt": "Gourmet dish with a glass of wine",
+        "menu.backHome": "Back to the homepage",
 
         "rooms.kicker": "B&B",
         "rooms.title": "Rooms as colourful as Puglia",
@@ -312,14 +522,88 @@ export const TRANSLATIONS = {
         "where.d4": "350 metres from the beaches",
         "where.mapLink": "Open the address on Google Maps",
         "where.photoAlt": "The crystal-clear sea of Marina di Pulsano with the pine wood in the background",
+        "where.mapConsent": "Showing the interactive map requires your consent: when it loads, your browser connects to Google's servers (Google Maps), which may set third-party cookies.",
+        "where.mapConsentBtn": "Accept and show the map",
+        "where.mapTitle": "Map of Casa Mita — Google Maps",
 
         "contacts.kicker": "Contacts",
         "contacts.title": "Write to us or call us",
         "contacts.intro": "For restaurant reservations, questions about the rooms or any other information, we are always available.",
         "contacts.emailTitle": "Email",
-        "contacts.phoneTitle": "Phone",
+        "contacts.mobileTitle": "Mobile",
+        "contacts.landlineTitle": "Landline",
         "contacts.addressTitle": "Address",
+        "contacts.addressLink": "Open on Google Maps",
 
-        "footer.copy": "Casa Mita — Restaurant and B&B, Marina di Pulsano (TA), Italy"
+        "footer.copy": "Casa Mita — Restaurant and B&B, Marina di Pulsano (TA), Italy",
+        "footer.privacy": "Privacy & Cookie Policy",
+        "footer.tagline": "Restaurant and bed & breakfast in Marina di Pulsano.",
+        "footer.contactsTitle": "Contacts",
+        "footer.followTitle": "Follow us",
+        /* legal placeholders — replace with the real data before go-live
+           (see the TODO note next to the footer in index.html) */
+        "footer.legalName": "[Exact company name — TO BE COMPLETED] — VAT no. (P.IVA): [TO BE COMPLETED]",
+        "footer.legalSeat": "Registered office: Contrada Rotondella, Viale del Posto, 16 — Marina di Pulsano (TA), Italy",
+        "footer.legalRegister": "Taranto Register of Companies — REA no.: TA-[TO BE COMPLETED] — Share capital: [TO BE COMPLETED]",
+        "footer.legalCin": "CIN: [TO BE COMPLETED] — Puglia CIS: [TO BE COMPLETED]",
+
+        "cookies.dialogLabel": "Cookie preferences",
+        "cookies.text": "This website sets no profiling cookies of its own: only technical preferences (language and cookie choices) are stored in your browser. The Google Maps map in the \"Where we are\" section is loaded only with your consent and may set third-party cookies (Google). More information:",
+        "cookies.policyLink": "Privacy & Cookie Policy",
+        "cookies.acceptAll": "Accept all",
+        "cookies.technicalOnly": "Technical only",
+        "cookies.fabLabel": "Manage cookie preferences",
+
+        "policy.metaTitle": "Privacy & Cookie Policy — Casa Mita",
+        "policy.metaDescription": "Privacy and cookie notice of the Casa Mita website: data stored in the browser, third-party services in use and the rights of data subjects.",
+        "policy.backHome": "Back to the site",
+        "policy.title": "Privacy & Cookie Policy",
+        "policy.updated": "Last updated: 9 August 2026",
+        "policy.intro": "This page describes which personal data the Casa Mita website processes, which storage technologies it uses and which rights visitors have, pursuant to Regulation (EU) 2016/679 (GDPR) and the ePrivacy Directive.",
+
+        "policy.s1t": "1. Data controller",
+        "policy.s1name": "Casa Mita — Restaurant and B&B",
+        "policy.s1todo": "[exact company name and VAT number to be completed]",
+        "policy.s1addr": "Contrada Rotondella, Viale del Posto, 16 — Marina di Pulsano (TA), Italy",
+        "policy.s1p1": "For any request concerning personal data, or to exercise your rights, you can write to:",
+
+        "policy.s2t": "2. Cookies and localStorage: what they are",
+        "policy.s2p1": "Cookies are small text files that websites save on your device through the browser. localStorage is a browser storage area with a similar purpose: the data stays on your device only, never expires automatically and is not transmitted to any server.",
+        "policy.s2p2": "This website sets no HTTP cookies of its own and uses no profiling or analytics tools: it only uses localStorage to remember a few technical preferences. Third-party cookies may be set by Google only after you consent to the map (see section 4).",
+
+        "policy.s3t": "3. Data stored in your browser",
+        "policy.s3intro": "localStorage keys used by the website:",
+        "policy.s3i1": "the language chosen for the website (Italian or English). Type: technical. Duration: until you delete it.",
+        "policy.s3i2": "the choice made in the cookie banner (\"Accept all\" or \"Technical only\"). Type: technical. Duration: until you withdraw or delete it.",
+        "policy.s3i3": "the consent to loading the Google Maps map. Type: consent to a third-party service. Duration: until you withdraw or delete it.",
+        "policy.s3note": "The technical keys do not require consent: they only record choices you made and cannot identify you. Legal basis: the controller's legitimate interest in the operation of the website (Art. 6(1)(f) GDPR).",
+
+        "policy.s4t": "4. Third-party services",
+        "policy.s4mapsT": "Google Maps",
+        "policy.s4p1": "The \"Where we are\" section can show an interactive map provided by Google Maps (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland, for users in the European Economic Area; parent company Google LLC, USA).",
+        "policy.s4p2": "The map is not loaded when the page opens: an information box is shown in its place. Only after your explicit consent (the button in the box, or \"Accept all\" in the banner) does your browser connect to Google's servers, which receive your IP address and other technical data and may set their own cookies. Legal basis: consent (Art. 6(1)(a) GDPR), withdrawable at any time (see section 9).",
+        "policy.s4p3": "Google's privacy policy:",
+        "policy.s4hostT": "Hosting",
+        "policy.s4hostTodo": "[To be completed once the hosting provider is chosen: provider name, underlying CDN if any, country, technical logs collected (IP address, user agent, date and time) and their retention period.]",
+
+        "policy.s5t": "5. Fonts, images and other assets",
+        "policy.s5p1": "All fonts and images are hosted directly on this website (self-hosted): loading them involves no data transmission to third parties.",
+
+        "policy.s6t": "6. Booking request form",
+        "policy.s6p1": "The form in the \"Room booking\" section sends no data to this website or to third-party servers: the button opens your email client with a pre-filled message, which you send yourself. The data you share with us by email (name, email, phone, dates and requested room) is used only to answer your request and manage the booking (Art. 6(1)(b) GDPR — pre-contractual measures) and kept for the time needed for those purposes.",
+
+        "policy.s7t": "7. Data transfers outside the European Union",
+        "policy.s7p1": "If you consent to the map, your data may also be processed by Google LLC in the United States. Google LLC participates in the EU–U.S. Data Privacy Framework, the mechanism recognised by the European Commission as ensuring an adequate level of data protection:",
+
+        "policy.s8t": "8. Your rights",
+        "policy.s8p1": "As a data subject you have the rights set out in Articles 15–22 GDPR: access, rectification, erasure, restriction of processing, portability, objection and withdrawal of any consent given. You can exercise them by writing to:",
+        "policy.s8p2": "You also have the right to lodge a complaint with the Italian supervisory authority (Garante per la protezione dei dati personali):",
+
+        "policy.s9t": "9. How to manage or delete your data",
+        "policy.s9i1": "Withdrawing consent: use the cookie button fixed at the bottom right, available on every page; it clears the saved choices and shows the banner again.",
+        "policy.s9i2": "Manual deletion: you can delete this website's localStorage keys and cookies at any time from your browser settings (usually under Privacy and security → Site data).",
+
+        "policy.s10t": "10. Updates to this policy",
+        "policy.s10p1": "Any change to this notice will be published on this page, updating the date shown at the top. Please check it from time to time."
     }
 };

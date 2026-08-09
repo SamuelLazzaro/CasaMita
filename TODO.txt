@@ -1,0 +1,3 @@
+1. Mettere pulsante "Prenota il tuo soggiorno" nella sezione Camere
+2. Sistemare il footer
+3. Cambiare il FAB della lingua

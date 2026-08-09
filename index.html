@@ -3,15 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Casa Mita — Ristorante e B&B a Marina di Pulsano, Puglia</title>
+    <title data-i18n="meta.title">Casa Mita — Ristorante e B&B a Marina di Pulsano, Puglia</title>
     <meta name="description" data-i18n-content="meta.description"
           content="Casa Mita: ristorante e bed & breakfast a pochi metri dal mare a Marina di Pulsano (Taranto). Cucina di famiglia, camere colorate e piscina nel cuore della Puglia.">
+    <link rel="canonical" href="https://www.ristorantealbergocasamita.it/">
+
+    <!-- Social sharing previews (Open Graph + Twitter Card). Italian only on
+         purpose: social scrapers read the static HTML and never run the i18n JS. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Casa Mita">
+    <meta property="og:locale" content="it_IT">
+    <meta property="og:url" content="https://www.ristorantealbergocasamita.it/">
+    <meta property="og:title" content="Casa Mita — Ristorante e B&B a Marina di Pulsano, Puglia">
+    <meta property="og:description" content="Casa Mita: ristorante e bed & breakfast a pochi metri dal mare a Marina di Pulsano (Taranto). Cucina di famiglia, camere colorate e piscina nel cuore della Puglia.">
+    <meta property="og:image" content="https://www.ristorantealbergocasamita.it/public/assets/img/hero-terrazza.jpg">
+    <meta property="og:image:width" content="1152">
+    <meta property="og:image:height" content="768">
+    <meta name="twitter:card" content="summary_large_image">
+
     <link rel="icon" type="image/png" sizes="32x32" href="public/assets/img/favicon-32.png">
     <link rel="icon" type="image/png" sizes="192x192" href="public/assets/img/favicon-192.png">
     <link rel="apple-touch-icon" href="public/assets/img/apple-touch-icon.png">
+
+    <!-- The hero background is referenced from CSS, so the browser would only
+         discover it after the stylesheets load: preload it, it is the LCP image. -->
+    <link rel="preload" as="image" href="public/assets/img/hero-terrazza.jpg" fetchpriority="high">
+
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/layout.css">
     <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/consent-gate.css">
+
+    <!-- Structured data for local SEO (Google rich results). Inline by
+         necessity: crawlers do not fetch external ld+json files. Opening
+         hours and price range are omitted on purpose — they are not published
+         anywhere official yet; add openingHoursSpecification and priceRange
+         once the owner confirms them (see docs/seo-checklist.md). -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": ["Restaurant", "BedAndBreakfast"],
+        "@id": "https://www.ristorantealbergocasamita.it/#casa-mita",
+        "name": "Casa Mita",
+        "alternateName": [
+            "Ristorante Albergo Casa Mita",
+            "Ristorante B&B Casa Mita",
+            "Casa Mita Ristorante Bed and Breakfast"
+        ],
+        "description": "Ristorante e bed & breakfast a pochi metri dal mare a Marina di Pulsano (Taranto): cucina di famiglia, camere colorate e piscina nel cuore della Puglia.",
+        "url": "https://www.ristorantealbergocasamita.it/",
+        "image": [
+            "https://www.ristorantealbergocasamita.it/public/assets/img/hero-terrazza.jpg",
+            "https://www.ristorantealbergocasamita.it/public/assets/img/ristorante-interno.jpg",
+            "https://www.ristorantealbergocasamita.it/public/assets/img/camera-gialla.jpg",
+            "https://www.ristorantealbergocasamita.it/public/assets/img/piscina.jpg"
+        ],
+        "telephone": "+393929847501",
+        "email": "info@ristorantealbergocasamita.it",
+        "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Contrada Rotondella, Viale del Posto, 16",
+            "addressLocality": "Marina di Pulsano",
+            "postalCode": "74026",
+            "addressRegion": "TA",
+            "addressCountry": "IT"
+        },
+        "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 40.358666,
+            "longitude": 17.347574
+        },
+        "hasMap": "https://www.google.com/maps/search/?api=1&query=Ristorante%20Albergo%20Casa%20Mita%2C%20Marina%20di%20Pulsano",
+        "sameAs": [
+            "https://www.facebook.com/casamitaristorantebedandbreakfast",
+            "https://www.instagram.com/casamita_beb/"
+        ],
+        "servesCuisine": ["Cucina pugliese", "Pesce e frutti di mare"],
+        "acceptsReservations": true,
+        "menu": "https://www.ristorantealbergocasamita.it/menu.html",
+        "foundingDate": "2013",
+        "checkinTime": "12:00",
+        "checkoutTime": "10:00",
+        "petsAllowed": true,
+        "amenityFeature": [
+            { "@type": "LocationFeatureSpecification", "name": "Piscina", "value": true },
+            { "@type": "LocationFeatureSpecification", "name": "Wi-Fi gratuito", "value": true },
+            { "@type": "LocationFeatureSpecification", "name": "Ascensore", "value": true }
+        ]
+    }
+    </script>
 </head>
 <body>
 
@@ -37,7 +117,8 @@
         <ul class="nav-list">
             <li><a class="nav-link" href="#home" data-i18n="nav.home">Home</a></li>
             <li><a class="nav-link" href="#chi-siamo" data-i18n="nav.about">Chi siamo</a></li>
-            <li><a class="nav-link" href="#ristorante" data-i18n="nav.restaurant">Ristorante – Menu</a></li>
+            <li><a class="nav-link" href="#ristorante" data-i18n="nav.restaurant">Ristorante</a></li>
+            <li><a class="nav-link" href="menu.html" data-i18n="nav.menu">Menu</a></li>
             <li><a class="nav-link" href="#camere" data-i18n="nav.rooms">B&amp;B – Camere</a></li>
             <li><a class="nav-link" href="#prenotazioni" data-i18n="nav.booking">Prenotazioni camere</a></li>
             <li><a class="nav-link" href="#dove-siamo" data-i18n="nav.where">Dove siamo</a></li>
@@ -70,8 +151,12 @@
             <div class="hero-inner">
                 <p class="hero-kicker" data-i18n="hero.kicker">Marina di Pulsano · Taranto · Puglia</p>
                 <h1 class="hero-title">
-                    <img class="hero-logo" src="public/assets/img/logo-casa-mita.png" alt="Casa Mita"
-                         width="908" height="343">
+                    <!-- The logo image carries no keyword text: give crawlers and
+                         screen readers a real textual H1 and hide it visually. -->
+                    <span class="visually-hidden" data-i18n="hero.h1">Casa Mita: ristorante
+                        e bed &amp; breakfast a Marina di Pulsano</span>
+                    <img class="hero-logo" src="public/assets/img/logo-casa-mita.png" alt=""
+                         width="908" height="343" fetchpriority="high">
                 </h1>
                 <p class="hero-sub" data-i18n="hero.sub">Ristorante e bed &amp; breakfast a pochi metri dal mare:
                     buon cibo, camere accoglienti e l'ospitalità di una famiglia, dal 2013.</p>
@@ -113,7 +198,7 @@
             </div>
         </section>
 
-        <!-- ======================= RISTORANTE – MENU ======================= -->
+        <!-- ======================= RISTORANTE ======================= -->
         <section class="section section--tinted" id="ristorante">
             <div class="container">
                 <div class="section-head reveal">
@@ -176,43 +261,76 @@
                 </div>
 
                 <div class="section-head reveal" style="margin-top: 72px;">
-                    <h2 class="section-title" data-i18n="menu.title">I piatti della casa</h2>
-                    <p data-i18n="menu.intro">Il mare Jonio in tavola: qualche assaggio dei piatti che raccontano
-                        la nostra cucina.</p>
+                    <h2 class="section-title" data-i18n="dishes.title">I piatti della casa</h2>
+                    <p data-i18n="dishes.intro">Il mare Jonio in tavola: qualche assaggio dei piatti che
+                        raccontano la nostra cucina.</p>
                 </div>
 
-                <div class="menu-list reveal">
-                    <div class="menu-item">
-                        <h3 data-i18n="menu.d1t">Crudo di mare pugliese</h3>
-                        <p data-i18n="menu.d1p">Tutta la bontà del pescato del giorno, servito crudo secondo la
-                            tradizione pugliese.</p>
+                <!-- photo carousel: autoplay, arrows, dots and swipe live in src/carousel.js;
+                     the dots are generated there, one per slide -->
+                <div class="carousel reveal" id="dishes-carousel" role="region"
+                     aria-roledescription="carousel" aria-label="Galleria dei piatti della casa"
+                     data-i18n-label="dishes.carouselLabel">
+                    <div class="carousel-stage">
+                        <button class="carousel-arrow carousel-arrow--prev" type="button"
+                                aria-label="Foto precedente" data-i18n-label="dishes.prev">
+                            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="15 18 9 12 15 6"/>
+                            </svg>
+                        </button>
+
+                        <div class="carousel-viewport">
+                            <ul class="carousel-track">
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/piatto-gambero.jpg"
+                                         alt="Gambero gratinato servito su piatto azzurro"
+                                         data-i18n-alt="dishes.slide1alt" loading="lazy">
+                                </li>
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/piatto-gourmet.jpg"
+                                         alt="Piatto gourmet con calice di vino"
+                                         data-i18n-alt="dishes.slide2alt" loading="lazy">
+                                </li>
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/saute-cozze-vongole.jpg"
+                                         alt="Sauté di cozze e vongole con crostini di pane"
+                                         data-i18n-alt="dishes.slide3alt" loading="lazy">
+                                </li>
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/spaghetti-vongole.jpg"
+                                         alt="Spaghetti alle vongole serviti al tavolo"
+                                         data-i18n-alt="dishes.slide4alt" loading="lazy">
+                                </li>
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/gran-crudo-di-mare.jpg"
+                                         alt="Gran piatto di crudo di mare con ostriche, scampi e gamberi"
+                                         data-i18n-alt="dishes.slide5alt" loading="lazy">
+                                </li>
+                                <li class="carousel-slide">
+                                    <img src="public/assets/img/focaccia-teglia.jpg"
+                                         alt="Focaccia pugliese con pomodorini e olive pronta per il forno"
+                                         data-i18n-alt="dishes.slide6alt" loading="lazy">
+                                </li>
+                            </ul>
+                        </div>
+
+                        <button class="carousel-arrow carousel-arrow--next" type="button"
+                                aria-label="Foto successiva" data-i18n-label="dishes.next">
+                            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="menu-item">
-                        <h3 data-i18n="menu.d2t">Paccheri con la cernia</h3>
-                        <p data-i18n="menu.d2p">Il pranzo dell'estate made in Casa Mita: un primo gustoso e
-                            leggero per gli amanti del pesce.</p>
-                    </div>
-                    <div class="menu-item">
-                        <h3 data-i18n="menu.d3t">Scampi</h3>
-                        <p data-i18n="menu.d3p">Da gustare crudi, insieme agli altri frutti di mare, o cotti in un
-                            primo dal sapore del mare.</p>
-                    </div>
-                    <div class="menu-item">
-                        <h3 data-i18n="menu.d4t">Focaccia pugliese</h3>
-                        <p data-i18n="menu.d4p">Un vero comfort food: la ricetta della tradizione, fragrante e
-                            dorata.</p>
-                    </div>
+
+                    <div class="carousel-dots" role="group" aria-label="Scegli la foto da mostrare"
+                         data-i18n-label="dishes.dotsLabel"></div>
                 </div>
 
-                <div class="photo-grid photo-grid--2 reveal">
-                    <img src="public/assets/img/piatto-gambero.jpg" alt="Gambero gratinato servito su piatto azzurro"
-                         data-i18n-alt="menu.dish1alt" loading="lazy">
-                    <img src="public/assets/img/piatto-gourmet.jpg" alt="Piatto gourmet con calice di vino"
-                         data-i18n-alt="menu.dish2alt" loading="lazy">
+                <div class="section-cta reveal">
+                    <a class="btn btn--teal" href="menu.html" data-i18n="restaurant.ctaMenu">Sfoglia il menu</a>
                 </div>
-
-                <p class="menu-note reveal" data-i18n="menu.note">Il menu segue il pescato e le stagioni:
-                    chiedici i piatti del giorno.</p>
             </div>
         </section>
 
@@ -470,6 +588,17 @@
                             Apri l'indirizzo su Google Maps</a>
                     </div>
                 </div>
+
+                <!-- GDPR consent gate: no iframe in the HTML — where-map.js creates it
+                     only after the visitor accepts (here or from the cookie banner) -->
+                <div class="where-map reveal" id="where-map">
+                    <div class="consent-gate-placeholder">
+                        <p class="consent-gate-text" data-i18n="where.mapConsent">Per mostrare la mappa
+                            interattiva serve il tuo consenso: al caricamento il browser si collega ai
+                            server di Google (Google Maps), che possono impostare cookie di terze parti.</p>
+                        <button class="consent-gate-btn" data-i18n="where.mapConsentBtn">Accetta e mostra la mappa</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -483,28 +612,41 @@
                         qualsiasi informazione siamo sempre a disposizione.</p>
                 </div>
 
+                <!-- Every card is one big link: the whole tile is the tap target,
+                     so the inner value is plain text (an <a> cannot nest an <a>). -->
                 <div class="contact-grid">
-                    <div class="contact-card reveal">
+                    <a class="contact-card reveal" href="mailto:info@ristorantealbergocasamita.it">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <rect x="2" y="4" width="20" height="16" rx="2"/>
                             <polyline points="22,6 12,13 2,6"/>
                         </svg>
                         <h3 data-i18n="contacts.emailTitle">Email</h3>
-                        <a href="mailto:info@ristorantealbergocasamita.it">info@ristorantealbergocasamita.it</a>
-                    </div>
+                        <span class="contact-value">info@ristorantealbergocasamita.it</span>
+                    </a>
 
-                    <div class="contact-card reveal">
+                    <a class="contact-card reveal" href="tel:+393929847501">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                        <h3 data-i18n="contacts.mobileTitle">Cellulare</h3>
+                        <span class="contact-value">+39 392 984 7501</span>
+                    </a>
+
+                    <a class="contact-card reveal" href="tel:+390995336177">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                         </svg>
-                        <h3 data-i18n="contacts.phoneTitle">Telefono</h3>
-                        <a href="tel:+393929847501">+39 392 984 7501</a>
-                        <a href="tel:+390995336177">+39 099 533 6177</a>
-                    </div>
+                        <h3 data-i18n="contacts.landlineTitle">Telefono fisso</h3>
+                        <span class="contact-value">+39 099 533 6177</span>
+                    </a>
 
-                    <div class="contact-card reveal">
+                    <a class="contact-card reveal"
+                       href="https://www.google.com/maps/search/?api=1&query=Ristorante%20Albergo%20Casa%20Mita%2C%20Marina%20di%20Pulsano"
+                       target="_blank" rel="noopener noreferrer">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
@@ -512,20 +654,23 @@
                         </svg>
                         <h3 data-i18n="contacts.addressTitle">Indirizzo</h3>
                         <p>Contrada Rotondella,<br>Viale del Posto, 16<br>Marina di Pulsano (TA)</p>
-                    </div>
+                        <span class="contact-value" data-i18n="contacts.addressLink">Apri su Google Maps</span>
+                    </a>
 
-                    <div class="contact-card reveal">
+                    <a class="contact-card reveal"
+                       href="https://www.facebook.com/casamitaristorantebedandbreakfast"
+                       target="_blank" rel="noopener noreferrer">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <path d="M17 2a5 5 0 0 0-5 5v3H9v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
                                   transform="translate(-2 0)"/>
                         </svg>
                         <h3>Facebook</h3>
-                        <a href="https://www.facebook.com/casamitaristorantebedandbreakfast" target="_blank"
-                           rel="noopener noreferrer">Casa Mita Ristorante Bed and Breakfast</a>
-                    </div>
+                        <span class="contact-value">Casa Mita Ristorante Bed and Breakfast</span>
+                    </a>
 
-                    <div class="contact-card reveal">
+                    <a class="contact-card reveal" href="https://www.instagram.com/casamita_beb/"
+                       target="_blank" rel="noopener noreferrer">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
@@ -533,9 +678,8 @@
                             <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
                         </svg>
                         <h3>Instagram</h3>
-                        <a href="https://www.instagram.com/casamita_beb/" target="_blank"
-                           rel="noopener noreferrer">@casamita_beb</a>
-                    </div>
+                        <span class="contact-value">@casamita_beb</span>
+                    </a>
                 </div>
             </div>
         </section>
@@ -544,10 +688,128 @@
     <!-- ======================= FOOTER ======================= -->
     <footer class="footer">
         <div class="container">
-            <p>© <span id="footer-year">2026</span> <span data-i18n="footer.copy">Casa Mita — Ristorante e B&amp;B,
-                Marina di Pulsano (TA)</span></p>
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <p class="footer-title">Casa Mita</p>
+                    <p data-i18n="footer.tagline">Ristorante e bed &amp; breakfast a Marina di Pulsano.</p>
+                </div>
+
+                <div>
+                    <h3 class="footer-heading" data-i18n="footer.contactsTitle">Contatti</h3>
+                    <ul class="footer-contacts">
+                        <li>
+                            <a href="mailto:info@ristorantealbergocasamita.it">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                                info@ristorantealbergocasamita.it
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tel:+393929847501">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                    <line x1="12" y1="18" x2="12.01" y2="18"/>
+                                </svg>
+                                +39 392 984 7501
+                            </a>
+                        </li>
+                        <li>
+                            <a href="tel:+390995336177">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                                </svg>
+                                +39 099 533 6177
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="footer-heading" data-i18n="footer.followTitle">Seguici</h3>
+                    <div class="footer-social">
+                        <a href="https://www.facebook.com/casamitaristorantebedandbreakfast" target="_blank"
+                           rel="noopener noreferrer" aria-label="Facebook">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                            </svg>
+                        </a>
+                        <a href="https://www.instagram.com/casamita_beb/" target="_blank"
+                           rel="noopener noreferrer" aria-label="Instagram">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mandatory business information: VAT no. on the home page (art. 35
+                 D.P.R. 633/1972), identification data (art. 7 D.Lgs. 70/2003),
+                 company registry data (art. 2250 c.c.) and the CIN required for
+                 accommodation listings (art. 13-ter D.L. 145/2023).
+                 TODO before go-live: replace every [DA COMPLETARE] placeholder
+                 (here, in the EN strings of constants.js and in privacy.html),
+                 confirm the registered office and drop the Registro Imprese/REA/
+                 capitale sociale line if the business is not a company. -->
+            <div class="footer-legal">
+                <p data-i18n="footer.legalName">[Ragione sociale esatta — DA COMPLETARE] —
+                    P.IVA: [DA COMPLETARE]</p>
+                <p data-i18n="footer.legalSeat">Sede legale: Contrada Rotondella, Viale del Posto, 16 —
+                    Marina di Pulsano (TA), Italia</p>
+                <p data-i18n="footer.legalRegister">Registro Imprese di Taranto — REA: TA-[DA COMPLETARE] —
+                    Capitale sociale: [DA COMPLETARE]</p>
+                <p data-i18n="footer.legalCin">CIN: [DA COMPLETARE] — CIS Puglia: [DA COMPLETARE]</p>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© <span id="footer-year">2026</span> <span data-i18n="footer.copy">Casa Mita — Ristorante e B&amp;B,
+                    Marina di Pulsano (TA)</span></p>
+                <a href="privacy.html" data-i18n="footer.privacy">Privacy &amp; Cookie Policy</a>
+                <p class="footer-credit">Developed by
+                    <a href="https://www.linkedin.com/in/samuel-lazzaro/" target="_blank"
+                       rel="noopener noreferrer">Samuel Lazzaro</a></p>
+            </div>
         </div>
     </footer>
+
+    <!-- cookie banner: hidden by default, shown by cookie-banner.js when no choice is stored -->
+    <div class="cookie-banner" id="cookie-banner" role="dialog" aria-label="Preferenze cookie"
+         data-i18n-label="cookies.dialogLabel" hidden>
+        <p class="cookie-banner-text">
+            <span data-i18n="cookies.text">Questo sito non usa cookie di profilazione propri: nel tuo
+                browser salviamo solo preferenze tecniche (lingua e scelte sui cookie). La mappa di
+                Google Maps nella sezione «Dove siamo» si carica solo con il tuo consenso e può
+                impostare cookie di terze parti (Google). Maggiori informazioni:</span>
+            <a href="privacy.html" data-i18n="cookies.policyLink">Privacy &amp; Cookie Policy</a>
+        </p>
+        <div class="cookie-banner-actions">
+            <button class="btn btn--teal" type="button" id="cookie-accept-all"
+                    data-i18n="cookies.acceptAll">Accetta tutto</button>
+            <button class="btn btn--teal-outline" type="button" id="cookie-technical-only"
+                    data-i18n="cookies.technicalOnly">Solo tecnici</button>
+        </div>
+    </div>
+
+    <!-- cookie FAB: persistent entry point to review/revoke the consent choices -->
+    <button class="fab-cookie" id="fab-cookie" type="button" aria-label="Gestisci le preferenze cookie"
+            data-i18n-label="cookies.fabLabel">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-9-9 3 3 0 0 0 3 3 3 3 0 0 0 3 3 3 3 0 0 0 3 3z"/>
+            <line x1="8.5" y1="9.5" x2="8.51" y2="9.5"/>
+            <line x1="9.5" y1="14.5" x2="9.51" y2="14.5"/>
+            <line x1="14" y1="13.5" x2="14.01" y2="13.5"/>
+        </svg>
+    </button>
 
     <!-- language FAB: always shows the language you would switch TO -->
     <button class="fab-lang" id="fab-lang" type="button" aria-label="Switch to English"

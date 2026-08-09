@@ -61,8 +61,13 @@ function applyLanguage(lang) {
         }
     });
 
+    /*
+     * The document title is NOT set here: each page's <title> element
+     * carries its own data-i18n key (meta.title on the one-page,
+     * policy.metaTitle on privacy.html), so the generic [data-i18n] loop
+     * above already re-renders it via textContent.
+     */
     document.documentElement.lang = lang;
-    document.title = dictionary["meta.title"];
 
     // the FAB always shows the language you would switch TO
     const fabButton = document.getElementById("fab-lang");

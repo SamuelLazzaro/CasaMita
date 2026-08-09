@@ -141,6 +141,12 @@
     margin-top: 18px;
 }
 
+/* centered call-to-action row closing a section's content */
+.section-cta {
+    margin-top: 48px;
+    text-align: center;
+}
+
 /* ----- two-column split (photo + text) ----- */
 .split {
     display: grid;
@@ -216,20 +222,182 @@
 
 /* ==========================================================================
    Footer
+   Three stacked bands: brand + contacts + social columns, the mandatory
+   legal information (company data, VAT no., CIN) and the copyright row.
    ========================================================================== */
 .footer {
+    /* alpha-white shades shared across the bands so they dim consistently */
+    --footer-fg: rgba(255, 255, 255, 0.75);
+    --footer-fg-strong: rgba(255, 255, 255, 0.9);
+    --footer-divider: rgba(255, 255, 255, 0.16);
+    /* hover/tap accent for every footer link: the same teal the top bar
+       turns into once scrolled (.topbar--solid), shared by :hover and
+       .is-tapped so the two states never diverge */
+    --footer-link-accent: var(--c-teal);
     background: var(--c-heading);
-    color: rgba(255, 255, 255, 0.75);
-    padding: 28px 0;
+    color: var(--footer-fg);
+    padding: 56px 0 28px;
     font-size: 0.9rem;
 }
 
-.footer .container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 24px;
+.footer a {
+    color: var(--footer-fg-strong);
+    font-weight: 600;
+    transition: color var(--t-hover);
+}
+
+@media (pointer: fine) {
+    .footer a:hover {
+        color: var(--footer-link-accent);
+        text-decoration: underline;
+    }
+}
+
+.footer a.is-tapped {
+    color: var(--footer-link-accent);
+    text-decoration: underline;
+}
+
+/* ----- top band: brand, contacts and social columns ----- */
+.footer-grid {
+    display: grid;
+    gap: 36px;
+}
+
+@media (min-width: 720px) {
+    .footer-grid {
+        grid-template-columns: 1.2fr 1fr 0.8fr;
+        gap: var(--grid-gap);
+    }
+}
+
+.footer-title {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--c-white);
+    margin-bottom: 10px;
+}
+
+.footer-heading {
+    color: var(--c-white);
+    font-size: 1.05rem;
+    margin-bottom: 14px;
+}
+
+.footer-contacts li + li {
+    margin-top: 10px;
+}
+
+.footer-contacts a {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
+}
+
+.footer-contacts svg {
+    flex-shrink: 0;
+}
+
+.footer-social {
+    display: flex;
+    gap: 16px;
+}
+
+/* ----- middle band: mandatory legal information ----- */
+.footer-legal {
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--footer-divider);
+    font-size: 0.8rem;
+}
+
+.footer-legal p + p {
+    margin-top: 4px;
+}
+
+/* ----- bottom band: copyright, policy link, credit ----- */
+.footer-bottom {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--footer-divider);
+    /* centered column: keeps every line clear of the two FABs fixed in
+       the bottom corners, so nothing is covered when the page is
+       scrolled all the way down */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Privacy & Cookie Policy page (privacy.html)
+   Static inner page: solid topbar (class set in the markup, no scroll JS)
+   and a single text column.
+   ========================================================================== */
+.policy {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: calc(var(--topbar-h) + 48px) var(--pad-page) 88px;
+}
+
+.policy h1 {
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    margin-bottom: 6px;
+}
+
+.policy-updated {
+    font-style: italic;
+    color: var(--c-text-muted);
+    margin-bottom: 34px;
+}
+
+.policy h2 {
+    font-size: 1.4rem;
+    margin: 38px 0 12px;
+}
+
+.policy h3 {
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 22px 0 8px;
+}
+
+.policy p + p {
+    margin-top: 10px;
+}
+
+/* the global reset strips list markers; the policy lists need them back */
+.policy ul {
+    list-style: disc;
+    padding-left: 24px;
+    margin: 10px 0;
+}
+
+.policy li + li {
+    margin-top: 8px;
+}
+
+.policy a {
+    color: var(--c-teal-dark);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.policy code {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--c-teal-tint);
+    font-size: 0.88em;
+}
+
+/* the bracketed data still to be filled in by the owner (company name,
+   hosting provider) is wrapped in <mark> so it cannot go unnoticed */
+.policy mark {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #fff0b3;
 }
 
 /* ==========================================================================

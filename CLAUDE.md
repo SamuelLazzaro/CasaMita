@@ -33,6 +33,16 @@ Rifacimento completo di https://www.ristorantealbergocasamita.it/ mantenendone l
 - **Bilingue IT/EN** con i18n runtime stile CardanoSkating (attributi `data-i18n`).
 - **Hosting non ancora deciso**: solo file statici, nessuna dipendenza dall'hosting.
 - Font self-hosted (niente CDN esterne) in ottica GDPR.
+- **GDPR/cookie**: nessuna risorsa esterna al caricamento pagina. Google Maps
+  ("Dove siamo") è dietro il componente riusabile `consent-gate`
+  (`src/consent-gate.js` + `styles/consent-gate.css`, copiato da
+  `D:\Personal\Claude\components\consent-gate\`), chiave `casamita-maps-consent`.
+  Banner cookie ("Accetta tutto" / "Solo tecnici", scelta salvata in
+  `casamita-cookie-consent`) e FAB cookie di revoca: vanno inclusi in **ogni**
+  pagina (markup in fondo a `privacy.html`/`index.html`, init `initCookieBanner()`).
+  `privacy.html` contiene la Privacy & Cookie Policy (i18n): i segnaposto `<mark>`
+  (ragione sociale/P.IVA e hosting) vanno completati prima della pubblicazione, e la
+  policy va tenuta allineata a chiavi localStorage e servizi terzi reali.
 
 ## Convenzioni
 

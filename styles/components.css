@@ -1,6 +1,7 @@
 /* ==========================================================================
    components.css — reusable components: hamburger, off-canvas nav, buttons,
-   cards, service tiles, room list, booking form, language FAB.
+   cards, service tiles, room list, booking form, FABs (language, cookie),
+   cookie banner, consent-gate theming.
    All :hover rules are wrapped in @media (pointer: fine) so they never
    stick on touch devices. Right below each of those blocks sits the touch
    counterpart: the same look bound to .is-tapped, the class
@@ -143,6 +144,14 @@
     transition: color 0.2s ease, transform 0.2s ease;
 }
 
+/* the nav entry of the page being viewed (used on menu.html, where the
+   "Menu" voice points to the page itself) */
+.nav-link[aria-current="page"] {
+    text-decoration: underline;
+    text-underline-offset: 8px;
+    text-decoration-thickness: 2px;
+}
+
 .nav-social {
     margin-top: auto;
     padding-top: 24px;
@@ -186,6 +195,31 @@
 .btn--teal {
     background: var(--c-teal);
     color: var(--c-white);
+}
+
+/* outlined sibling of .btn--teal (e.g. "Solo tecnici" in the cookie
+   banner). Same size and weight as the filled one on purpose: the two
+   consent choices must keep equal visual prominence (EDPB 3/2022). */
+.btn--teal-outline {
+    /* 2px less than .btn's padding: the border must not make this pill
+       taller or wider than its filled sibling */
+    padding: 12px 30px;
+    border: 2px solid var(--c-teal);
+    background: var(--c-white);
+    color: var(--c-teal);
+}
+
+/* compact ghost pill for the solid-teal topbar of the inner pages
+   (e.g. the "back to the site" link on privacy.html) */
+.topbar-back {
+    padding: 8px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    border-radius: 999px;
+    color: var(--c-white);
+    font-weight: 600;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    transition: background-color var(--t-hover);
 }
 
 /* ==========================================================================
@@ -270,31 +304,92 @@
 }
 
 /* ==========================================================================
-   Menu list (piatti della casa)
+   Dishes carousel (ristorante) — one full-width photo per slide, moved by
+   translating the flex track. Autoplay, arrows, dots and swipe behaviour
+   live in src/carousel.js; only the look is here.
    ========================================================================== */
-.menu-list {
-    max-width: 720px;
+.carousel {
+    max-width: 760px;
     margin: 0 auto;
+}
+
+/* positioning context for the arrows: the dots live outside of it, so
+   the arrows center on the photo alone */
+.carousel-stage {
+    position: relative;
+}
+
+.carousel-viewport {
+    overflow: hidden;
+    border-radius: var(--radius-card);
+}
+
+.carousel-track {
     display: flex;
-    flex-direction: column;
-    gap: 26px;
+    transition: transform 0.5s ease;
 }
 
-.menu-item {
-    padding-bottom: 22px;
-    border-bottom: 1px dashed var(--c-border);
+.carousel-slide {
+    flex: 0 0 100%;
 }
 
-.menu-item h3 {
-    font-size: 1.25rem;
-    margin-bottom: 6px;
+.carousel-slide img {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
 }
 
-.menu-note {
-    margin-top: 34px;
-    text-align: center;
-    font-style: italic;
-    color: var(--c-teal);
+.carousel-arrow {
+    /* background shared by :hover and .is-tapped so the two states match */
+    --carousel-arrow-hover-bg: rgba(0, 0, 0, 0.6);
+
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--c-white);
+    transform: translateY(-50%);
+    transition: background-color var(--t-hover);
+}
+
+.carousel-arrow--prev {
+    left: 14px;
+}
+
+.carousel-arrow--next {
+    right: 14px;
+}
+
+.carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.carousel-dot {
+    /* color shared by :hover and .is-tapped so the two states match */
+    --carousel-dot-hover-bg: var(--c-teal-light);
+
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    /* --c-teal at low alpha: visible on the tinted section background
+       without competing with the active dot */
+    background: rgba(35, 122, 135, 0.3);
+    transition: background-color var(--t-hover), transform var(--t-hover);
+}
+
+/* the dot of the slide currently on screen */
+.carousel-dot[aria-current="true"] {
+    background: var(--c-teal);
+    transform: scale(1.25);
 }
 
 /* ==========================================================================
@@ -323,13 +418,6 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 14px;
     margin-top: 48px;
-}
-
-.photo-grid--2 {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 860px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .services-grid {
@@ -465,7 +553,7 @@
     grid-column: 1 / -1;
     font-size: 0.82rem;
     line-height: 1.5;
-    color: #767676;
+    color: var(--c-text-muted);
 }
 
 .booking-form .btn {
@@ -478,12 +566,33 @@
 /* ==========================================================================
    Contact cards
    ========================================================================== */
-/* Same flat teal-wash treatment as .service-tile */
+/* Same flat teal-wash treatment as .service-tile, but each card is an <a>:
+   the whole tile is the tap target, not just the value line inside it. */
 .contact-card {
+    /* The three values of the raised state, shared by :hover and .is-tapped
+       below so the pointer and the touch feedback can never drift apart. */
+    --contact-card-hover-bg: #d3e4e7;          /* --c-teal-tint, one step deeper */
+    --contact-card-hover-lift: -4px;
+    --contact-card-hover-shadow: 0 14px 28px rgba(35, 122, 135, 0.18); /* --c-teal at 18% */
+
+    display: block;
     background: var(--c-teal-tint);
     border-radius: var(--radius-card);
     padding: 28px 24px;
     text-align: center;
+    /* These cards also carry .reveal, whose transition is declared on this
+       same element in main.css; components.css loads later and wins the
+       equal-specificity tie, so the reveal timings have to be restated here
+       or the scroll-reveal would snap in with no animation.
+       For the same reason the lift rides on the standalone `translate`
+       property rather than on `transform`, which .reveal already owns: the
+       two compose at render time, so each keeps its own timing instead of
+       overwriting the other. */
+    transition: background var(--t-hover),
+                box-shadow var(--t-hover),
+                translate var(--t-hover),
+                opacity var(--t-reveal),
+                transform var(--t-reveal);
 }
 
 .contact-card svg {
@@ -491,6 +600,7 @@
     height: 30px;
     margin: 0 auto 12px;
     stroke: var(--c-teal);
+    transition: stroke var(--t-hover), scale var(--t-hover);
 }
 
 .contact-card h3 {
@@ -500,10 +610,13 @@
     margin-bottom: 8px;
 }
 
-.contact-card a {
+/* The value line: no longer a link of its own, but still the part that
+   carries the accent color and reacts to the card's hover. */
+.contact-value {
     display: block;
     /* --c-teal on the teal-tint background is ~4.3:1, below the 4.5:1
-       WCAG AA minimum for normal text; --c-teal-dark reaches ~6.2:1 */
+       WCAG AA minimum for normal text; --c-teal-dark reaches ~6.2:1
+       (~5.6:1 on the deeper hover wash, still above the minimum) */
     color: var(--c-teal-dark);
     font-weight: 600;
 }
@@ -512,17 +625,29 @@
     font-size: 0.95rem;
 }
 
+/* only the address card has both: the postal address, then the call to
+   action that says where the card leads */
+.contact-card p + .contact-value {
+    margin-top: 10px;
+}
+
 /* ==========================================================================
-   Language FAB — always shows the language you would switch TO
+   FABs — language switch (always shows the language you would switch TO)
+   in the bottom-right corner and cookie preferences (persistent
+   consent-revocation entry point) mirrored in the bottom-left one
    ========================================================================== */
-.fab-lang {
+.fab-lang,
+.fab-cookie {
+    --fab-size: 52px;
+    --fab-edge-gap: 20px;
+
     position: fixed;
-    right: calc(20px + var(--scrollbar-comp));
-    bottom: 20px;
+    right: calc(var(--fab-edge-gap) + var(--scrollbar-comp));
+    bottom: var(--fab-edge-gap);
     /* above the nav overlay/panel and the topbar, like in CardanoSkating */
     z-index: 130;
-    width: 52px;
-    height: 52px;
+    width: var(--fab-size);
+    height: var(--fab-size);
     border-radius: 50%;
     background: var(--c-teal);
     color: var(--c-white);
@@ -530,6 +655,105 @@
     font-size: 0.95rem;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
     transition: background-color var(--t-hover), transform var(--t-hover);
+}
+
+.fab-cookie {
+    /* hover/tap share the resting values through these properties so the
+       two states cannot drift apart */
+    --fab-cookie-bg: rgba(255, 255, 255, 0.55);
+    --fab-cookie-bg-active: var(--c-teal-tint);
+
+    /* mirrored to the bottom-left corner. No --scrollbar-comp here: the
+       compensation only concerns right-anchored fixed elements, the left
+       edge does not move when the scrollbar vanishes. */
+    right: auto;
+    left: var(--fab-edge-gap);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* translucent look: the page content stays visible underneath */
+    background: var(--fab-cookie-bg);
+    border: 2px solid var(--c-teal);
+    color: var(--c-teal);
+}
+
+/* ==========================================================================
+   Cookie banner (see cookie-banner.js)
+   Shown on the first visit only. Both choices deliberately share the same
+   .btn--teal look: equal visual prominence, no dark patterns (EDPB 3/2022).
+   ========================================================================== */
+.cookie-banner {
+    position: fixed;
+    inset: auto 0 0 0;
+    /* above every other fixed element (FABs sit at 130): nothing may
+       cover the consent request */
+    z-index: 140;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 16px 32px;
+    padding: 18px var(--pad-page);
+    background: var(--c-white);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* the display: flex above would defeat the hidden attribute */
+.cookie-banner[hidden] {
+    display: none;
+}
+
+.cookie-banner-text {
+    max-width: 640px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.cookie-banner-text a {
+    color: var(--c-teal-dark);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.cookie-banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* ==========================================================================
+   "Dove siamo" map — Casa Mita theming of the consent gate (component
+   styles in consent-gate.css, wiring in where-map.js). Everything goes
+   through the --cg-* custom properties the component exposes.
+   ========================================================================== */
+.where-map {
+    /* one height shared by placeholder and iframe: accepting the map
+       causes no layout shift */
+    --cg-height: 450px;
+
+    margin-top: 56px;
+}
+
+.where-map .consent-gate-placeholder {
+    --cg-min-height: var(--cg-height);
+    --cg-bg: var(--c-white);
+    --cg-border: 1px dashed var(--c-teal);
+    --cg-radius: var(--radius-card);
+    --cg-text-size: 0.95rem;
+}
+
+.where-map .consent-gate-btn {
+    --cg-btn-bg: var(--c-teal);
+    --cg-btn-bg-active: var(--c-teal-dark);
+    --cg-btn-radius: 999px;
+    --cg-btn-padding: 12px 28px;
+    --cg-btn-font-size: 0.92rem;
+    --cg-btn-transition: var(--t-hover);
+}
+
+.where-map .consent-gate-iframe {
+    border-radius: var(--radius-card);
 }
 
 /* ==========================================================================
@@ -546,6 +770,7 @@
     }
 
     .nav-social a:hover {
+		color: var(--c-teal-tint);
         transform: translateY(var(--nav-social-hover-lift));
     }
 
@@ -562,6 +787,15 @@
     .btn--teal:hover {
         background: var(--c-teal-dark);
         transform: translateY(-2px);
+    }
+
+    .btn--teal-outline:hover {
+        background: var(--c-teal-tint);
+        transform: translateY(-2px);
+    }
+
+    .topbar-back:hover {
+        background: rgba(255, 255, 255, 0.14);
     }
 
     /* Immersive card reveal — fine pointers only. The description sits
@@ -611,13 +845,39 @@
         filter: brightness(0.72);
     }
 
-    .contact-card a:hover {
+    /* The whole tile is the link, so the whole tile reacts: it lifts off
+       the page, deepens its wash and turns the icon to the darker teal. */
+    .contact-card:hover {
+        background: var(--contact-card-hover-bg);
+        translate: 0 var(--contact-card-hover-lift);
+        box-shadow: var(--contact-card-hover-shadow);
+    }
+
+    .contact-card:hover svg {
+        stroke: var(--c-teal-dark);
+        scale: 1.08;
+    }
+
+    .contact-card:hover .contact-value {
         text-decoration: underline;
     }
 
     .fab-lang:hover {
         background: var(--c-teal-dark);
         transform: translateY(-2px);
+    }
+
+    .fab-cookie:hover {
+        background: var(--fab-cookie-bg-active);
+        transform: translateY(-2px);
+    }
+
+    .carousel-arrow:hover {
+        background: var(--carousel-arrow-hover-bg);
+    }
+
+    .carousel-dot:hover {
+        background: var(--carousel-dot-hover-bg);
     }
 }
 
@@ -636,6 +896,7 @@
 }
 
 .nav-social a.is-tapped {
+	color: var(--c-teal-tint);
     transform: translateY(var(--nav-social-hover-lift));
 }
 
@@ -651,12 +912,44 @@
     background: var(--c-teal-dark);
 }
 
-.contact-card a.is-tapped {
+.btn--teal-outline.is-tapped {
+    background: var(--c-teal-tint);
+}
+
+.topbar-back.is-tapped {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.contact-card.is-tapped {
+    background: var(--contact-card-hover-bg);
+    translate: 0 var(--contact-card-hover-lift);
+    box-shadow: var(--contact-card-hover-shadow);
+}
+
+.contact-card.is-tapped svg {
+    stroke: var(--c-teal-dark);
+    scale: 1.08;
+    transition: all var(--t-tap);
+}
+
+.contact-card.is-tapped .contact-value {
     text-decoration: underline;
 }
 
 .fab-lang.is-tapped {
     background: var(--c-teal-dark);
+}
+
+.fab-cookie.is-tapped {
+    background: var(--fab-cookie-bg-active);
+}
+
+.carousel-arrow.is-tapped {
+    background: var(--carousel-arrow-hover-bg);
+}
+
+.carousel-dot.is-tapped {
+    background: var(--carousel-dot-hover-bg);
 }
 
 /* With reduced motion the hover reveal would snap open instead of
@@ -697,5 +990,38 @@
 
     .photo-grid {
         grid-template-columns: 1fr 1fr;
+    }
+
+    /* taller photo crop and smaller controls on phones */
+    .carousel-slide img {
+        aspect-ratio: 4 / 3;
+    }
+
+    .carousel-arrow {
+        width: 38px;
+        height: 38px;
+    }
+
+    .carousel-arrow--prev {
+        left: 10px;
+    }
+
+    .carousel-arrow--next {
+        right: 10px;
+    }
+
+    /* stacked, full-width consent buttons (both still equally prominent) */
+    .cookie-banner-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .cookie-banner-actions .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .where-map {
+        --cg-height: 380px;
     }
 }

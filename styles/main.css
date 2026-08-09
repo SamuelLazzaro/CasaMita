@@ -41,6 +41,7 @@
     --c-off-white: #f7f5f5;    /* alternate section background         */
     --c-white: #ffffff;
     --c-text: #4a4a4a;         /* body text                            */
+    --c-text-muted: #767676;   /* de-emphasised notes and fine print   */
     --c-heading: #24333a;      /* near-black with a cold cast          */
     --c-border: #e2e2e2;
 
@@ -157,6 +158,19 @@ section[id] {
 
 .skip-link:focus {
     top: 12px;
+}
+
+/* Visually hidden but still exposed to screen readers and crawlers */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
 }
 
 :focus-visible {

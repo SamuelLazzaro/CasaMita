@@ -55,6 +55,10 @@ function buildEmailBody(data) {
  */
 export function initBookingForm() {
     const form = document.getElementById("booking-form");
+    if (form === null) {
+        // pages other than the one-page (e.g. menu.html) have no booking form
+        return;
+    }
     const dateError = document.getElementById("booking-date-error");
     const checkinField = form.elements.namedItem("checkin");
     const checkoutField = form.elements.namedItem("checkout");

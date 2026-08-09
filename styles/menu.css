@@ -1,0 +1,122 @@
+/* ==========================================================================
+   menu.css — styles used only by menu.html: the teal page hero and the
+   typographic menu (course sections with dish rows, dotted leaders and
+   right-aligned prices). Loaded on top of main/layout/components.
+   ========================================================================== */
+
+/* ==========================================================================
+   Page hero — plain teal band under the fixed top bar.
+   The one-page hero is a photo under a teal veil; here a solid teal band
+   plays the same role, keeping the white-on-transparent logo of the
+   (initially transparent) top bar visible before any scroll.
+   ========================================================================== */
+.page-hero {
+    background: var(--c-teal);
+    padding: calc(var(--topbar-h) + 56px) var(--pad-page) 64px;
+    text-align: center;
+}
+
+.page-hero-kicker {
+    color: var(--c-white);
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    opacity: 0.92;
+}
+
+.page-hero-title {
+    margin-top: 12px;
+    color: var(--c-white);
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    font-weight: 700;
+}
+
+.page-hero-sub {
+    max-width: 620px;
+    margin: 16px auto 0;
+    color: var(--c-white);
+    opacity: 0.94;
+}
+
+/* ==========================================================================
+   Menu column — one centered reading column holding the course sections,
+   the closing note and the back-home CTA
+   ========================================================================== */
+.menu-col {
+    /* vertical rhythm between courses (and before the closing note) */
+    --menu-course-gap: 72px;
+
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+/* ----- course sections ----- */
+.menu-section + .menu-section {
+    margin-top: var(--menu-course-gap);
+}
+
+.menu-section-title {
+    text-align: center;
+    font-size: 1.7rem;
+    margin-bottom: 36px;
+}
+
+/* short teal stroke under each course title */
+.menu-section-title::after {
+    content: "";
+    display: block;
+    width: 56px;
+    height: 3px;
+    margin: 14px auto 0;
+    border-radius: 2px;
+    background: var(--c-teal-light);
+}
+
+/* ----- dishes ----- */
+.dish-list {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* name + dotted leader + price on one baseline-aligned row */
+.dish-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.dish-name {
+    font-size: 1.2rem;
+}
+
+/* The leader is an empty flex item taking all the space between name and
+   price. With height: 0 its flex baseline is synthesised from the bottom
+   of its box, so the dotted border sits right on the text baseline. */
+.dish-dots {
+    flex: 1;
+    min-width: 28px;
+    height: 0;
+    border-bottom: 2px dotted var(--c-border);
+}
+
+.dish-price {
+    font-weight: 600;
+    color: var(--c-teal-dark);
+    white-space: nowrap;
+}
+
+.dish-desc {
+    margin-top: 6px;
+    font-size: 0.95rem;
+    max-width: 560px;
+}
+
+/* ----- closing note (the menu follows catch and seasons) ----- */
+.menu-note {
+    margin-top: var(--menu-course-gap);
+    text-align: center;
+    font-style: italic;
+    color: var(--c-teal);
+}
