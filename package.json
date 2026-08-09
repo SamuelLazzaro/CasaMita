@@ -1,0 +1,10 @@
+{
+  "name": "casa-mita-website",
+  "version": "0.1.0",
+  "description": "One-page website for Casa Mita, restaurant & B&B in Marina di Pulsano (TA), Puglia",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes serve -l 3000 ."
+  }
+}
