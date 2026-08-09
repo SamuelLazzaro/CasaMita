@@ -1,29 +1,72 @@
 /* ==========================================================================
-   main.css — design tokens and base styles for the Casa Mita website.
+   main.css — design tokens, fonts, reset and shared utilities.
 
    The palette mirrors the live site (ristorantealbergocasamita.it), whose
    brand colors were extracted from its Elementor kit and inline styles.
    The white-on-transparent logo only works on the teal background.
    ========================================================================== */
 
-:root {
-    /* ── Palette (from the live site) ─────────────────────── */
-    --c-teal: #237a87;        /* primary brand color            */
-    --c-teal-light: #1a87a6;  /* secondary teal (kit Elementor) */
-    --c-off-white: #f7f5f5;   /* section backgrounds            */
-    --c-text: #4a4a4a;        /* body text                      */
-    --c-white: #ffffff;
-
-    /* ── Layout ───────────────────────────────────────────── */
-    --top-bar-height: 70px;
-    --max-w: 1100px;
-
-    /* ── Motion ───────────────────────────────────────────── */
-    --t-hover: 0.25s ease;
-    --t-tap: 0.15s ease;
+/* ----- Self-hosted fonts (no external CDN, GDPR-friendly) ----- */
+@font-face {
+    font-family: "Playfair Display";
+    font-style: normal;
+    font-weight: 600 700; /* variable file covering both weights */
+    font-display: swap;
+    src: url("../public/assets/fonts/playfair-display-latin-var.woff2") format("woff2");
 }
 
-/* ── Reset ─────────────────────────────────────────────────── */
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../public/assets/fonts/inter-v20-latin-regular.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url("../public/assets/fonts/inter-v20-latin-600.woff2") format("woff2");
+}
+
+/* ----- Design tokens ----- */
+:root {
+    /* colors — from the live site */
+    --c-teal: #237a87;         /* primary brand color                  */
+    --c-teal-dark: #1b5f6a;    /* darkened teal for hover states       */
+    --c-teal-light: #1a87a6;   /* secondary teal (Elementor kit)       */
+    --c-teal-tint: #e4f0f2;    /* barely-there teal wash for surfaces  */
+    --c-off-white: #f7f5f5;    /* alternate section background         */
+    --c-white: #ffffff;
+    --c-text: #4a4a4a;         /* body text                            */
+    --c-heading: #24333a;      /* near-black with a cold cast          */
+    --c-border: #e2e2e2;
+
+    /* typography */
+    --font-display: "Playfair Display", Georgia, serif;
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* layout */
+    --topbar-h: 72px;
+    --container-w: 1140px;
+    --pad-page: 24px;
+    --section-pad-y: 88px;
+    --grid-gap: 28px;
+    /* width of the classic scrollbar while page scroll is locked
+       (menu open); published by ui.js so body and the right-anchored
+       fixed elements can compensate and not shift */
+    --scrollbar-comp: 0px;
+
+    /* motion */
+    --t-hover: 0.3s ease;
+    --t-fade: 0.35s ease;
+    --t-reveal: 0.65s ease;
+    --t-tap: 0.25s ease;
+}
+
+/* ----- Reset ----- */
 *,
 *::before,
 *::after {
@@ -44,13 +87,23 @@ html {
 }
 
 body {
-    background: var(--c-off-white);
+    padding-right: var(--scrollbar-comp);
+    background: var(--c-white);
     color: var(--c-text);
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100dvh;
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--font-display);
+    color: var(--c-heading);
+    line-height: 1.15;
 }
 
 a {
@@ -64,7 +117,6 @@ ul {
 
 img {
     max-width: 100%;
-    max-height: 100%;
     display: block;
 }
 
@@ -74,4 +126,94 @@ button {
     border: none;
     background: none;
     color: inherit;
+}
+
+.container {
+    max-width: var(--container-w);
+    margin: 0 auto;
+    padding: 0 var(--pad-page);
+}
+
+/* Anchored sections stop below the fixed top bar */
+section[id] {
+    scroll-margin-top: var(--topbar-h);
+}
+
+/* ----- Accessibility helpers ----- */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 16px;
+    z-index: 200;
+    padding: 10px 18px;
+    background: var(--c-teal);
+    color: var(--c-white);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 12px;
+}
+
+:focus-visible {
+    outline: 3px solid var(--c-teal-light);
+    outline-offset: 3px;
+}
+
+/* ==========================================================================
+   Scroll-reveal utility
+   Elements start hidden and slide up when .is-visible is added by JS.
+   .no-anim reveals instantly (used when jumping to a section via the menu).
+   ========================================================================== */
+.reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity var(--t-reveal), transform var(--t-reveal);
+}
+
+.reveal.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+.reveal.no-anim {
+    transition: none;
+}
+
+/* ==========================================================================
+   Touch tap feedback utility
+   Touch screens have no :hover and the native tap highlight is switched
+   off above, so a tap would give no confirmation that the intended element
+   was hit. js/tap-feedback.js adds .is-tapped to the tapped element, waits
+   TAP_FEEDBACK_MS and only then runs the click action. What the class looks
+   like is up to each component: the rules sit next to the component's
+   @media (pointer: fine) block, so touch shows the same accent the pointer
+   does. `!important` because several components declare their transition on
+   a more specific selector. */
+.is-tapped {
+    transition: all var(--t-tap) !important;
+}
+
+/* ==========================================================================
+   Reduced motion: no smooth scroll, no reveal sliding — content is
+   simply visible.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }

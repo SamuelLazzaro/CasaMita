@@ -1,0 +1,246 @@
+/* ==========================================================================
+   layout.css — page skeleton: top bar, hero, section layouts, grids, footer.
+   Components (hamburger, nav panel, buttons, cards, form) live in
+   components.css.
+   ========================================================================== */
+
+/* ==========================================================================
+   Top bar — transparent over the hero, solid teal after scrolling
+   ========================================================================== */
+.topbar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 100;
+    height: var(--topbar-h);
+    padding: 0 max(var(--pad-page), calc((100% - var(--container-w)) / 2));
+    padding-right: calc(max(var(--pad-page), (100% - var(--container-w)) / 2) + var(--scrollbar-comp));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: transparent;
+    transition: background-color var(--t-fade), box-shadow var(--t-fade);
+}
+
+.topbar--solid {
+    background: var(--c-teal);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 10px 0;
+}
+
+.brand-logo {
+    height: 100%;
+    width: auto;
+}
+
+/* ==========================================================================
+   Hero — full viewport, photo background under a teal veil
+   ========================================================================== */
+.hero {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background:
+        linear-gradient(rgba(27, 74, 82, 0.55), rgba(27, 74, 82, 0.55)),
+        url("../public/assets/img/hero-terrazza.jpg") center / cover no-repeat;
+}
+
+.hero-inner {
+    padding: calc(var(--topbar-h) + 24px) var(--pad-page) 96px;
+    max-width: 820px;
+}
+
+.hero-kicker {
+    color: var(--c-white);
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    opacity: 0.92;
+}
+
+.hero-title {
+    margin: 18px 0 22px;
+    color: var(--c-white);
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
+    font-weight: 700;
+}
+
+.hero-sub {
+    color: var(--c-white);
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+    opacity: 0.94;
+    max-width: 620px;
+    margin: 0 auto 38px;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+}
+
+/* ==========================================================================
+   Sections
+   ========================================================================== */
+.section {
+    padding: var(--section-pad-y) 0;
+}
+
+.section--tinted {
+    background: var(--c-off-white);
+}
+
+.section--teal {
+    background: var(--c-teal);
+}
+
+.section-head {
+    max-width: 720px;
+    margin: 0 auto 56px;
+    text-align: center;
+}
+
+.section-kicker {
+    color: var(--c-teal-light);
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.section-title {
+    margin-top: 10px;
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    font-weight: 700;
+}
+
+.section--teal .section-title,
+.section--teal .section-kicker,
+.section--teal .section-head p {
+    color: var(--c-white);
+}
+
+.section-head p {
+    margin-top: 18px;
+}
+
+/* ----- two-column split (photo + text) ----- */
+.split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(28px, 5vw, 64px);
+    align-items: center;
+}
+
+.split-photo img {
+    width: 100%;
+    height: 100%;
+    max-height: 480px;
+    object-fit: cover;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px rgba(36, 51, 58, 0.18);
+}
+
+.split-body h3 {
+    font-size: 1.5rem;
+    margin-bottom: 14px;
+}
+
+.split-body p + p {
+    margin-top: 14px;
+}
+
+/* ----- generic card grids ----- */
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--grid-gap);
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--grid-gap);
+}
+
+/* ----- "Dove siamo" distances list ----- */
+.where-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.where-list li {
+    padding-left: 22px;
+    position: relative;
+}
+
+.where-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--c-teal-light);
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+.footer {
+    background: var(--c-heading);
+    color: rgba(255, 255, 255, 0.75);
+    padding: 28px 0;
+    font-size: 0.9rem;
+}
+
+.footer .container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 24px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 900px) {
+    :root {
+        --section-pad-y: 64px;
+    }
+
+    .split,
+    .grid-4 {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .split-photo {
+        order: -1;
+    }
+}
+
+@media (max-width: 600px) {
+    .split,
+    .grid-4 {
+        grid-template-columns: 1fr;
+    }
+}

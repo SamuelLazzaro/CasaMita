@@ -1,17 +1,26 @@
-/**
- * main.js — entry point of the Casa Mita website.
- *
- * Wires the page behaviours together once the DOM is ready.
- * Each behaviour lives in its own module and exposes an init
- * function, following the CardanoSkating project layout.
+/*
+ * main.js — entry point: initialises every module and wires the
+ * language FAB. All the behaviour lives in the other modules.
  */
 
-/**
- * Initialise every page behaviour.
- * @returns {void}
- */
-function initSite() {
-    // Modules (nav, i18n, booking form…) are wired here as they land.
-}
+import { initBookingForm } from "./booking.js";
+import { initI18n, toggleLanguage } from "./i18n.js";
+import { initTapFeedback } from "./tap-feedback.js";
+import {
+    initFooterYear,
+    initNav,
+    initScrollReveal,
+    initTopbar
+} from "./ui.js";
 
-document.addEventListener("DOMContentLoaded", initSite);
+// first, so its capture-phase click listener runs before every other one
+initTapFeedback();
+
+initI18n();
+initTopbar();
+initNav();
+initScrollReveal();
+initBookingForm();
+initFooterYear();
+
+document.getElementById("fab-lang").addEventListener("click", toggleLanguage);

@@ -4,80 +4,535 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Casa Mita — Ristorante e B&B a Marina di Pulsano, Puglia</title>
-    <meta name="description"
-          content="Casa Mita: ristorante e bed & breakfast sul mare a Marina di Pulsano (Taranto), Puglia. Cucina di famiglia, camere accoglienti a due passi dalla spiaggia.">
+    <meta name="description" data-i18n-content="meta.description"
+          content="Casa Mita: ristorante e bed & breakfast a pochi metri dal mare a Marina di Pulsano (Taranto). Cucina di famiglia, camere colorate e piscina nel cuore della Puglia.">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicon-192.png">
+    <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
     <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/layout.css">
+    <link rel="stylesheet" href="../styles/components.css">
 </head>
 <body>
 
-    <!-- ══════════════════ Header ══════════════════ -->
-    <header class="site-header">
-        <div class="header-inner">
-            <a class="brand" href="#home">
-                <img class="brand-logo" src="assets/img/logo-casa-mita.png" alt="Casa Mita">
-            </a>
+    <a class="skip-link" href="#chi-siamo" data-i18n="a11y.skip">Salta al contenuto</a>
 
-            <div class="header-actions">
-                <button id="hamburger" class="hamburger" type="button"
-                        aria-expanded="false" aria-controls="nav-panel" aria-label="Apri il menu">
-                    <span class="hamburger-bar" aria-hidden="true"></span>
-                    <span class="hamburger-bar" aria-hidden="true"></span>
-                    <span class="hamburger-bar" aria-hidden="true"></span>
-                </button>
-            </div>
-        </div>
+    <!-- ======================= TOP BAR ======================= -->
+    <header class="topbar" id="topbar">
+        <a class="brand" href="#home" aria-label="Casa Mita — Home" data-i18n-label="a11y.brandHome">
+            <img class="brand-logo" src="assets/img/logo-casa-mita.png" alt="" width="908" height="343">
+        </a>
+
+        <button class="hamburger" id="hamburger" aria-label="Apri il menu" data-i18n-label="a11y.openMenu"
+                aria-expanded="false" aria-controls="nav-panel">
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+        </button>
     </header>
 
-    <!-- ══════════════════ Off-canvas navigation ══════════════════ -->
-    <div id="nav-overlay" class="nav-overlay" hidden></div>
-    <nav id="nav-panel" class="nav-panel" aria-label="Navigazione principale">
+    <!-- ======================= NAV OFF-CANVAS ======================= -->
+    <div class="nav-overlay" id="nav-overlay" hidden></div>
+    <nav class="nav-panel" id="nav-panel" aria-label="Navigazione principale" data-i18n-label="a11y.mainNav">
         <ul class="nav-list">
-            <li><a class="nav-link" href="#home">Home</a></li>
-            <li><a class="nav-link" href="#chi-siamo">Chi siamo</a></li>
-            <li><a class="nav-link" href="#ristorante">Ristorante &ndash; Menu</a></li>
-            <li><a class="nav-link" href="#camere">B&amp;B &ndash; Camere</a></li>
-            <li><a class="nav-link" href="#prenotazioni">Prenotazioni camere</a></li>
-            <li><a class="nav-link" href="#dove-siamo">Dove siamo</a></li>
-            <li><a class="nav-link" href="#contatti">Contatti</a></li>
+            <li><a class="nav-link" href="#home" data-i18n="nav.home">Home</a></li>
+            <li><a class="nav-link" href="#chi-siamo" data-i18n="nav.about">Chi siamo</a></li>
+            <li><a class="nav-link" href="#ristorante" data-i18n="nav.restaurant">Ristorante – Menu</a></li>
+            <li><a class="nav-link" href="#camere" data-i18n="nav.rooms">B&amp;B – Camere</a></li>
+            <li><a class="nav-link" href="#prenotazioni" data-i18n="nav.booking">Prenotazioni camere</a></li>
+            <li><a class="nav-link" href="#dove-siamo" data-i18n="nav.where">Dove siamo</a></li>
+            <li><a class="nav-link" href="#contatti" data-i18n="nav.contacts">Contatti</a></li>
         </ul>
+
+        <div class="nav-social">
+            <a href="https://www.facebook.com/casamitaristorantebedandbreakfast" target="_blank"
+               rel="noopener noreferrer" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                </svg>
+            </a>
+            <a href="https://www.instagram.com/casamita_beb/" target="_blank"
+               rel="noopener noreferrer" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+            </a>
+        </div>
     </nav>
 
-    <!-- ══════════════════ Main content ══════════════════ -->
     <main>
-        <section id="home" class="section section-hero">
-            <h1>Casa Mita</h1>
-            <p>Ristorante e B&amp;B a Marina di Pulsano</p>
+        <!-- ======================= HERO ======================= -->
+        <section class="hero" id="home">
+            <div class="hero-inner">
+                <p class="hero-kicker" data-i18n="hero.kicker">Marina di Pulsano · Taranto · Puglia</p>
+                <h1 class="hero-title" data-i18n="hero.title">Casa Mita</h1>
+                <p class="hero-sub" data-i18n="hero.sub">Ristorante e bed &amp; breakfast a pochi metri dal mare:
+                    buon cibo, camere accoglienti e l'ospitalità di una famiglia, dal 2013.</p>
+                <div class="hero-actions">
+                    <a class="btn btn--solid" href="#prenotazioni" data-i18n="hero.ctaBook">Prenota il tuo soggiorno</a>
+                    <a class="btn btn--ghost" href="#ristorante" data-i18n="hero.ctaRestaurant">Scopri il ristorante</a>
+                </div>
+            </div>
         </section>
 
-        <section id="chi-siamo" class="section">
-            <h2>Chi siamo</h2>
+        <!-- ======================= CHI SIAMO ======================= -->
+        <section class="section" id="chi-siamo">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="about.kicker">Chi siamo</p>
+                    <h2 class="section-title" data-i18n="about.title">La storia di una famiglia</h2>
+                </div>
+
+                <div class="split">
+                    <div class="split-photo reveal">
+                        <img src="assets/img/famiglia.jpg" alt="La famiglia Mita al completo nella sala di Casa Mita"
+                             data-i18n-alt="about.photoAlt" loading="lazy">
+                    </div>
+                    <div class="split-body reveal">
+                        <p data-i18n="about.p1">Casa Mita è il luogo in cui si racconta anche la storia di una
+                            famiglia: la nostra. Arcangelo Mita, originario di Ceglie Messapica, a 16 anni si
+                            trasferisce a Monaco di Baviera per cercare lavoro senza sapere che, lontano da casa,
+                            avrebbe trovato molto di più: la ristorazione e Sandra, la donna della sua vita.</p>
+                        <p data-i18n="about.p2">A piccoli passi costruiscono una vita insieme: danno alla luce
+                            Laura, Rosangela e Rocco e rientrano in Italia, dove inaugurano La locanda al castello,
+                            la loro prima creatura professionale. Nel 2013 il sogno si completa: nasce il
+                            Ristorante B&amp;B Casa Mita, per far conoscere le meraviglie della Puglia ai turisti
+                            vicini e lontani.</p>
+                        <p data-i18n="about.p3">Dal 2013 garantiamo ogni giorno accoglienza, professionalità e
+                            cortesia, in un'atmosfera intima e confortevole adatta a chi vuole immergersi nelle
+                            meraviglie pugliesi e a chi cerca solo relax.</p>
+                    </div>
+                </div>
+            </div>
         </section>
 
-        <section id="ristorante" class="section">
-            <h2>Ristorante &ndash; Menu</h2>
+        <!-- ======================= RISTORANTE – MENU ======================= -->
+        <section class="section section--tinted" id="ristorante">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="restaurant.kicker">Ristorante</p>
+                    <h2 class="section-title" data-i18n="restaurant.title">Se è fatto con amore, ha tutto un altro sapore</h2>
+                    <p data-i18n="restaurant.intro">La passione per la buona cucina è una tradizione di famiglia
+                        che si tramanda da Arcangelo ai figli e offre tutti i doni di una terra da scoprire: il
+                        posto giusto per una cena romantica a lume di candela, un pranzo di pesce o un aperitivo
+                        al tramonto.</p>
+                </div>
+
+                <div class="grid-3">
+                    <article class="card reveal">
+                        <div class="card-photo">
+                            <img src="assets/img/ristorante-interno.jpg"
+                                 alt="La sala interna del ristorante con tavolo apparecchiato e camino acceso"
+                                 data-i18n-alt="restaurant.card1alt" loading="lazy">
+                        </div>
+                        <div class="card-body">
+                            <h3 data-i18n="restaurant.card1t">La sala</h3>
+                            <p data-i18n="restaurant.card1p">Ambiente curato ed elegante, con il camino acceso
+                                nelle sere d'inverno: la cornice ideale per una cena romantica o una ricorrenza
+                                in famiglia.</p>
+                        </div>
+                    </article>
+
+                    <article class="card reveal">
+                        <div class="card-photo">
+                            <img src="assets/img/ristorante-estivo.jpg"
+                                 alt="I tavoli all'aperto della location estiva sotto gli alberi"
+                                 data-i18n-alt="restaurant.card2alt" loading="lazy">
+                        </div>
+                        <div class="card-body">
+                            <h3 data-i18n="restaurant.card2t">Location estiva</h3>
+                            <p data-i18n="restaurant.card2p">La location perfetta per eventi, cene o pranzi
+                                aziendali, o per godersi semplicemente la nostra cucina in un ambiente ampio,
+                                elegante e immerso nell'atmosfera della Marina di Pulsano.</p>
+                        </div>
+                    </article>
+
+                    <article class="card reveal">
+                        <div class="card-photo">
+                            <img src="assets/img/terrazza-salotto.jpg"
+                                 alt="La terrazza sul mare con salottino e vista sulla costa"
+                                 data-i18n-alt="restaurant.card3alt" loading="lazy">
+                        </div>
+                        <div class="card-body">
+                            <h3 data-i18n="restaurant.card3t">Terrazza sul mare</h3>
+                            <p data-i18n="restaurant.card3p">Che cosa c'è di meglio di un aperitivo in terrazza
+                                alla fine di una giornata di mare? Dalla colazione all'aria aperta all'happy hour
+                                domenicale, bagnati dalla luce dorata del tramonto.</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="section-head reveal" style="margin-top: 72px;">
+                    <h2 class="section-title" data-i18n="menu.title">I piatti della casa</h2>
+                    <p data-i18n="menu.intro">Il mare Jonio in tavola: qualche assaggio dei piatti che raccontano
+                        la nostra cucina.</p>
+                </div>
+
+                <div class="menu-list reveal">
+                    <div class="menu-item">
+                        <h3 data-i18n="menu.d1t">Crudo di mare pugliese</h3>
+                        <p data-i18n="menu.d1p">Tutta la bontà del pescato del giorno, servito crudo secondo la
+                            tradizione pugliese.</p>
+                    </div>
+                    <div class="menu-item">
+                        <h3 data-i18n="menu.d2t">Paccheri con la cernia</h3>
+                        <p data-i18n="menu.d2p">Il pranzo dell'estate made in Casa Mita: un primo gustoso e
+                            leggero per gli amanti del pesce.</p>
+                    </div>
+                    <div class="menu-item">
+                        <h3 data-i18n="menu.d3t">Scampi</h3>
+                        <p data-i18n="menu.d3p">Da gustare crudi, insieme agli altri frutti di mare, o cotti in un
+                            primo dal sapore del mare.</p>
+                    </div>
+                    <div class="menu-item">
+                        <h3 data-i18n="menu.d4t">Focaccia pugliese</h3>
+                        <p data-i18n="menu.d4p">Un vero comfort food: la ricetta della tradizione, fragrante e
+                            dorata.</p>
+                    </div>
+                </div>
+
+                <div class="photo-grid photo-grid--2 reveal">
+                    <img src="assets/img/piatto-gambero.jpg" alt="Gambero gratinato servito su piatto azzurro"
+                         data-i18n-alt="menu.dish1alt" loading="lazy">
+                    <img src="assets/img/piatto-gourmet.jpg" alt="Piatto gourmet con calice di vino"
+                         data-i18n-alt="menu.dish2alt" loading="lazy">
+                </div>
+
+                <p class="menu-note reveal" data-i18n="menu.note">Il menu segue il pescato e le stagioni:
+                    chiedici i piatti del giorno.</p>
+            </div>
         </section>
 
-        <section id="camere" class="section">
-            <h2>B&amp;B &ndash; Camere</h2>
+        <!-- ======================= B&B – CAMERE ======================= -->
+        <section class="section" id="camere">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="rooms.kicker">B&amp;B</p>
+                    <h2 class="section-title" data-i18n="rooms.title">Camere colorate come la Puglia</h2>
+                    <p data-i18n="rooms.intro">Ogni camera è dipinta di un colore diverso: giallo come il sole
+                        della Puglia, azzurro come il nostro mare e verde come il paesaggio che circonda la
+                        location. Ampie, luminose e dotate di ogni comfort, per sentirsi come a casa.</p>
+                </div>
+
+                <div class="reveal" style="text-align: center;">
+                    <h3 data-i18n="rooms.typesTitle">Cinque tipologie disponibili</h3>
+                    <ul class="room-types">
+                        <li class="room-chip" data-i18n="rooms.type1">Singola</li>
+                        <li class="room-chip" data-i18n="rooms.type2">Matrimoniale</li>
+                        <li class="room-chip" data-i18n="rooms.type3">Doppia</li>
+                        <li class="room-chip" data-i18n="rooms.type4">Tripla</li>
+                        <li class="room-chip" data-i18n="rooms.type5">Quadrupla</li>
+                    </ul>
+                    <p data-i18n="rooms.bath">Ogni camera dispone di bagno privato indipendente con cabina doccia
+                        e asciugacapelli.</p>
+                </div>
+
+                <div class="photo-grid reveal">
+                    <img src="assets/img/camera-gialla.jpg" alt="Camera gialla con letto matrimoniale e letto a castello"
+                         data-i18n-alt="rooms.photo1alt" loading="lazy">
+                    <img src="assets/img/camera-verde.jpg" alt="Camera verde con letto matrimoniale"
+                         data-i18n-alt="rooms.photo2alt" loading="lazy">
+                    <img src="assets/img/bagno-camera.jpg" alt="Bagno privato con doccia e piastrelle azzurre"
+                         data-i18n-alt="rooms.photo3alt" loading="lazy">
+                    <img src="assets/img/piscina-vista-camera.jpg" alt="Vista sulla piscina dalla finestra di una camera"
+                         data-i18n-alt="rooms.photo4alt" loading="lazy">
+                </div>
+
+                <div class="section-head reveal" style="margin-top: 72px; margin-bottom: 40px;">
+                    <h2 class="section-title" data-i18n="services.title">I servizi</h2>
+                </div>
+
+                <div class="services-grid">
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/>
+                        </svg>
+                        <h3 data-i18n="services.s1t">Spiaggia</h3>
+                        <p data-i18n="services.s1p">A soli 350 metri dalla struttura ci sono spiagge bellissime e
+                            acque cristalline.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+                            <path d="M2 13c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+                            <path d="M2 19c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+                        </svg>
+                        <h3 data-i18n="services.s2t">Piscina</h3>
+                        <p data-i18n="services.s2p">Un'oasi di relax immersa nel verde, dove gustare ottimi
+                            cocktail a bordo piscina.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                            <line x1="6" y1="1" x2="6" y2="4"/>
+                            <line x1="10" y1="1" x2="10" y2="4"/>
+                            <line x1="14" y1="1" x2="14" y2="4"/>
+                        </svg>
+                        <h3 data-i18n="services.s3t">Colazione</h3>
+                        <p data-i18n="services.s3p">Ricca colazione, sia tradizionale che internazionale.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <h3 data-i18n="services.s4t">Check-in / Check-out</h3>
+                        <p data-i18n="services.s4p">Check-in: 12:00–14:00 e 17:00–22:00. Check-out: entro le 10:00.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="5" r="3"/>
+                            <line x1="12" y1="22" x2="12" y2="8"/>
+                            <path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
+                        </svg>
+                        <h3 data-i18n="services.s5t">Escursioni</h3>
+                        <p data-i18n="services.s5p">Con Scirocco Escursioni, tutta la bellezza del Mar Jonio in
+                            barca.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="7" cy="7" r="1.6"/>
+                            <circle cx="12" cy="5.5" r="1.6"/>
+                            <circle cx="17" cy="7" r="1.6"/>
+                            <path d="M12 10.5c-2.9 0-5.2 2.3-5.2 4.9 0 1.9 1.5 3.1 3 3.1 .9 0 1.5-.4 2.2-.4s1.3.4 2.2.4c1.5 0 3-1.2 3-3.1 0-2.6-2.3-4.9-5.2-4.9z"/>
+                        </svg>
+                        <h3 data-i18n="services.s6t">Animali</h3>
+                        <p data-i18n="services.s6p">Gli amici a quattro zampe di piccola taglia sono i benvenuti.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="5.5" cy="17.5" r="3.5"/>
+                            <circle cx="18.5" cy="17.5" r="3.5"/>
+                            <path d="M15 5a1 1 0 1 0 0-2"/>
+                            <path d="M12 17.5V14l-3-3 4-3 2 3h2"/>
+                        </svg>
+                        <h3 data-i18n="services.s7t">Biciclette</h3>
+                        <p data-i18n="services.s7p">Biciclette di alta qualità, per la città e le zone
+                            escursionistiche.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                            <line x1="12" y1="20" x2="12.01" y2="20"/>
+                        </svg>
+                        <h3 data-i18n="services.s8t">Wi-Fi</h3>
+                        <p data-i18n="services.s8p">Gratuito in tutta la struttura: la password viene consegnata
+                            al check-in.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/>
+                            <polyline points="17 2 12 7 7 2"/>
+                        </svg>
+                        <h3 data-i18n="services.s9t">TV satellitare</h3>
+                        <p data-i18n="services.s9p">In camera, con canali nazionali e internazionali.</p>
+                    </div>
+
+                    <div class="service-tile reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <rect x="4" y="2" width="16" height="20" rx="2"/>
+                            <polyline points="9 9.5 12 6.5 15 9.5"/>
+                            <polyline points="9 14.5 12 17.5 15 14.5"/>
+                        </svg>
+                        <h3 data-i18n="services.s10t">Ascensore</h3>
+                        <p data-i18n="services.s10p">La struttura dispone di ascensore.</p>
+                    </div>
+                </div>
+            </div>
         </section>
 
-        <section id="prenotazioni" class="section">
-            <h2>Prenotazioni camere</h2>
+        <!-- ======================= PRENOTAZIONI ======================= -->
+        <section class="section section--teal" id="prenotazioni">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="booking.kicker">Prenotazioni</p>
+                    <h2 class="section-title" data-i18n="booking.title">Pronto a soggiornare da noi?</h2>
+                    <p data-i18n="booking.intro">Seleziona le date di arrivo e partenza, inserisci i tuoi dati e
+                        invia la richiesta: ti risponderemo al più presto per confermare la disponibilità.</p>
+                </div>
+
+                <form class="booking-form reveal" id="booking-form">
+                    <div class="form-field">
+                        <label for="bk-name" data-i18n="booking.name">Nome e cognome</label>
+                        <input type="text" id="bk-name" name="name" autocomplete="name" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="bk-email" data-i18n="booking.email">Email</label>
+                        <input type="email" id="bk-email" name="email" autocomplete="email" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="bk-phone" data-i18n="booking.phone">Telefono</label>
+                        <input type="tel" id="bk-phone" name="phone" autocomplete="tel" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="bk-room" data-i18n="booking.room">Camera</label>
+                        <select id="bk-room" name="room" required>
+                            <option value="" data-i18n="booking.roomPlaceholder">Seleziona la camera</option>
+                            <option value="Singola" data-i18n="rooms.type1">Singola</option>
+                            <option value="Matrimoniale" data-i18n="rooms.type2">Matrimoniale</option>
+                            <option value="Doppia" data-i18n="rooms.type3">Doppia</option>
+                            <option value="Tripla" data-i18n="rooms.type4">Tripla</option>
+                            <option value="Quadrupla" data-i18n="rooms.type5">Quadrupla</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="bk-checkin" data-i18n="booking.checkin">Check-in</label>
+                        <input type="date" id="bk-checkin" name="checkin" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="bk-checkout" data-i18n="booking.checkout">Check-out</label>
+                        <input type="date" id="bk-checkout" name="checkout" required>
+                    </div>
+                    <div class="form-field form-field--full">
+                        <label for="bk-message" data-i18n="booking.message">Messaggio (facoltativo)</label>
+                        <textarea id="bk-message" name="message"></textarea>
+                    </div>
+
+                    <p class="form-error" id="booking-date-error" role="alert" data-i18n="booking.dateError">
+                        La data di check-out deve essere successiva a quella di check-in.</p>
+
+                    <button class="btn btn--teal" type="submit" data-i18n="booking.send">Invia la richiesta</button>
+
+                    <p class="form-privacy" data-i18n="booking.privacy">Il pulsante apre il tuo programma di
+                        posta con la richiesta già compilata: nessun dato viene salvato o trasmesso da questo
+                        sito. I dati inviati via email saranno usati solo per rispondere alla richiesta.</p>
+                </form>
+            </div>
         </section>
 
-        <section id="dove-siamo" class="section">
-            <h2>Dove siamo</h2>
+        <!-- ======================= DOVE SIAMO ======================= -->
+        <section class="section section--tinted" id="dove-siamo">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="where.kicker">Dove siamo</p>
+                    <h2 class="section-title" data-i18n="where.title">Nel cuore della Marina di Pulsano</h2>
+                </div>
+
+                <div class="split">
+                    <div class="split-photo reveal">
+                        <img src="assets/img/mare-pulsano.jpg"
+                             alt="Il mare cristallino di Marina di Pulsano con la pineta sullo sfondo"
+                             data-i18n-alt="where.photoAlt" loading="lazy">
+                    </div>
+                    <div class="split-body reveal">
+                        <p data-i18n="where.p1">Casa Mita sorge a circa 300 metri dal mare, nell'area della Marina
+                            di Pulsano: un tratto di costa ricco di scogliere e baie sabbiose, punto di partenza
+                            ideale per scoprire il Salento e la Litoranea Salentina, una tavolozza di colori che
+                            attraversa tutte le sfumature di blu.</p>
+
+                        <h3 data-i18n="where.addressTitle" style="margin-top: 22px;">Indirizzo</h3>
+                        <p>Contrada Rotondella, Viale del Posto, 16<br>Marina di Pulsano (TA), Italia</p>
+
+                        <ul class="where-list">
+                            <li data-i18n="where.d4">350 metri dalle spiagge</li>
+                            <li data-i18n="where.d1">5 minuti da Pulsano</li>
+                            <li data-i18n="where.d2">20 minuti da Taranto, la città dei due mari</li>
+                            <li data-i18n="where.d3">1 ora da Lecce, la città del Barocco</li>
+                        </ul>
+
+                        <a class="btn btn--teal" style="margin-top: 24px;"
+                           href="https://www.google.com/maps/search/?api=1&query=Ristorante%20Albergo%20Casa%20Mita%2C%20Marina%20di%20Pulsano"
+                           target="_blank" rel="noopener noreferrer" data-i18n="where.mapLink">
+                            Apri l'indirizzo su Google Maps</a>
+                    </div>
+                </div>
+            </div>
         </section>
 
-        <section id="contatti" class="section">
-            <h2>Contatti</h2>
+        <!-- ======================= CONTATTI ======================= -->
+        <section class="section" id="contatti">
+            <div class="container">
+                <div class="section-head reveal">
+                    <p class="section-kicker" data-i18n="contacts.kicker">Contatti</p>
+                    <h2 class="section-title" data-i18n="contacts.title">Scrivici o chiamaci</h2>
+                    <p data-i18n="contacts.intro">Per prenotazioni del ristorante, richieste sulle camere o
+                        qualsiasi informazione siamo sempre a disposizione.</p>
+                </div>
+
+                <div class="grid-4">
+                    <div class="contact-card reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <rect x="2" y="4" width="20" height="16" rx="2"/>
+                            <polyline points="22,6 12,13 2,6"/>
+                        </svg>
+                        <h3 data-i18n="contacts.emailTitle">Email</h3>
+                        <a href="mailto:info@ristorantealbergocasamita.it">info@ristorantealbergocasamita.it</a>
+                    </div>
+
+                    <div class="contact-card reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                        <h3 data-i18n="contacts.phoneTitle">Telefono</h3>
+                        <a href="tel:+393929847501">+39 392 984 7501</a>
+                        <a href="tel:+390995336177">+39 099 533 6177</a>
+                    </div>
+
+                    <div class="contact-card reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <h3 data-i18n="contacts.addressTitle">Indirizzo</h3>
+                        <p>Contrada Rotondella,<br>Viale del Posto, 16<br>Marina di Pulsano (TA)</p>
+                    </div>
+
+                    <div class="contact-card reveal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M17 2a5 5 0 0 0-5 5v3H9v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
+                                  transform="translate(-2 0)"/>
+                        </svg>
+                        <h3 data-i18n="contacts.followTitle">Seguici</h3>
+                        <a href="https://www.facebook.com/casamitaristorantebedandbreakfast" target="_blank"
+                           rel="noopener noreferrer">Facebook</a>
+                        <a href="https://www.instagram.com/casamita_beb/" target="_blank"
+                           rel="noopener noreferrer">Instagram</a>
+                    </div>
+                </div>
+            </div>
         </section>
     </main>
 
-    <!-- ══════════════════ Footer ══════════════════ -->
-    <footer class="site-footer">
-        <p>&copy; Casa Mita &mdash; Marina di Pulsano (TA)</p>
+    <!-- ======================= FOOTER ======================= -->
+    <footer class="footer">
+        <div class="container">
+            <p>© <span id="footer-year">2026</span> <span data-i18n="footer.copy">Casa Mita — Ristorante e B&amp;B,
+                Marina di Pulsano (TA)</span></p>
+        </div>
     </footer>
+
+    <!-- language FAB: always shows the language you would switch TO -->
+    <button class="fab-lang" id="fab-lang" type="button" aria-label="Switch to English"
+            data-i18n-label="a11y.switchLang">EN</button>
 
     <script type="module" src="../src/main.js"></script>
 </body>

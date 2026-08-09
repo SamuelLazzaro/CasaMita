@@ -1,0 +1,546 @@
+/* ==========================================================================
+   components.css — reusable components: hamburger, off-canvas nav, buttons,
+   cards, service tiles, room list, booking form, language FAB.
+   All :hover rules are wrapped in @media (pointer: fine) so they never
+   stick on touch devices. Right below each of those blocks sits the touch
+   counterpart: the same look bound to .is-tapped, the class
+   js/tap-feedback.js puts on a tapped element for TAP_FEEDBACK_MS before
+   running its action (the shared part of the utility lives in main.css).
+   ========================================================================== */
+
+/* ==========================================================================
+   Hamburger — 3 bars morphing into an X (from the CardanoSkating project)
+   ========================================================================== */
+.hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    width: 48px;
+    height: 48px;
+    padding: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.hamburger-bar {
+    height: 3px;
+    width: 100%;
+    background: var(--c-white);
+    border-radius: 2px;
+    /* background-color belongs to this list so the hover recolor needs
+       no transition of its own: re-declaring the shorthand there would
+       drop transform/opacity and break the bars-to-X morph while the
+       pointer is over the button (i.e. on every desktop click). */
+    transition: transform var(--t-hover), opacity var(--t-hover), background-color var(--t-hover);
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(1) {
+    transform: translateY(9px) rotate(45deg);
+}
+
+/* The middle bar is 28px wide while the rotated arms only span ~22px,
+   so it sticks out ~3px per side beyond the X. Fading it out alone
+   left iOS free to keep those protruding rounded caps painted as two
+   stray dots when the layer was re-rasterized (e.g. double-tap zoom):
+   collapsing the width to zero as well means any leftover has nothing
+   to draw. */
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(3) {
+    transform: translateY(-9px) rotate(-45deg);
+}
+
+/* ==========================================================================
+   Off-canvas navigation
+   ========================================================================== */
+.nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transition: opacity var(--t-fade);
+}
+
+.nav-overlay.is-open {
+    opacity: 1;
+}
+
+.nav-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 120;
+    width: min(400px, 88vw);
+    padding: 96px 40px 32px;
+    display: flex;
+    flex-direction: column;
+    background: var(--c-teal);
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.4s;
+}
+
+.nav-panel.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* Scroll the links when the viewport is too short to show them all.
+       min-height: 0 lets this flex item shrink below its content size,
+       otherwise overflow-y would never trigger. */
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.nav-link {
+    --nav-link-hover-shift: 8px;
+
+    display: block;
+    padding: 11px 0;
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: var(--c-white);
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-social {
+    margin-top: auto;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
+    display: flex;
+    gap: 22px;
+}
+
+.nav-social a {
+    --nav-social-hover-lift: -6px;
+
+    color: var(--c-white);
+    font-weight: 600;
+    transition: transform 0.4s ease, color 0.4s ease;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+.btn {
+    display: inline-block;
+    padding: 14px 32px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    transition: background-color var(--t-hover), color var(--t-hover),
+        transform var(--t-hover), box-shadow var(--t-hover);
+}
+
+.btn--solid {
+    background: var(--c-white);
+    color: var(--c-teal);
+}
+
+.btn--ghost {
+    border: 2px solid var(--c-white);
+    color: var(--c-white);
+}
+
+.btn--teal {
+    background: var(--c-teal);
+    color: var(--c-white);
+}
+
+/* ==========================================================================
+   Feature cards (ristorante: sala, location estiva, terrazza)
+   ========================================================================== */
+.card {
+    background: var(--c-white);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(36, 51, 58, 0.10);
+    display: flex;
+    flex-direction: column;
+    transition: transform var(--t-hover), box-shadow var(--t-hover);
+}
+
+.card-photo {
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+}
+
+.card-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.card-body {
+    padding: 24px 26px 28px;
+}
+
+.card-body h3 {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   Menu list (piatti della casa)
+   ========================================================================== */
+.menu-list {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+.menu-item {
+    padding-bottom: 22px;
+    border-bottom: 1px dashed var(--c-border);
+}
+
+.menu-item h3 {
+    font-size: 1.25rem;
+    margin-bottom: 6px;
+}
+
+.menu-note {
+    margin-top: 34px;
+    text-align: center;
+    font-style: italic;
+    color: var(--c-teal);
+}
+
+/* ==========================================================================
+   Room types + services
+   ========================================================================== */
+.room-types {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 26px 0 10px;
+}
+
+.room-chip {
+    padding: 9px 22px;
+    border-radius: 999px;
+    border: 1.5px solid var(--c-teal);
+    color: var(--c-teal);
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: var(--c-white);
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 48px;
+}
+
+.photo-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 18px;
+}
+
+.photo-grid img {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.service-tile {
+    background: var(--c-white);
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+    padding: 22px 20px;
+    text-align: center;
+    transition: transform var(--t-hover), box-shadow var(--t-hover), border-color var(--t-hover);
+}
+
+.service-tile svg {
+    width: 34px;
+    height: 34px;
+    margin: 0 auto 12px;
+    stroke: var(--c-teal);
+}
+
+.service-tile h3 {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-heading);
+    margin-bottom: 6px;
+}
+
+.service-tile p {
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   Booking form
+   ========================================================================== */
+.booking-form {
+    max-width: 680px;
+    margin: 0 auto;
+    background: var(--c-white);
+    border-radius: 16px;
+    padding: clamp(24px, 5vw, 44px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-field--full {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--c-heading);
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    font: inherit;
+    color: var(--c-text);
+    padding: 12px 14px;
+    border: 1.5px solid var(--c-border);
+    border-radius: 10px;
+    background: var(--c-white);
+    width: 100%;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    outline: none;
+    border-color: var(--c-teal-light);
+    box-shadow: 0 0 0 3px rgba(26, 135, 166, 0.18);
+}
+
+.form-field textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-error {
+    grid-column: 1 / -1;
+    display: none;
+    color: #b3261e;
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.form-error.is-visible {
+    display: block;
+}
+
+.form-privacy {
+    grid-column: 1 / -1;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #767676;
+}
+
+.booking-form .btn {
+    grid-column: 1 / -1;
+    justify-self: center;
+    min-width: 240px;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Contact cards
+   ========================================================================== */
+.contact-card {
+    background: var(--c-white);
+    border: 1px solid var(--c-border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    text-align: center;
+}
+
+.contact-card svg {
+    width: 30px;
+    height: 30px;
+    margin: 0 auto 12px;
+    stroke: var(--c-teal);
+}
+
+.contact-card h3 {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.contact-card a {
+    display: block;
+    color: var(--c-teal);
+    font-weight: 600;
+    transition: color var(--t-hover);
+}
+
+.contact-card p {
+    font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   Language FAB — always shows the language you would switch TO
+   ========================================================================== */
+.fab-lang {
+    position: fixed;
+    right: calc(20px + var(--scrollbar-comp));
+    bottom: 20px;
+    z-index: 105;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--c-teal);
+    color: var(--c-white);
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    transition: background-color var(--t-hover), transform var(--t-hover);
+}
+
+/* ==========================================================================
+   Hover states (desktop pointer) + touch counterparts
+   ========================================================================== */
+@media (pointer: fine) {
+    .hamburger:hover .hamburger-bar {
+        background-color: var(--c-teal-tint);
+    }
+
+    .nav-link:hover {
+        color: var(--c-teal-tint);
+        transform: translateX(var(--nav-link-hover-shift));
+    }
+
+    .nav-social a:hover {
+        transform: translateY(var(--nav-social-hover-lift));
+    }
+
+    .btn--solid:hover {
+        background: var(--c-teal-tint);
+        transform: translateY(-2px);
+    }
+
+    .btn--ghost:hover {
+        background: rgba(255, 255, 255, 0.14);
+        transform: translateY(-2px);
+    }
+
+    .btn--teal:hover {
+        background: var(--c-teal-dark);
+        transform: translateY(-2px);
+    }
+
+    .card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 18px 40px rgba(36, 51, 58, 0.16);
+    }
+
+    .card:hover .card-photo img {
+        transform: scale(1.05);
+    }
+
+    .service-tile:hover {
+        transform: translateY(-4px);
+        border-color: var(--c-teal-light);
+        box-shadow: 0 12px 26px rgba(36, 51, 58, 0.10);
+    }
+
+    .contact-card a:hover {
+        color: var(--c-teal-dark);
+    }
+
+    .fab-lang:hover {
+        background: var(--c-teal-dark);
+        transform: translateY(-2px);
+    }
+}
+
+/* Touch counterparts of the hover block above (see main.css). Nested
+   elements need to restate the tap transition: .is-tapped only changes the
+   transition of the element the class lands on, not those of its
+   descendants. */
+.hamburger.is-tapped .hamburger-bar {
+    background-color: var(--c-teal-tint);
+    transition: all var(--t-tap);
+}
+
+.nav-link.is-tapped {
+    color: var(--c-teal-tint);
+    transform: translateX(var(--nav-link-hover-shift));
+}
+
+.nav-social a.is-tapped {
+    transform: translateY(var(--nav-social-hover-lift));
+}
+
+.btn--solid.is-tapped {
+    background: var(--c-teal-tint);
+}
+
+.btn--ghost.is-tapped {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.btn--teal.is-tapped {
+    background: var(--c-teal-dark);
+}
+
+.contact-card a.is-tapped {
+    color: var(--c-teal-dark);
+}
+
+.fab-lang.is-tapped {
+    background: var(--c-teal-dark);
+}
+
+/* ----- responsive tweaks ----- */
+@media (max-width: 600px) {
+    .booking-form {
+        grid-template-columns: 1fr;
+    }
+
+    .photo-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
