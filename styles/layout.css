@@ -248,6 +248,9 @@
    legal information (company data, VAT no., CIN) and the copyright row.
    ========================================================================== */
 .footer {
+    /* deep petrol: darker than --c-teal-dark with the same teal cast, so
+       the footer reads as brand instead of the neutral slate of headings */
+    --footer-bg: #14343f;
     /* alpha-white shades shared across the bands so they dim consistently */
     --footer-fg: rgba(255, 255, 255, 0.75);
     --footer-fg-strong: rgba(255, 255, 255, 0.9);
@@ -256,7 +259,7 @@
        turns into once scrolled (.topbar--solid), shared by :hover and
        .is-tapped so the two states never diverge */
     --footer-link-accent: var(--c-teal);
-    background: var(--c-heading);
+    background: var(--footer-bg);
     color: var(--footer-fg);
     padding: 56px 0 28px;
     font-size: 0.9rem;
