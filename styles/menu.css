@@ -13,6 +13,8 @@
 .page-hero {
     background: var(--c-teal);
     padding: calc(var(--topbar-h) + 56px) var(--pad-page) 64px;
+    padding-left: max(var(--pad-page), var(--safe-left));
+    padding-right: max(var(--pad-page), var(--safe-right));
     text-align: center;
 }
 

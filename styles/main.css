@@ -50,7 +50,28 @@
     --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 
     /* layout */
-    --topbar-h: 72px;
+    /* Safe-area insets of notched phones (notch/Dynamic Island on the
+       sides in landscape, status bar on top and home indicator at the
+       bottom in portrait). Non-zero only because viewport-fit=cover in
+       the viewport meta lets the page bleed edge to edge — without it
+       iOS letterboxes the whole site in landscape. Backgrounds are left
+       full-bleed; the padded edges fold these insets in so text and
+       controls never hide under the hardware.
+       Convention: max(pad, inset) on left/right paddings (the inset
+       replaces the design padding when larger), additive
+       calc(pad + inset) on bottom-anchored elements (the design gap is
+       kept above the home indicator). */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    /* Fixed top bar height. Folds in the top inset so in portrait the
+       teal bar extends up under the status bar while its content stays
+       in the visible 72px band (.topbar hands the inset back as
+       padding-top); everything cleared against the bar — hero padding,
+       scroll-margin of the anchored sections, inner-page heroes —
+       adapts automatically. */
+    --topbar-h: calc(72px + var(--safe-top));
     --container-w: 1140px;
     --pad-page: 24px;
     --section-pad-y: 88px;
@@ -135,7 +156,8 @@ button {
 .container {
     max-width: var(--container-w);
     margin: 0 auto;
-    padding: 0 var(--pad-page);
+    padding-left: max(var(--pad-page), var(--safe-left));
+    padding-right: max(var(--pad-page), var(--safe-right));
 }
 
 /* Anchored sections stop below the fixed top bar */

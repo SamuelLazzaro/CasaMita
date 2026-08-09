@@ -80,6 +80,12 @@
     z-index: 120;
     width: min(400px, 88vw);
     padding: 96px 40px 32px;
+    /* the panel touches the right and bottom screen edges: keep the
+       links clear of a landscape notch and of the home indicator, and
+       start below the (inset-aware, see --topbar-h) top bar */
+    padding-top: calc(96px + var(--safe-top));
+    padding-right: max(40px, var(--safe-right));
+    padding-bottom: calc(32px + var(--safe-bottom));
     display: flex;
     flex-direction: column;
     background: var(--c-teal);
@@ -642,8 +648,8 @@
     --fab-edge-gap: 20px;
 
     position: fixed;
-    right: calc(var(--fab-edge-gap) + var(--scrollbar-comp));
-    bottom: var(--fab-edge-gap);
+    right: calc(var(--fab-edge-gap) + var(--scrollbar-comp) + var(--safe-right));
+    bottom: calc(var(--fab-edge-gap) + var(--safe-bottom));
     /* above the nav overlay/panel and the topbar, like in CardanoSkating */
     z-index: 130;
     width: var(--fab-size);
@@ -667,7 +673,7 @@
        compensation only concerns right-anchored fixed elements, the left
        edge does not move when the scrollbar vanishes. */
     right: auto;
-    left: var(--fab-edge-gap);
+    left: calc(var(--fab-edge-gap) + var(--safe-left));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -693,7 +699,9 @@
     align-items: center;
     justify-content: center;
     gap: 16px 32px;
-    padding: 18px var(--pad-page);
+    padding: 18px var(--pad-page) calc(18px + var(--safe-bottom));
+    padding-left: max(var(--pad-page), var(--safe-left));
+    padding-right: max(var(--pad-page), var(--safe-right));
     background: var(--c-white);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.18);
 }

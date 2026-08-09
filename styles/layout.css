@@ -15,8 +15,11 @@
        Still below the language FAB (130). */
     z-index: 125;
     height: var(--topbar-h);
-    padding: 0 max(var(--pad-page), calc((100% - var(--container-w)) / 2));
-    padding-right: calc(max(var(--pad-page), (100% - var(--container-w)) / 2) + var(--scrollbar-comp));
+    /* --topbar-h includes the top safe inset: padding-top hands it back
+       so logo and hamburger sit below the status bar of notched phones */
+    padding-top: var(--safe-top);
+    padding-left: max(var(--pad-page), calc((100% - var(--container-w)) / 2), var(--safe-left));
+    padding-right: calc(max(var(--pad-page), (100% - var(--container-w)) / 2, var(--safe-right)) + var(--scrollbar-comp));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -59,6 +62,8 @@
 
 .hero-inner {
     padding: calc(var(--topbar-h) + 24px) var(--pad-page) 96px;
+    padding-left: max(var(--pad-page), var(--safe-left));
+    padding-right: max(var(--pad-page), var(--safe-right));
     max-width: 820px;
 }
 
@@ -261,7 +266,8 @@
     --footer-link-accent: var(--c-teal);
     background: var(--footer-bg);
     color: var(--footer-fg);
-    padding: 56px 0 28px;
+    /* the bottom inset keeps the last row above the home indicator */
+    padding: 56px 0 calc(28px + var(--safe-bottom));
     font-size: 0.9rem;
 }
 
@@ -364,6 +370,8 @@
     max-width: 860px;
     margin: 0 auto;
     padding: calc(var(--topbar-h) + 48px) var(--pad-page) 88px;
+    padding-left: max(var(--pad-page), var(--safe-left));
+    padding-right: max(var(--pad-page), var(--safe-right));
 }
 
 .policy h1 {
