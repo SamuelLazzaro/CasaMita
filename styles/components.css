@@ -225,6 +225,15 @@
     transition: transform 0.6s ease, filter var(--t-hover);
 }
 
+/* For photos whose subject sits entirely in the left half (the terrace
+   shot: pergola, sofa and sea on the left, a plain wall on the right).
+   Cover crops from the center by default, so a narrow portrait card
+   would keep the wall and cut the terrace away; anchoring the crop to
+   the left edge inverts that. */
+.card-photo--focus-left img {
+    object-position: left center;
+}
+
 /* The scrim lives on its own pseudo-element instead of being the
    .card-body background: gradients cannot be transitioned, but the
    hover state can still deepen the scrim by animating opacity. Being
