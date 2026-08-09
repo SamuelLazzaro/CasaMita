@@ -453,7 +453,8 @@
     position: fixed;
     right: calc(20px + var(--scrollbar-comp));
     bottom: 20px;
-    z-index: 105;
+    /* above the nav overlay/panel and the topbar, like in CardanoSkating */
+    z-index: 130;
     width: 52px;
     height: 52px;
     border-radius: 50%;

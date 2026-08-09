@@ -10,7 +10,10 @@
 .topbar {
     position: fixed;
     inset: 0 0 auto 0;
-    z-index: 100;
+    /* above the nav overlay (110) and panel (120): the hamburger, which
+       lives in the top bar, doubles as the close button of the open menu.
+       Still below the language FAB (130). */
+    z-index: 125;
     height: var(--topbar-h);
     padding: 0 max(var(--pad-page), calc((100% - var(--container-w)) / 2));
     padding-right: calc(max(var(--pad-page), (100% - var(--container-w)) / 2) + var(--scrollbar-comp));
