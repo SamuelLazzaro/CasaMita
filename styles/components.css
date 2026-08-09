@@ -103,6 +103,32 @@
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    /* Thin white pill scrollbar on the teal panel. Firefox only reads the
+       standard properties; the -webkit- pseudo-elements below cover
+       Chromium/Safari, where a little extra padding keeps the thumb off
+       the links. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.55) transparent;
+    padding-right: 6px;
+}
+
+.nav-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nav-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+}
+
+@media (pointer: fine) {
+    .nav-list::-webkit-scrollbar-thumb:hover {
+        background: var(--c-white);
+    }
 }
 
 .nav-link {

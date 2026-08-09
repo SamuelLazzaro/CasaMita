@@ -79,7 +79,6 @@ export const TRANSLATIONS = {
         "nav.contacts": "Contatti",
 
         "hero.kicker": "Marina di Pulsano · Taranto · Puglia",
-        "hero.title": "Casa Mita",
         "hero.sub": "Ristorante e bed & breakfast a pochi metri dal mare: buon cibo, camere accoglienti e l'ospitalità di una famiglia, dal 2013.",
         "hero.ctaBook": "Prenota il tuo soggiorno",
         "hero.ctaRestaurant": "Scopri il ristorante",
@@ -213,7 +212,6 @@ export const TRANSLATIONS = {
         "nav.contacts": "Contacts",
 
         "hero.kicker": "Marina di Pulsano · Taranto · Puglia, Italy",
-        "hero.title": "Casa Mita",
         "hero.sub": "Restaurant and bed & breakfast a few metres from the sea: good food, welcoming rooms and the hospitality of a family, since 2013.",
         "hero.ctaBook": "Book your stay",
         "hero.ctaRestaurant": "Discover the restaurant",
