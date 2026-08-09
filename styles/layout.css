@@ -89,11 +89,33 @@
     margin: 0 auto 38px;
 }
 
+/* Equal-width CTAs: a max-content grid with equal 1fr tracks sizes both
+   pills to the widest label, whatever the active language. Stacked on
+   narrow screens, side by side from 600px up. */
 .hero-actions {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
     gap: 16px;
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
+}
+
+.hero-actions .btn {
+    /* Grid stretch can make one pill taller than its own label (when the
+       sibling wraps to two lines). Anchors do not center their content the
+       way <button> does, so center it explicitly; text-align keeps the
+       individual lines of a wrapped label centered too. */
+    display: flex;
+    align-items: center;
     justify-content: center;
+    text-align: center;
+}
+
+@media (min-width: 600px) {
+    .hero-actions {
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+    }
 }
 
 /* ==========================================================================
