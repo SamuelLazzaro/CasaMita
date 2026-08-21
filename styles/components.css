@@ -59,17 +59,24 @@
 /* ==========================================================================
    Off-canvas navigation
    ========================================================================== */
+/* Shown/hidden purely via .is-open, same pattern as .nav-panel below:
+   visibility flips instantly on open and only after the fade-out on
+   close (transition-delay). No hidden attribute and no JS timer, so
+   rapid open/close toggles cannot leave the overlay out of sync. */
 .nav-overlay {
     position: fixed;
     inset: 0;
     z-index: 110;
     background: rgba(0, 0, 0, 0.55);
     opacity: 0;
-    transition: opacity var(--t-fade);
+    visibility: hidden;
+    transition: opacity var(--t-fade), visibility 0s linear var(--t-fade-duration);
 }
 
 .nav-overlay.is-open {
     opacity: 1;
+    visibility: visible;
+    transition: opacity var(--t-fade);
 }
 
 .nav-panel {

@@ -86,7 +86,10 @@
 
     /* motion */
     --t-hover: 0.3s ease;
-    --t-fade: 0.35s ease;
+    /* fade duration also stands alone: the nav overlay reuses it as the
+       visibility transition-delay, which accepts no easing keyword */
+    --t-fade-duration: 0.35s;
+    --t-fade: var(--t-fade-duration) ease;
     --t-reveal: 0.65s ease;
     --t-tap: 0.25s ease;
 }

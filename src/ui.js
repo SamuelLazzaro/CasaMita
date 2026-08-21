@@ -10,7 +10,6 @@
 import {
     NAV_CLOSE_LABEL_KEY,
     NAV_OPEN_LABEL_KEY,
-    NAV_OVERLAY_FADE_MS,
     SCROLLEND_FALLBACK_MS,
     TOPBAR_SOLID_SCROLL_Y
 } from "./constants.js";
@@ -111,12 +110,17 @@ function updateHamburgerState(isOpen) {
  * WebKit — alone among the engines — matches :focus-visible on
  * programmatic focus. Focus is still restored on close, where the panel
  * turning visibility:hidden would otherwise drop it onto <body>.
+ *
+ * Overlay and panel are shown/hidden by the .is-open class alone: their
+ * fade/slide AND their end-state hiding (visibility + transition-delay)
+ * live entirely in CSS. Keep it that way — an earlier version staged the
+ * overlay with requestAnimationFrame + setTimeout, and rapid open/close
+ * toggling raced those callbacks, leaving the overlay hidden under an
+ * open menu.
  * @returns {void}
  */
 function openNav() {
-    g_navOverlay.hidden = false;
-    // wait one frame so the overlay fade-in transition can run
-    requestAnimationFrame(() => g_navOverlay.classList.add("is-open"));
+    g_navOverlay.classList.add("is-open");
     g_navPanel.classList.add("is-open");
     updateHamburgerState(true);
     lockPageScroll();
@@ -128,9 +132,6 @@ function openNav() {
  */
 export function closeNav() {
     g_navOverlay.classList.remove("is-open");
-    setTimeout(() => {
-        g_navOverlay.hidden = true;
-    }, NAV_OVERLAY_FADE_MS);
     g_navPanel.classList.remove("is-open");
     updateHamburgerState(false);
     unlockPageScroll();

@@ -11,9 +11,6 @@ export const DEFAULT_LANG = "it";
 /** @type {number} scroll offset (px) after which the top bar turns solid */
 export const TOPBAR_SOLID_SCROLL_Y = 40;
 
-/** @type {number} duration (ms) of the nav overlay fade-out transition */
-export const NAV_OVERLAY_FADE_MS = 350;
-
 /**
  * @type {number} safety timeout (ms) used to end a programmatic scroll on
  * browsers that do not fire the `scrollend` event
