@@ -88,7 +88,8 @@
     padding-bottom: calc(32px + var(--safe-bottom));
     display: flex;
     flex-direction: column;
-    background: var(--c-teal);
+    /* background: var(--c-teal); */
+	backdrop-filter: blur(20px) saturate(160%);
     transform: translateX(100%);
     visibility: hidden;
     transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 0.4s;
@@ -666,7 +667,7 @@
 .fab-cookie {
     /* hover/tap share the resting values through these properties so the
        two states cannot drift apart */
-    --fab-cookie-bg: rgba(255, 255, 255, 0.55);
+    --fab-cookie-bg: rgba(255, 255, 255, 0.15);
     --fab-cookie-bg-active: var(--c-teal-tint);
 
     /* mirrored to the bottom-left corner. No --scrollbar-comp here: the
@@ -679,8 +680,9 @@
     justify-content: center;
     /* translucent look: the page content stays visible underneath */
     background: var(--fab-cookie-bg);
-    border: 2px solid var(--c-teal);
     color: var(--c-teal);
+    backdrop-filter: blur(12px) saturate(160%);
+    border: 2px solid color-mix(in srgb, var(--c-teal) 30%, transparent);;
 }
 
 /* ==========================================================================
