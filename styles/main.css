@@ -92,6 +92,16 @@
     --t-fade: var(--t-fade-duration) ease;
     --t-reveal: 0.65s ease;
     --t-tap: 0.25s ease;
+
+	--bs-big: inset 5px 5px 5px rgba(255, 255, 255, 0.55), inset -5px -5px 5px rgba(0, 0, 0, 0.35);
+	--bs-big-hover: inset 5px 5px 5px rgba(0, 0, 0, 0.35), inset -5px -5px 5px rgba(255, 255, 255, 0.55);
+
+	--bc-bubble: color-mix(in srgb, var(--c-teal) 75%, transparent);
+	--bs-bubble: inset 3px 3px 3px rgba(255, 255, 255, 0.55), inset -3px -3px 3px rgba(0, 0, 0, 0.35);
+	--bs-bubble-hover: inset 3px 3px 3px rgba(0, 0, 0, 0.35), inset -3px -3px 3px rgba(255, 255, 255, 0.55);
+
+	--bs-c-teal: inset 5px 5px 5px var(--c-teal), inset -5px -5px 5px rgba(0, 0, 0, 0.35);
+	--bs-c-teal-hover: inset 5px 5px 5px rgba(0, 0, 0, 0.35), inset -5px -5px 5px var(--c-teal);
 }
 
 /* ----- Reset ----- */

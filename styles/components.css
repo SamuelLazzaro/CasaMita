@@ -96,6 +96,8 @@
     display: flex;
     flex-direction: column;
     /* background: var(--c-teal); */
+	background: rgba(35, 122, 135, 0.45); /* --c-teal at 45%: tint layer of the glass */
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
 	backdrop-filter: blur(20px) saturate(160%);
     transform: translateX(100%);
     visibility: hidden;
@@ -202,8 +204,12 @@
 }
 
 .btn--ghost {
-    border: 2px solid var(--c-white);
+    /* border: 2px solid ; */
     color: var(--c-white);
+	background: rgba(0, 0, 0, 0.35);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+	backdrop-filter: blur(20px) saturate(160%);
+	box-shadow: var(--bs-big);
 }
 
 .btn--teal {
@@ -367,9 +373,12 @@
     height: 44px;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.35);
+	-webkit-backdrop-filter: blur(20px) saturate(160%);
+	backdrop-filter: blur(20px) saturate(160%);
     color: var(--c-white);
     transform: translateY(-50%);
-    transition: background-color var(--t-hover);
+	box-shadow: var(--bs-big);
+    transition: background-color var(--t-hover), box-shadow var(--t-hover);
 }
 
 .carousel-arrow--prev {
@@ -652,31 +661,34 @@
    ========================================================================== */
 .fab-lang,
 .fab-cookie {
-    --fab-size: 52px;
+	--fab-size: 52px;
     --fab-edge-gap: 20px;
-
     position: fixed;
     right: calc(var(--fab-edge-gap) + var(--scrollbar-comp) + var(--safe-right));
     bottom: calc(var(--fab-edge-gap) + var(--safe-bottom));
-    /* above the nav overlay/panel and the topbar, like in CardanoSkating */
     z-index: 130;
     width: var(--fab-size);
     height: var(--fab-size);
     border-radius: 50%;
     /* background: var(--c-teal); */
-    color: var(--c-teal);
+    /* background: var(--c-teal-dark); */
+
+	background: var(--bc-bubble);
+	-webkit-backdrop-filter: blur(12px) saturate(160%);
+	backdrop-filter: blur(12px) saturate(160%);
+	
+    color: var(--c-white);
     font-weight: 600;
     font-size: 0.95rem;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-    transition: background-color var(--t-hover), transform var(--t-hover);
-	backdrop-filter: blur(12px) saturate(160%);
     border: 2px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
+	box-shadow: var(--bs-bubble);
+    transition: background-color var(--t-hover), transform var(--t-hover), box-shadow var(--t-hover);
 }
 
 .fab-cookie {
     /* hover/tap share the resting values through these properties so the
        two states cannot drift apart */
-    --fab-cookie-bg: rgba(255, 255, 255, 0.15);
+    /* --fab-cookie-bg: rgba(255, 255, 255, 0.15); */
 	/* --fab-cookie-bg-active: var(--c-teal-tint); */
 	
     /* mirrored to the bottom-left corner. No --scrollbar-comp here: the
@@ -793,22 +805,23 @@
 
     .btn--solid:hover {
         background: var(--c-teal-tint);
-        transform: translateY(-2px);
+        /* transform: translateY(-2px); */
     }
 
     .btn--ghost:hover {
         background: rgba(255, 255, 255, 0.14);
-        transform: translateY(-2px);
+        /* transform: translateY(-2px); */
+		box-shadow: var(--bs-big-hover);
     }
 
     .btn--teal:hover {
         background: var(--c-teal-dark);
-        transform: translateY(-2px);
+        /* transform: translateY(-2px); */
     }
 
     .btn--teal-outline:hover {
         background: var(--c-teal-tint);
-        transform: translateY(-2px);
+        /* transform: translateY(-2px); */
     }
 
     .topbar-back:hover {
@@ -880,16 +893,24 @@
     }
 
     .fab-lang:hover, .fab-cookie:hover {
-        background: var(--c-teal-tint);
-        transform: translateY(-2px);
+        /* background: var(--c-teal-tint); */
+		/* box-shadow: var(--bs-c-teal-hover); */
+		box-shadow: var(--bs-bubble-hover);
+        transform: translateY(-5px);
     }
 
     .carousel-arrow:hover {
         background: var(--carousel-arrow-hover-bg);
+		box-shadow: var(--bs-big-hover);
     }
+
+	.carousel-arrow:hover svg {
+		transform: scale(1.1);
+	}
 
     .carousel-dot:hover {
         background: var(--carousel-dot-hover-bg);
+		box-shadow: var(--bs-big-hover);
     }
 }
 
@@ -918,6 +939,7 @@
 
 .btn--ghost.is-tapped {
     background: rgba(255, 255, 255, 0.14);
+	box-shadow: var(--bs-big-hover);
 }
 
 .btn--teal.is-tapped {
@@ -949,15 +971,23 @@
 }
 
 .fab-lang.is-tapped, .fab-cookie.is-tapped {
-    background: var(--c-teal-tint);
+    /* box-shadow: var(--bs-c-teal-hover); */
+	box-shadow: var(--bs-bubble-hover);
+	transform: translateY(-5px);
 }
 
 .carousel-arrow.is-tapped {
     background: var(--carousel-arrow-hover-bg);
+	box-shadow: var(--bs-big-hover);
+}
+
+.carousel-arrow.is-tapped svg {
+	transform: scale(1.1);
 }
 
 .carousel-dot.is-tapped {
     background: var(--carousel-dot-hover-bg);
+	box-shadow: var(--bs-big-hover);
 }
 
 /* With reduced motion the hover reveal would snap open instead of
