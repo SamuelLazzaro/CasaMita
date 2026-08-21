@@ -656,20 +656,22 @@
     width: var(--fab-size);
     height: var(--fab-size);
     border-radius: 50%;
-    background: var(--c-teal);
-    color: var(--c-white);
+    /* background: var(--c-teal); */
+    color: var(--c-teal);
     font-weight: 600;
     font-size: 0.95rem;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
     transition: background-color var(--t-hover), transform var(--t-hover);
+	backdrop-filter: blur(12px) saturate(160%);
+    border: 2px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
 }
 
 .fab-cookie {
     /* hover/tap share the resting values through these properties so the
        two states cannot drift apart */
     --fab-cookie-bg: rgba(255, 255, 255, 0.15);
-    --fab-cookie-bg-active: var(--c-teal-tint);
-
+	/* --fab-cookie-bg-active: var(--c-teal-tint); */
+	
     /* mirrored to the bottom-left corner. No --scrollbar-comp here: the
        compensation only concerns right-anchored fixed elements, the left
        edge does not move when the scrollbar vanishes. */
@@ -679,10 +681,8 @@
     align-items: center;
     justify-content: center;
     /* translucent look: the page content stays visible underneath */
-    background: var(--fab-cookie-bg);
-    color: var(--c-teal);
-    backdrop-filter: blur(12px) saturate(160%);
-    border: 2px solid color-mix(in srgb, var(--c-teal) 30%, transparent);;
+    /* background: var(--fab-cookie-bg); */
+    /* color: var(--c-teal); */
 }
 
 /* ==========================================================================
@@ -872,13 +872,8 @@
         text-decoration: underline;
     }
 
-    .fab-lang:hover {
-        background: var(--c-teal-dark);
-        transform: translateY(-2px);
-    }
-
-    .fab-cookie:hover {
-        background: var(--fab-cookie-bg-active);
+    .fab-lang:hover, .fab-cookie:hover {
+        background: var(--c-teal-tint);
         transform: translateY(-2px);
     }
 
@@ -946,12 +941,8 @@
     text-decoration: underline;
 }
 
-.fab-lang.is-tapped {
-    background: var(--c-teal-dark);
-}
-
-.fab-cookie.is-tapped {
-    background: var(--fab-cookie-bg-active);
+.fab-lang.is-tapped, .fab-cookie.is-tapped {
+    background: var(--c-teal-tint);
 }
 
 .carousel-arrow.is-tapped {
