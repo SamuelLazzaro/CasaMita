@@ -465,6 +465,7 @@
     border-radius: var(--radius-card);
     padding: 22px 20px;
     text-align: center;
+	box-shadow: inset 3px 3px 3px rgba(255, 255, 255, 0.5), inset -3px -3px 3px rgba(0, 0, 0, 0.2), 5px 5px 8px rgba(0, 0, 0, 0.03);
 }
 
 .service-tile svg {
