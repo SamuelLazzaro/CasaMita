@@ -681,7 +681,7 @@
     color: var(--c-white);
     font-weight: 600;
     font-size: 0.95rem;
-    border: 2px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
 	box-shadow: var(--bs-bubble);
     transition: background-color var(--t-hover), transform var(--t-hover), box-shadow var(--t-hover);
 }
