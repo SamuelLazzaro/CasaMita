@@ -25,12 +25,21 @@
     justify-content: space-between;
     gap: 1rem;
     background: transparent;
-    transition: background-color var(--t-fade), box-shadow var(--t-fade);
+    transition: background-color var(--t-fade), box-shadow var(--t-fade), backdrop-filter var(--t-fade);
+	border-bottom-left-radius: 20px;
+	border-bottom-right-radius: 20px;
 }
 
 .topbar--solid {
-    background: var(--c-teal);
-    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+	background: color-mix(in srgb, var(--c-teal) 85%, transparent);
+	-webkit-backdrop-filter: blur(12px) saturate(160%);
+	backdrop-filter: blur(12px) saturate(160%);
+    /* box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); */
+    /* box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18), inset -5px -5px 20px rgba(0, 0, 0, 0.35); */
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18), inset 5px 5px 20px rgba(255, 255, 255, 0.55), inset -5px -5px 20px rgba(0, 0, 0, 0.35);
+	border: 1px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
+	border-bottom-left-radius: 20px;
+	border-bottom-right-radius: 20px;
 }
 
 .brand {
