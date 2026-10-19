@@ -112,18 +112,20 @@ async function runDecision(action, doneKey, statusElement) {
 }
 
 /**
+ * Opens the details dialog. Rejecting from here is a two-step action: the
+ * "Reject" button reveals the optional message field and the confirm button,
+ * so the venue can explain the refusal to the guest.
  * @param {object} item - a request (calendar item or pending list row)
- * @param {boolean} [rejecting] - open straight in reject mode
  * @returns {void}
  */
-function openDetails(item, rejecting = false) {
+function openDetails(item) {
     byId('details-title').textContent = itemName(item);
     detailsBadge.replaceChildren(statusBadge(item.status));
     detailsList.replaceChildren();
     for (const [label, value] of detailRows(item)) appendDetail(detailsList, label, value);
     hideStatus(detailsStatus);
     rejectReason.value = '';
-    rejectBlock.hidden = !rejecting;
+    rejectBlock.hidden = true;
 
     detailsActions.replaceChildren();
     if (item.status === 'pending') {
@@ -131,10 +133,13 @@ function openDetails(item, rejecting = false) {
             if (!window.confirm(translate('confirm.approve'))) return;
             if (await runDecision(() => approveRequest(item.id), 'done.approved', detailsStatus)) detailsActions.replaceChildren();
         }));
-        detailsActions.append(button(translate('actions.reject'), 'btn btn-danger', () => {
+        const rejectButton = button(translate('actions.reject'), 'btn btn-danger', () => {
+            // The confirm button below takes over: hide this one so only one "reject" is visible.
+            rejectButton.hidden = true;
             rejectBlock.hidden = false;
             rejectReason.focus();
-        }));
+        });
+        detailsActions.append(rejectButton);
     }
     if (item.status === 'pending' || item.status === 'approved') {
         detailsActions.append(button(translate('actions.cancel'), 'btn', async () => {
@@ -206,7 +211,11 @@ function drawPending() {
         actions.append(button(translate('actions.approve'), 'btn btn-primary btn-small', async () => {
             if (!window.confirm(translate('confirm.approve'))) return;
             await runDecision(() => approveRequest(item.id), 'done.approved', byId('pending-status'));
-        }), button(translate('actions.reject'), 'btn btn-danger btn-small', () => openDetails(item, true)), button(translate('actions.details'), 'btn btn-small', () => openDetails(item)));
+        }), button(translate('actions.reject'), 'btn btn-danger btn-small', async () => {
+            // Quick path without a message for the guest: the two-step reject with a reason lives in the details dialog.
+            if (!window.confirm(translate('confirm.reject'))) return;
+            await runDecision(() => rejectRequest(item.id, ''), 'done.rejected', byId('pending-status'));
+        }), button(translate('actions.details'), 'btn btn-small', () => openDetails(item)));
         row.append(text, actions);
         return row;
     }));
