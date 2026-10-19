@@ -6,6 +6,7 @@
 import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
 import { renderDay, renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
+import { enableDragScroll } from './drag-scroll.js';
 import { renderPriceMonth, renderPriceWeek } from './price-calendar.js';
 import { initFacilityForm } from './form-facility.js';
 import { initHotelForm } from './form-hotel.js';
@@ -35,6 +36,9 @@ let g_directForm = null;
 
 const calendarContainer = byId('calendar');
 const calendarStatus = byId('calendar-status');
+
+// Wide calendars (narrow screens) scroll sideways by dragging with the mouse.
+for (const scrollBox of document.querySelectorAll('.calendar-scroll')) enableDragScroll(scrollBox);
 
 const calendarView = createCalendarView({ title: byId('cal-title'), previous: byId('cal-prev'), next: byId('cal-next'), today: byId('cal-today'), switches: { day: byId('cal-view-day'), week: byId('cal-view-week'), month: byId('cal-view-month') } }, async (interval) => {
     hideStatus(calendarStatus);

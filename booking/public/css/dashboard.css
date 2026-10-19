@@ -3,6 +3,16 @@
    toolbar and grids, inbox lists, rooms table, dialogs.
    =========================================================================== */
 
+/*
+ * The dashboard is wider than the public pages: a week of the calendar is
+ * seven columns of 120px plus the paddings of panel and container, which
+ * do not fit in the 760px of the public form. Header, container and footer
+ * all read --page-width, so they stay aligned.
+ */
+:root:has(.layout) {
+    --page-width: 940px;
+}
+
 /* ---------------------------------------------------- section navigation */
 
 /*
@@ -354,13 +364,39 @@ body:has(.nav-sections:not([hidden])) {
 
 /* ------------------------------------------------------------- calendar */
 
+/*
+ * The seven days should all be on screen: the dashboard page is widened for
+ * that (see the --page-width override at the top of this file). When the
+ * screen is narrower than the grid, the box scrolls sideways: natively on
+ * touch, by dragging with the mouse thanks to drag-scroll.js (the grab cursor
+ * appears only when there is something to scroll).
+ */
 .calendar-scroll {
     overflow-x: auto;
 }
 
+.calendar-scroll.is-scrollable {
+    cursor: grab;
+}
+
+.calendar-scroll.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+/*
+ * The grids clip their corners with overflow: hidden, so they must be at
+ * least as wide as their columns, or the overflow would be clipped inside
+ * the grid instead of scrolling in .calendar-scroll: the minimum width is
+ * set on the grid itself (7 columns, 6 gaps, 2 borders), and the columns
+ * share the width equally above it.
+ */
 .calendar-week,
 .calendar-month {
+    --day-min-width: 120px;
     display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    min-width: calc(7 * var(--day-min-width) + 8px);
     gap: 1px;
     background: var(--border);
     border: 1px solid var(--border);
@@ -368,12 +404,8 @@ body:has(.nav-sections:not([hidden])) {
     overflow: hidden;
 }
 
-.calendar-week {
-    grid-template-columns: repeat(7, minmax(120px, 1fr));
-}
-
 .calendar-month {
-    grid-template-columns: repeat(7, minmax(96px, 1fr));
+    --day-min-width: 96px;
 }
 
 .cal-weekday {

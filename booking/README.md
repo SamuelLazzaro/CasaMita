@@ -174,6 +174,10 @@ minuti). Sezioni:
   giorni) e mese (griglia con una riga per tipologia in ogni cella); niente
   vista giorno. Solo lettura: i prezzi si modificano nella sezione Prezzi e il
   calendario si aggiorna da solo.
+  Le viste settimana e mese mostrano i sette giorni per intero (la dashboard
+  è più larga delle pagine pubbliche); se lo schermo è più stretto si scorre
+  in orizzontale, col dito sul touch e trascinando col mouse sul desktop
+  (`drag-scroll.js`).
 - **Notifiche**: richieste in attesa con approvazione e rifiuto immediati.
 - **Camere** (solo hotel): tipologie di `rooms.csv` e camere libere per le
   date scelte.

@@ -34,3 +34,6 @@ export const TAP_FEEDBACK_CLASS = 'is-tapped';
 
 /** @type {string} elements whose taps deserve the feedback */
 export const TAP_FEEDBACK_SELECTOR = 'a[href], button, [role="button"]';
+
+/** @type {number} mouse movement (px) after which a press on a scrollable calendar becomes a drag (see drag-scroll.js) */
+export const DRAG_SCROLL_THRESHOLD_PX = 5;
