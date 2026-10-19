@@ -678,6 +678,18 @@ button.cal-cell-header:focus-visible {
     font-weight: 600;
 }
 
+/* Admin dialog: when the agreed total differs from the computed one, the
+   computed figure is struck through and the agreed one stands beside it. */
+.price-total-struck {
+    text-decoration: line-through;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.price-total-agreed {
+    color: var(--accent-text);
+}
+
 .price-line {
     display: flex;
     justify-content: space-between;

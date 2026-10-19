@@ -83,25 +83,62 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     /** @type {object|null} last quote answer, re-rendered on language change */
     let quote = null;
 
+    /** @type {HTMLElement|null} the "total" line of the price box, redrawn when the agreed total changes */
+    let totalLine = null;
+
+    /**
+     * Agreed total typed in the admin dialog when it differs from the
+     * computed one; null otherwise (empty, invalid or equal).
+     * @returns {number|null}
+     */
+    function agreedTotalOverride() {
+        if (totalInput === null || totalInput.value === '' || quote === null) return null;
+        const agreed = Number(totalInput.value);
+        if (!Number.isFinite(agreed) || agreed < 0 || agreed === quote.total) return null;
+        return agreed;
+    }
+
+    /**
+     * Fills the "total" line: the computed total, or, when the venue agreed a
+     * different amount, the computed one struck through and the agreed one
+     * beside it, so the dialog shows at a glance what the guest will pay.
+     * @returns {void}
+     */
+    function renderTotalLine() {
+        if (totalLine === null || quote === null) return;
+        const lang = currentLanguage();
+        const label = document.createElement('span');
+        label.textContent = `${translate('price.total')}: `;
+        const computed = document.createElement('span');
+        computed.textContent = formatEuro(quote.total, lang);
+        totalLine.replaceChildren(label, computed);
+        const agreed = agreedTotalOverride();
+        if (agreed === null) return;
+        computed.className = 'price-total-struck';
+        const agreedElement = document.createElement('span');
+        agreedElement.className = 'price-total-agreed';
+        agreedElement.textContent = formatEuro(agreed, lang);
+        totalLine.append(' ', agreedElement);
+    }
+
     /**
      * Draws the quote: total, discount line when one applies, the tax wording
-     * and the nightly prices. In the admin dialog the editable "total" field
-     * is prefilled with the computed total (the venue may override it).
+     * and the nightly prices.
      * @returns {void}
      */
     function renderQuote() {
         if (priceBox === null) return;
         const lang = currentLanguage();
         priceBox.replaceChildren();
+        totalLine = null;
         if (quote === null || quote.priced === false) {
             priceBox.hidden = true;
-            if (totalInput !== null) totalInput.value = '';
             return;
         }
-        const total = document.createElement('div');
-        total.className = 'price-total';
-        total.textContent = `${translate('price.total')}: ${formatEuro(quote.total, lang)}`;
-        priceBox.append(total);
+        totalLine = document.createElement('div');
+        totalLine.className = 'price-total';
+        renderTotalLine();
+        priceBox.append(totalLine);
         if (quote.discount_percent > 0) {
             const subtotal = document.createElement('div');
             subtotal.className = 'price-line';
@@ -124,21 +161,27 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         }
         priceBox.append(nightsList);
         priceBox.hidden = false;
-        if (totalInput !== null) totalInput.value = String(quote.total);
     }
 
+    /**
+     * Loads the quote of the selected room and dates. In the admin dialog the
+     * editable "total" field is prefilled with the computed total here, and
+     * only here: a language change redraws the box without touching what the
+     * venue typed.
+     * @returns {Promise<void>}
+     */
     async function refreshQuote() {
         if (priceBox === null) return;
         if (roomSelect.disabled || roomSelect.value === '' || rooms.length === 0) {
             quote = null;
-            renderQuote();
-            return;
+        } else {
+            try {
+                quote = await fetchQuote(roomSelect.value, checkIn.value, checkOut.value);
+            } catch {
+                quote = null;
+            }
         }
-        try {
-            quote = await fetchQuote(roomSelect.value, checkIn.value, checkOut.value);
-        } catch {
-            quote = null;
-        }
+        if (totalInput !== null) totalInput.value = quote === null || quote.priced === false ? '' : String(quote.total);
         renderQuote();
     }
 
@@ -173,6 +216,7 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     checkIn.addEventListener('change', refreshAvailability);
     checkOut.addEventListener('change', refreshAvailability);
     roomSelect.addEventListener('change', refreshQuote);
+    if (totalInput !== null) totalInput.addEventListener('input', renderTotalLine);
     onLanguageChange(() => {
         if (rooms.length > 0) renderRooms();
         renderQuote();
