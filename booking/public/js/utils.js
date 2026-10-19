@@ -199,6 +199,28 @@ export function formatEuro(amount, lang) {
 }
 
 /**
+ * Value of a price input: always two decimals ("160.00"), empty when there is no price.
+ * @param {number|null|undefined} amount - euro
+ * @returns {string}
+ */
+export function priceInputValue(amount) {
+    if (amount === null || amount === undefined || !Number.isFinite(amount)) return '';
+    return amount.toFixed(2);
+}
+
+/**
+ * Cuts the decimals of a typed price text beyond the second one, leaving
+ * everything else untouched ("12.345" → "12.34", "12" → "12").
+ * @param {string} text - raw value of a number input
+ * @returns {string}
+ */
+export function limitToCents(text) {
+    const decimalsStart = text.search(/[.,]/);
+    if (decimalsStart === -1) return text;
+    return text.slice(0, decimalsStart + 3);
+}
+
+/**
  * The state a booking is shown with. A confirmed hotel stay with a payment
  * recorded shows the payment ('deposit', 'paid') in place of the plain
  * 'approved'; every other booking shows its status as it is.

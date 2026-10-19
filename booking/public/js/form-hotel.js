@@ -9,8 +9,8 @@
 import { MAX_DAYS_AHEAD, MAX_NIGHTS } from './constants.js';
 import { fetchAvailability, fetchQuote } from './api.js';
 import { currentLanguage, onLanguageChange, translate } from './i18n.js';
-import { errorMessage, fillSelect, showStatus, hideStatus } from './ui.js';
-import { addDays, formatEuro, formatShortDate, nightsBetween, todayInRome } from './utils.js';
+import { bindPriceInput, errorMessage, fillSelect, showStatus, hideStatus } from './ui.js';
+import { addDays, formatEuro, formatShortDate, nightsBetween, priceInputValue, todayInRome } from './utils.js';
 
 /**
  * @typedef {object} RoomOption
@@ -181,7 +181,7 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
                 quote = null;
             }
         }
-        if (totalInput !== null) totalInput.value = quote === null || quote.priced === false ? '' : String(quote.total);
+        if (totalInput !== null) totalInput.value = quote === null || quote.priced === false ? '' : priceInputValue(quote.total);
         renderQuote();
     }
 
@@ -229,7 +229,10 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     checkIn.addEventListener('change', refreshAvailability);
     checkOut.addEventListener('change', refreshAvailability);
     roomSelect.addEventListener('change', refreshQuote);
-    if (totalInput !== null) totalInput.addEventListener('input', renderTotalLine);
+    if (totalInput !== null) {
+        bindPriceInput(totalInput);
+        totalInput.addEventListener('input', renderTotalLine);
+    }
     onLanguageChange(() => {
         if (rooms.length > 0) renderRooms();
         renderQuote();

@@ -73,6 +73,10 @@ describe('pricing administration and public quote', () => {
         expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120 })).status).toBe(200);
         expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: UNKNOWN_ROOM, price_per_night: 120 })).status).toBe(400);
         expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: -1 })).status).toBe(400);
+        // Prices carry two decimals at most: a third one is refused, not rounded.
+        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120.005 })).status).toBe(400);
+        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120.5 })).status).toBe(200);
+        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120 })).status).toBe(200);
 
         const period = await adminCall('POST', '/api/admin/pricing/periods', cookie, { room_type: ROOM_A.name, date_from: daysAhead(202), date_to: daysAhead(210), price_per_night: 180, label: 'Alta stagione' });
         expect(period.status).toBe(201);

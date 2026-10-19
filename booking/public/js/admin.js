@@ -16,8 +16,8 @@ import { initRestaurantForm } from './form-restaurant.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { appendDetail, applyVenue, button, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
-import { addDays, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
+import { appendDetail, applyVenue, bindPriceInput, button, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
+import { addDays, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, priceInputValue, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
 
@@ -135,6 +135,10 @@ const rejectReason = byId('reject-reason');
 const depositBlock = byId('deposit-block');
 const depositAmount = byId('deposit-amount');
 const depositHint = byId('deposit-hint');
+
+// Every price field takes and shows two decimals.
+bindPriceInput(depositAmount);
+bindPriceInput(byId('period-price'));
 
 /**
  * Payment rows of a confirmed hotel stay: the deposit and the balance still
@@ -492,8 +496,8 @@ function drawPricing() {
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '0';
-        input.step = '0.01';
-        input.value = row.price_per_night === null ? '' : String(row.price_per_night);
+        bindPriceInput(input);
+        input.value = priceInputValue(row.price_per_night);
         input.placeholder = translate('pricing.notSet');
         input.setAttribute('aria-label', `${row.room_type} ${translate('pricing.pricePerNight')}`);
         const save = button(translate('pricing.save'), 'btn btn-small', () => {

@@ -264,6 +264,10 @@ dicitura mostrata al cliente e nelle email):
   scrive a mano).
 - **Sconti per durata**: regole globali "da N notti: X%". Si applica quella
   con la soglia più alta raggiunta.
+- Ogni campo prezzo (prezzo base, periodo, totale concordato, acconto) accetta
+  al massimo due decimali e li mostra sempre con due decimali
+  (`bindPriceInput` in `ui.js`); il server rifiuta una terza cifra decimale
+  (400 `invalid_price` / `invalid_amount`) invece di arrotondarla.
 
 Totale = somma dei prezzi delle singole notti meno lo sconto, arrotondato ai
 centesimi solo alla fine (`src/pricing.ts`). Il form pubblico lo aggiorna al

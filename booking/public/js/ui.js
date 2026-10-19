@@ -1,6 +1,7 @@
 /* ui.js — DOM helpers shared by the pages: status messages, selects, venue theme. */
 import { STATUS_ERROR_CLASS, STATUS_OK_CLASS } from './constants.js';
 import { translate } from './i18n.js';
+import { limitToCents, priceInputValue } from './utils.js';
 
 /**
  * Shows a status message; kind 'ok' and 'error' color it, anything else is neutral.
@@ -103,6 +104,26 @@ export function statusBadge(status) {
     badge.className = `badge is-${status}`;
     badge.textContent = translate(`status.${status}`);
     return badge;
+}
+
+/**
+ * Makes a number input behave as a price in euro: while typing, no more
+ * than two decimals get in; on leaving the field the value is rewritten with
+ * exactly two decimals ("160" → "160.00"). Empty stays empty.
+ * @param {HTMLInputElement} input
+ * @returns {void}
+ */
+export function bindPriceInput(input) {
+    input.step = '0.01';
+    input.inputMode = 'decimal';
+    input.addEventListener('input', () => {
+        const limited = limitToCents(input.value);
+        if (limited !== input.value) input.value = limited;
+    });
+    input.addEventListener('change', () => {
+        if (input.value === '') return;
+        input.value = priceInputValue(Number(input.value));
+    });
 }
 
 /**

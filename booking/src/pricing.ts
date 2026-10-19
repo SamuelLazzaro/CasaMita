@@ -65,10 +65,12 @@ export async function quoteStay(db: D1Database, roomType: string, checkIn: strin
     return computeQuote(checkIn, checkOut, basePrice, periods.results as Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules.results as Pick<DiscountRule, 'min_nights' | 'percent'>[]);
 }
 
-/** A price in euro: finite, non-negative, at most MAX_PRICE, rounded to the cent; null when invalid. */
+/** A price in euro: finite, non-negative, at most MAX_PRICE, with at most two decimals; null when invalid. */
 export function priceValue(value: unknown): number | null {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_PRICE) return null;
-    return roundCents(value);
+    // A third decimal is refused rather than rounded: the cents the venue typed are the cents stored.
+    if (roundCents(value) !== value) return null;
+    return value;
 }
 
 export type PeriodFields = { roomType: string; dateFrom: string; dateTo: string; price: number; label: string | null };
