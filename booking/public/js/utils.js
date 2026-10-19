@@ -8,6 +8,15 @@ export function todayInRome() {
 }
 
 /**
+ * @returns {{date: string, minutes: number}} the current civil date and time in the venue's time zone (minutes from midnight)
+ */
+export function nowInRome() {
+    const formatted = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+    const [date, time] = formatted.split(' ');
+    return { date, minutes: minutesFromTime(time) };
+}
+
+/**
  * @param {string} date - 'YYYY-MM-DD'
  * @param {number} days - may be negative
  * @returns {string} 'YYYY-MM-DD'

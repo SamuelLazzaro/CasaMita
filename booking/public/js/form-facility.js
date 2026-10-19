@@ -30,7 +30,7 @@ function timeOptions(facility, forEnd) {
  * @param {{facility: {open: string, close: string, slotMinutes: number}}} config
  * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => void, setRequesters: (requesters: {id: number, name: string, status: string}[]) => void}}
+ * @returns {{reset: () => void, setRequesters: (requesters: {id: number, name: string, status: string}[]) => void, prefill: (values: {date: string, startTime: string|null}) => void}} prefill sets date and time range from a calendar cell
  */
 export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -60,6 +60,20 @@ export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
         date.value = today;
         startSelect.selectedIndex = 0;
         alignEnd();
+    }
+
+    /**
+     * Fills the form from a calendar cell: the date, and, from a slot of the
+     * time grid, a one-slot range starting there (the user then stretches
+     * it). The other fields keep what they hold.
+     * @param {{date: string, startTime: string|null}} values - 'YYYY-MM-DD' and 'HH:MM' (null from a whole-day cell)
+     * @returns {void}
+     */
+    function prefill(values) {
+        date.value = values.date;
+        if (values.startTime === null) return;
+        startSelect.value = values.startTime;
+        endSelect.value = timeFromMinutes(minutesFromTime(values.startTime) + config.facility.slotMinutes);
     }
 
     /**
@@ -100,5 +114,5 @@ export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
     });
 
     alignEnd();
-    return { reset, setRequesters };
+    return { reset, setRequesters, prefill };
 }

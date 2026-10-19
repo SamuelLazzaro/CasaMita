@@ -87,7 +87,7 @@ booking/
 │   ├── admin.html        # dashboard del gestore
 │   ├── privacy.html      # informativa art. 13 GDPR (template da compilare)
 │   ├── css/              # base / layout / components / dashboard / main (@import)
-│   └── js/               # constants / translations / i18n / utils / api / ui / form-* / calendar-* / main / booking / admin
+│   └── js/               # constants / translations / i18n / utils / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / main / booking / admin / area
 └── test/                 # vitest + @cloudflare/vitest-pool-workers
 ```
 
@@ -161,11 +161,26 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
 Accesso con `ADMIN_PASSWORD` (sessione di 8 ore, 10 tentativi per IP ogni 15
 minuti). Sezioni:
 
-- **Calendario**: viste giorno, settimana e mese; ogni voce apre il popup con
+- **Calendario**: per l'hotel viste settimana e mese a celle giornaliere
+  (un soggiorno non ha un orario); per ristorante e impianto anche la vista
+  giorno, e settimana e giorno sono una griglia oraria (`slot-calendar.js`):
+  una colonna per giorno, una riga per fascia (15 minuti nelle finestre di
+  pranzo e cena per il ristorante, 30 minuti nell'orario di apertura per
+  l'impianto). Nell'impianto una prenotazione occupa le sue fasce, colorate
+  con il colore della società (richieste in attesa a righe); nel ristorante
+  ogni fascia elenca i tavoli seduti a quell'ora. Ogni voce apre il popup con
   i dettagli e le azioni (approva, rifiuta con messaggio facoltativo, annulla).
   "Nuova prenotazione" registra una prenotazione già confermata con le stesse
   regole e gli stessi campi del cliente; il cliente riceve l'email di
-  conferma con il link personale, il gestore nessuna email.
+  conferma con il link personale, il gestore nessuna email. La stessa
+  finestra si apre dal calendario con il bottone **+** che compare passando
+  col mouse su una casella (sul touch: un tocco rivela il +, il secondo lo
+  preme), già compilata con la data (hotel: check-in quel giorno, una notte)
+  e, da una fascia della griglia oraria, con servizio e orario (ristorante) o
+  con l'intervallo di una fascia (impianto). Il + compare solo sui giorni e
+  sulle fasce non ancora passati; nell'impianto solo sulle fasce libere, nel
+  ristorante su tutte (un orario non si esaurisce). Logica in
+  `add-shortcut.js`, un solo listener delegato per calendario.
   Per l'hotel la sezione ha un secondo calendario, **Prezzi** (selettore
   Prenotazioni / Prezzi in alto): per ogni giorno il prezzo a notte di ogni
   tipologia, calcolato nel browser dai dati della sezione Prezzi con la
@@ -206,11 +221,13 @@ se una fascia è già occupata.
 
 La società entra dal link personale `/access/<token>` ricevuto via email
 (cookie di sessione firmato, 30 giorni; sospensione e rigenerazione del link
-invalidano subito le sessioni). Nell'area vede il calendario condiviso con
-nome e colore di chi occupa ogni fascia (le note restano riservate), invia
-richieste sulla griglia dei 30 minuti con rifiuto immediato delle fasce già
-occupate, ritira le richieste in attesa e annulla le proprie prenotazioni
-future; ogni evento notifica la struttura via email.
+invalidano subito le sessioni). Nell'area vede il calendario condiviso (stessa
+griglia oraria della dashboard) con nome e colore di chi occupa ogni fascia
+(le note restano riservate), invia richieste sulla griglia dei 30 minuti con
+rifiuto immediato delle fasce già occupate, anche con il **+** di una fascia
+libera che apre il form già compilato, ritira le richieste in attesa e
+annulla le proprie prenotazioni future; ogni evento notifica la struttura via
+email.
 
 | Metodo e percorso | Descrizione |
 |---|---|

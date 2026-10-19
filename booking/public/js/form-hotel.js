@@ -32,7 +32,7 @@ function roomLabel(room) {
  * Wires a hotel form.
  * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => Promise<void>}} resets the fields and the availability list
+ * @returns {{reset: () => Promise<void>, prefill: (values: {checkIn: string}) => Promise<void>}} reset clears the fields and the availability list; prefill sets the dates from a calendar cell
  */
 export function initHotelForm(onSubmit, prefix = 'hotel') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -213,6 +213,19 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         await refreshAvailability();
     }
 
+    /**
+     * Opens the stay on a day picked in the calendar: one night from that
+     * day, the other fields untouched. The dates are written programmatically,
+     * which fires no 'change' event, so the availability is refreshed by hand.
+     * @param {{checkIn: string}} values - 'YYYY-MM-DD'
+     * @returns {Promise<void>}
+     */
+    async function prefill(values) {
+        checkIn.value = values.checkIn;
+        checkOut.value = addDays(values.checkIn, 1);
+        await refreshAvailability();
+    }
+
     checkIn.addEventListener('change', refreshAvailability);
     checkOut.addEventListener('change', refreshAvailability);
     roomSelect.addEventListener('change', refreshQuote);
@@ -263,5 +276,5 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         }
     });
 
-    return { reset };
+    return { reset, prefill };
 }

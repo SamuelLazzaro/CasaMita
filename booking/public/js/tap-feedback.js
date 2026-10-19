@@ -65,6 +65,15 @@ function interceptClick(clickEvent) {
 }
 
 /**
+ * Lets other modules adapt to the input in use (e.g. a hover affordance
+ * that a touch screen has to reveal with a tap instead).
+ * @returns {boolean} true when the last pointer pressed down was a finger
+ */
+export function lastInputWasTouch() {
+    return g_lastInputWasTouch;
+}
+
+/**
  * Starts giving taps a visual feedback before their action runs. Call it
  * before any other click handler is registered.
  * @returns {void}

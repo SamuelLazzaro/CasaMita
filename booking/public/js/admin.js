@@ -1,10 +1,12 @@
 /*
  * admin.js — entry point of the manager dashboard: login, section
- * navigation, calendar (day / week / month), pending requests, direct
- * bookings, rooms (hotel) and organisations (facility).
+ * navigation, calendar (week / month, plus the day view on the time grid
+ * for restaurant and facility), pending requests, direct bookings, rooms
+ * (hotel) and organisations (facility).
  */
+import { attachAddShortcut } from './add-shortcut.js';
 import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
-import { renderDay, renderMonth, renderWeek, itemName } from './calendar-render.js';
+import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
 import { renderPriceMonth, renderPriceWeek } from './price-calendar.js';
@@ -12,9 +14,10 @@ import { initFacilityForm } from './form-facility.js';
 import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
+import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { appendDetail, applyVenue, button, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
-import { addDays, formatEuro, formatLongDate, formatShortDate, formatTimestamp, todayInRome } from './utils.js';
+import { addDays, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
 
@@ -29,7 +32,7 @@ let g_calendarItems = [];
 /** @type {object[]} registered organisations (facility) */
 let g_requesters = [];
 
-/** @type {{reset: () => void|Promise<void>, setRequesters?: (requesters: object[]) => void}|null} the direct booking form of this venue */
+/** @type {{reset: () => void|Promise<void>, prefill: (values: object) => void|Promise<void>, setRequesters?: (requesters: object[]) => void}|null} the direct booking form of this venue */
 let g_directForm = null;
 
 /* ------------------------------------------------------------- calendar */
@@ -51,13 +54,35 @@ const calendarView = createCalendarView({ title: byId('cal-title'), previous: by
     }
 });
 
+/*
+ * The hotel has week and month views of whole-day cells (a stay has no time
+ * of day); restaurant and facility draw week and day on the time grid. The
+ * drill-down from a month cell lands on the finest view of the venue. Every
+ * view carries the "+" shortcut, served by the delegated listener below.
+ */
 function drawCalendar() {
+    if (g_config === null) return;
     const { view, date } = calendarView.interval();
-    const options = { onSelect: openDetails, onOpenDay: (day) => calendarView.open('day', day) };
-    if (view === 'day') renderDay(calendarContainer, date, g_calendarItems, options);
-    else if (view === 'week') renderWeek(calendarContainer, date, g_calendarItems, options);
-    else renderMonth(calendarContainer, date, g_calendarItems, options);
+    const isHotel = g_config.type === 'hotel';
+    const options = { onSelect: openDetails, onOpenDay: (day) => calendarView.open(isHotel ? 'week' : 'day', day), withAddShortcut: true };
+    if (view === 'month') renderMonth(calendarContainer, date, g_calendarItems, options);
+    else if (isHotel) renderWeek(calendarContainer, date, g_calendarItems, options);
+    else renderSlotGrid(calendarContainer, view === 'day' ? [date] : weekDays(mondayOf(date)), g_calendarItems, slotGridSetup(g_config), options);
 }
+
+/**
+ * What the "+" of a cell writes into the direct booking form, by venue type.
+ * @param {string} day - 'YYYY-MM-DD'
+ * @param {string|null} time - 'HH:MM' from a slot, null from a whole-day cell
+ * @returns {object} the prefill values of that form
+ */
+function prefillFor(day, time) {
+    if (g_config.type === 'hotel') return { checkIn: day };
+    if (g_config.type === 'restaurant') return { date: day, time };
+    return { date: day, startTime: time };
+}
+
+attachAddShortcut(calendarContainer, (day, time) => openDirectBooking(prefillFor(day, time)));
 
 /* ------------------------------------------------- price calendar (hotel) */
 
@@ -284,11 +309,20 @@ function initDirectForm() {
     else g_directForm = initFacilityForm(g_config, submitDirectBooking, 'direct-facility');
 }
 
-byId('new-booking').addEventListener('click', () => {
+/**
+ * Opens the direct booking dialog, from the panel button (nothing prefilled)
+ * or from the "+" of a calendar cell (date, and time when the cell is a slot).
+ * @param {object|null} prefill - values for g_directForm.prefill, null for none
+ * @returns {void}
+ */
+function openDirectBooking(prefill = null) {
     hideStatus(byId(`direct-${g_config.type}-status`));
     if (g_directForm.setRequesters) g_directForm.setRequesters(g_requesters);
+    if (prefill !== null) g_directForm.prefill(prefill);
     openDialog(bookingDialog);
-});
+}
+
+byId('new-booking').addEventListener('click', () => openDirectBooking());
 
 /* ---------------------------------------------------------------- rooms */
 
@@ -605,6 +639,8 @@ async function enterDashboard() {
     byId('nav-pricing').hidden = g_config.type !== 'hotel';
     byId('nav-requesters').hidden = g_config.type !== 'facility';
     byId('cal-mode').hidden = g_config.type !== 'hotel';
+    // A stay has no time of day: the hotel has no day view.
+    byId('cal-view-day').hidden = g_config.type === 'hotel';
     initDirectForm();
     showSection('section-calendar');
     const loads = [calendarView.refresh(), loadPending()];

@@ -37,3 +37,14 @@ export const TAP_FEEDBACK_SELECTOR = 'a[href], button, [role="button"]';
 
 /** @type {number} mouse movement (px) after which a press on a scrollable calendar becomes a drag (see drag-scroll.js) */
 export const DRAG_SCROLL_THRESHOLD_PX = 5;
+
+/* --- "+" shortcut of the calendar cells (see js/add-shortcut.js) --- */
+
+/** @type {string} class of the round "+" button placed on a bookable cell */
+export const ADD_BUTTON_CLASS = 'cal-add';
+
+/** @type {string} class marking the cell whose "+" a tap has revealed */
+export const ADD_REVEALED_CLASS = 'is-add-revealed';
+
+/** @type {string} cells that can own a "+": a day of the week/month grids or a slot of the time grid */
+export const ADD_CELL_SELECTOR = '.cal-cell, .cal-slot';

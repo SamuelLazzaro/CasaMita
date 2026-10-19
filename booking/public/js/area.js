@@ -2,14 +2,17 @@
  * area.js — entry point of the reserved area of a facility requester:
  * shared calendar, own requests, new request and cancellation.
  */
+import { attachAddShortcut } from './add-shortcut.js';
 import { cancelMyRequest, fetchConfig, fetchMyRequests, fetchRequesterCalendar, requesterLogout, requesterMe, submitFacilityRequest } from './api.js';
-import { renderDay, renderMonth, renderWeek } from './calendar-render.js';
+import { renderMonth } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
+import { enableDragScroll } from './drag-scroll.js';
 import { initFacilityForm } from './form-facility.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
+import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { appendDetail, applyVenue, button, errorMessage, hideStatus, openDialog, showStatus, statusBadge } from './ui.js';
-import { formatLongDate, formatShortDate, formatTimestamp, todayInRome } from './utils.js';
+import { formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
 
@@ -27,10 +30,16 @@ let g_calendarItems = [];
 /** @type {object[]} own requests */
 let g_requests = [];
 
+/** @type {{prefill: (values: {date: string, startTime: string|null}) => void}|null} the new request form, wired at init */
+let g_requestForm = null;
+
 /* ------------------------------------------------------------- calendar */
 
 const calendarContainer = byId('calendar');
 const calendarStatus = byId('calendar-status');
+
+// The week grid is wider than a phone: it scrolls sideways, by dragging with the mouse on desktop.
+for (const scrollBox of document.querySelectorAll('.calendar-scroll')) enableDragScroll(scrollBox);
 
 const calendarView = createCalendarView({ title: byId('cal-title'), previous: byId('cal-prev'), next: byId('cal-next'), today: byId('cal-today'), switches: { day: byId('cal-view-day'), week: byId('cal-view-week'), month: byId('cal-view-month') } }, async (interval) => {
     hideStatus(calendarStatus);
@@ -43,14 +52,17 @@ const calendarView = createCalendarView({ title: byId('cal-title'), previous: by
 });
 
 function drawCalendar() {
+    if (g_config === null) return;
     const { view, date } = calendarView.interval();
     // Only own bookings open the popup: the calendar item carries no notes,
     // so the details come from the own requests list.
-    const options = { onSelect: (item) => openDetails(g_requests.find((request) => request.id === item.id) ?? item), canSelect: (item) => item.own === true, onOpenDay: (day) => calendarView.open('day', day) };
-    if (view === 'day') renderDay(calendarContainer, date, g_calendarItems, options);
-    else if (view === 'week') renderWeek(calendarContainer, date, g_calendarItems, options);
-    else renderMonth(calendarContainer, date, g_calendarItems, options);
+    const options = { onSelect: (item) => openDetails(g_requests.find((request) => request.id === item.id) ?? item), canSelect: (item) => item.own === true, onOpenDay: (day) => calendarView.open('day', day), withAddShortcut: true };
+    if (view === 'month') renderMonth(calendarContainer, date, g_calendarItems, options);
+    else renderSlotGrid(calendarContainer, view === 'day' ? [date] : weekDays(mondayOf(date)), g_calendarItems, slotGridSetup(g_config), options);
 }
+
+// The "+" of a free slot (or of a day of the month grid) opens the request form on it.
+attachAddShortcut(calendarContainer, (day, time) => openRequest({ date: day, startTime: time }));
 
 /* -------------------------------------------------------------- details */
 
@@ -138,10 +150,19 @@ async function refreshAll() {
 
 const requestDialog = byId('dialog-request');
 
-byId('new-request').addEventListener('click', () => {
+/**
+ * Opens the request dialog, from the panel button (nothing prefilled) or
+ * from the "+" of a calendar cell.
+ * @param {{date: string, startTime: string|null}|null} prefill - null for none
+ * @returns {void}
+ */
+function openRequest(prefill = null) {
     hideStatus(byId('area-facility-status'));
+    if (prefill !== null) g_requestForm.prefill(prefill);
     openDialog(requestDialog);
-});
+}
+
+byId('new-request').addEventListener('click', () => openRequest());
 
 /* ------------------------------------------------------------------ init */
 
@@ -177,7 +198,7 @@ async function init() {
     byId('venue-name').textContent = `${g_config.name} · ${g_me.name}`;
     byId('logout').hidden = false;
     byId('area-view').hidden = false;
-    initFacilityForm(g_config, async (payload) => {
+    g_requestForm = initFacilityForm(g_config, async (payload) => {
         await submitFacilityRequest(payload);
         requestDialog.close();
         showStatus(calendarStatus, translate('area.requestSent'), 'ok');

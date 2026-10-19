@@ -7,14 +7,14 @@
 import { MAX_DAYS_AHEAD } from './constants.js';
 import { currentLanguage, translate } from './i18n.js';
 import { errorMessage, fillSelect, showStatus, hideStatus } from './ui.js';
-import { addDays, seatingTimes, todayInRome } from './utils.js';
+import { addDays, minutesFromTime, seatingTimes, todayInRome } from './utils.js';
 
 /**
  * Wires a restaurant form.
  * @param {{restaurant: {lunch: {open: string, close: string}, dinner: {open: string, close: string}, stepMinutes: number}}} config
  * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => void}}
+ * @returns {{reset: () => void, prefill: (values: {date: string, time: string|null}) => void}} prefill sets date, service and time from a calendar cell
  */
 export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -46,6 +46,32 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
         form.reset();
         date.value = today;
         renderTimes();
+    }
+
+    /**
+     * @param {string} time - 'HH:MM'
+     * @returns {'lunch'|'dinner'} the service whose window holds that time (dinner when neither does)
+     */
+    function serviceOf(time) {
+        const minutes = minutesFromTime(time);
+        const lunch = config.restaurant.lunch;
+        const isLunch = minutesFromTime(lunch.open) <= minutes && minutes < minutesFromTime(lunch.close);
+        return isLunch ? 'lunch' : 'dinner';
+    }
+
+    /**
+     * Fills the form from a calendar cell: the date, and, from a slot of the
+     * time grid, the service and the seating time too. The other fields keep
+     * what they hold.
+     * @param {{date: string, time: string|null}} values - 'YYYY-MM-DD' and 'HH:MM' (null from a whole-day cell)
+     * @returns {void}
+     */
+    function prefill(values) {
+        date.value = values.date;
+        if (values.time === null) return;
+        form.querySelector(`input[name="service"][value="${serviceOf(values.time)}"]`).checked = true;
+        renderTimes();
+        timeSelect.value = values.time;
     }
 
     for (const radio of form.querySelectorAll('input[name="service"]')) radio.addEventListener('change', renderTimes);
@@ -86,5 +112,5 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
         }
     });
 
-    return { reset };
+    return { reset, prefill };
 }

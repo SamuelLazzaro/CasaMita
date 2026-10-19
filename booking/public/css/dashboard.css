@@ -418,7 +418,9 @@ body:has(.nav-sections:not([hidden])) {
     text-transform: capitalize;
 }
 
+/* position: relative anchors the "+" shortcut in the corner of the cell */
 .cal-cell {
+    position: relative;
     background: var(--surface);
     min-height: 7rem;
     display: flex;
@@ -480,12 +482,6 @@ button.cal-cell-header:focus-visible {
     overflow-y: auto;
 }
 
-.cal-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
 .cal-entry {
     --entry-color: var(--ok);
     --entry-active-bg: var(--accent-tint);
@@ -536,17 +532,225 @@ button.cal-cell-header:focus-visible {
     max-width: 100%;
 }
 
-.calendar-day .cal-entry {
-    flex-direction: row;
-    gap: var(--space-3);
-    align-items: baseline;
-    font-size: 0.9rem;
-    padding: 0.5rem 0.7rem;
+/* ------------------------------------------- time grid (restaurant, facility) */
+
+/*
+ * Week and day views of the venues that book by time: a time column plus one
+ * column per day (--day-columns, set inline by js/slot-calendar.js), one row
+ * per slot. As the week/month grids, it scrolls sideways inside
+ * .calendar-scroll when the screen is narrower than its minimum width.
+ */
+.slot-grid {
+    /* fixed height of a slot row, shared with the block label overlay so the two never drift apart */
+    --slot-height: 44px;
+    --day-min-width: 96px;
+    --time-column: 3.4rem;
+    display: grid;
+    grid-template-columns: var(--time-column) repeat(var(--day-columns, 7), minmax(var(--day-min-width), 1fr));
+    min-width: calc(var(--time-column) + var(--day-columns, 7) * var(--day-min-width));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
 }
 
-.calendar-day .cal-entry-time {
-    font-size: 0.85rem;
-    min-width: 5.5rem;
+.slot-grid.is-single-day {
+    --day-min-width: 200px;
+}
+
+.cal-corner {
+    border-bottom: 2px solid var(--border-strong);
+}
+
+.cal-day-header {
+    padding: 0.45rem 0.2rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    text-transform: capitalize;
+    color: var(--text-muted);
+    border-left: 1px solid var(--border);
+    border-bottom: 2px solid var(--border-strong);
+}
+
+.cal-day-header.is-today {
+    color: var(--accent-text);
+}
+
+/* restaurant: a heading row opens every service window (lunch, dinner) */
+.cal-service {
+    grid-column: 1 / -1;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    background: var(--page);
+    border-top: 1px solid var(--border);
+}
+
+/* one label per slot row; its top border mirrors the slots on the right
+   (solid on full hours, dotted in between) so the lines stay continuous */
+.cal-time {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: right;
+    padding: 0.1rem 0.45rem 0 0;
+    border-top: 1px dotted var(--border);
+}
+
+.cal-time.is-hour {
+    border-top: 1px solid var(--border);
+}
+
+.cal-slot {
+    position: relative;
+    min-height: var(--slot-height);
+    padding-right: 24px; /* room for the "+" beside the entries */
+    border-left: 1px solid var(--border);
+    border-top: 1px dotted var(--border);
+}
+
+.cal-slot.is-hour {
+    border-top: 1px solid var(--border);
+}
+
+.cal-slot.is-today {
+    background: var(--accent-tint);
+}
+
+.cal-slot.is-past {
+    background: var(--page);
+}
+
+/*
+ * Facility: a booked slot carries a wash of the organisation's color
+ * (--entry-color, set inline) and a solid bar on its left edge. The bar is an
+ * inset shadow and not a border, so the grid lines stay untouched. A pending
+ * request is striped: "undecided" shows at a glance, whatever the color.
+ */
+.cal-slot.is-booked {
+    --entry-color: var(--ok);
+    --slot-wash: color-mix(in srgb, var(--entry-color) 22%, var(--surface));
+    background: var(--slot-wash);
+    box-shadow: inset 3px 0 0 var(--entry-color);
+}
+
+.cal-slot.is-booked.is-pending {
+    background: repeating-linear-gradient(135deg, var(--slot-wash) 0 6px, var(--surface) 6px 10px);
+}
+
+.cal-slot.is-booked.is-past {
+    --slot-wash: color-mix(in srgb, var(--entry-color) 10%, var(--surface));
+}
+
+/* name of the booking, over the first slot, as tall as the whole block */
+.cal-slot-label {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: calc(var(--block-slots, 1) * var(--slot-height));
+    padding: 0.15rem 0.3rem 0 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+/* a booking that opens the details popup: thicker bar when hovered, tapped or focused */
+.cal-slot.is-selectable {
+    --slot-active-shadow: inset 6px 0 0 var(--entry-color);
+    cursor: pointer;
+    transition: box-shadow var(--transition-fast);
+}
+
+@media (pointer: fine) {
+    .cal-slot.is-selectable:hover {
+        box-shadow: var(--slot-active-shadow);
+    }
+}
+
+.cal-slot.is-selectable.is-tapped,
+.cal-slot.is-selectable:focus-visible {
+    box-shadow: var(--slot-active-shadow);
+}
+
+.cal-slot.is-selectable:focus-visible {
+    outline: 2px solid var(--accent-dark);
+    outline-offset: -2px;
+}
+
+/* restaurant: the seatings of a slot as compact entries, the time is the row's */
+.cal-slot .cal-entry {
+    width: auto;
+    margin: 2px 0 2px 2px;
+    padding: 0.15rem 0.35rem;
+    font-size: 0.72rem;
+}
+
+.cal-slot .cal-entry-time {
+    display: none;
+}
+
+/* ------------------------------------------------- "+" shortcut of a cell */
+
+/*
+ * Round "+" in the top-right corner of a bookable cell (js/add-shortcut.js).
+ * It is a pointer affordance, so display: none is its resting state: that
+ * keeps hundreds of buttons per week out of the tab order and of the
+ * accessibility tree (the panel "New booking" button stays the keyboard path
+ * to the same dialog). A mouse reveals it on :hover; a touch screen, which
+ * has no hover, reveals it with the .is-add-revealed class a tap sets.
+ */
+.cal-add {
+    --add-active-bg: var(--accent-dark);
+    display: none;
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--white);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.cal-add svg {
+    /* stroke="currentColor": the plus inherits the button text color */
+    display: block;
+    width: 12px;
+    height: 12px;
+}
+
+@media (pointer: fine) {
+    .cal-cell:hover > .cal-add,
+    .cal-slot:hover > .cal-add {
+        display: flex;
+    }
+
+    .cal-add:hover {
+        background: var(--add-active-bg);
+    }
+}
+
+/* touch: the tapped cell shows its "+" until the next tap elsewhere */
+.cal-cell.is-add-revealed > .cal-add,
+.cal-slot.is-add-revealed > .cal-add {
+    display: flex;
+}
+
+.cal-add.is-tapped {
+    background: var(--add-active-bg);
 }
 
 /* ----------------------------------------------------------------- lists */

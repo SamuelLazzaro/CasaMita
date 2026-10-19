@@ -1,17 +1,21 @@
 /*
- * calendar-render.js — draws the calendar items of an interval in the three
- * views. The same entry renderer serves every booking type; what changes is
- * the text of an entry (a stay, a seating, a time range) and, for hotels,
- * the fact that one stay spans several day cells.
+ * calendar-render.js — draws the calendar items of an interval in the views
+ * made of whole-day cells. The same entry renderer serves every booking
+ * type; what changes is the text of an entry (a stay, a seating, a time
+ * range) and, for hotels, the fact that one stay spans several day cells.
  *
- *   day   → one list, chronological
- *   week  → seven columns (one per day) with the day's entries
+ *   week  → seven columns (one per day) with the day's entries (hotel only:
+ *           restaurant and facility draw their week on the time grid of
+ *           slot-calendar.js)
  *   month → grid of whole weeks, every cell lists its entries compactly
  *
  * Every entry is a button: the page decides what a click opens (onSelect).
+ * A cell of a day that is not over can carry the "+" shortcut of
+ * add-shortcut.js, which opens the booking dialog on that date.
  */
+import { addButton } from './add-shortcut.js';
 import { currentLanguage, translate } from './i18n.js';
-import { addDays, formatDayHeader, monthGridDays, mondayOf, todayInRome, weekDays } from './utils.js';
+import { addDays, formatDayHeader, formatShortDate, monthGridDays, mondayOf, todayInRome, weekDays } from './utils.js';
 
 /**
  * @typedef {object} CalendarItem - a request as GET /api/admin/calendar returns it
@@ -36,6 +40,7 @@ import { addDays, formatDayHeader, monthGridDays, mondayOf, todayInRome, weekDay
  * @property {(item: CalendarItem) => void} onSelect - what a click on an entry does
  * @property {(item: CalendarItem) => boolean} [canSelect] - which entries are clickable (all by default)
  * @property {(date: string) => void} [onOpenDay] - drill-down from a month cell day number
+ * @property {boolean} [withAddShortcut] - true to put the "+" shortcut on the cells of the days not yet over
  */
 
 /**
@@ -66,9 +71,9 @@ function entryText(item, day) {
  * @param {CalendarItem} item
  * @param {string} day
  * @param {RenderOptions} options
- * @returns {HTMLButtonElement}
+ * @returns {HTMLElement} a button, or a plain div when the entry is not selectable
  */
-function entryElement(item, day, options) {
+export function entryElement(item, day, options) {
     const { time, label } = entryText(item, day);
     const selectable = options.canSelect === undefined || options.canSelect(item);
     const entry = document.createElement(selectable ? 'button' : 'div');
@@ -111,28 +116,6 @@ function itemsOf(items, day) {
 }
 
 /**
- * @param {HTMLElement} container
- * @param {string} day
- * @param {CalendarItem[]} items
- * @param {RenderOptions} options
- * @returns {void}
- */
-export function renderDay(container, day, items, options) {
-    container.className = 'calendar calendar-day';
-    const list = document.createElement('div');
-    list.className = 'cal-list';
-    const ofDay = itemsOf(items, day);
-    if (ofDay.length === 0) {
-        const empty = document.createElement('p');
-        empty.className = 'hint';
-        empty.textContent = translate('calendar.empty');
-        list.append(empty);
-    }
-    for (const item of ofDay) list.append(entryElement(item, day, options));
-    container.replaceChildren(list);
-}
-
-/**
  * @param {string} day
  * @param {CalendarItem[]} items
  * @param {RenderOptions} options
@@ -156,6 +139,8 @@ function dayCell(day, items, options, compact) {
     entries.className = 'cal-cell-entries';
     for (const item of itemsOf(items, day)) entries.append(entryElement(item, day, options));
     cell.append(header, entries);
+    // Only a day that is not over can host a new booking: elsewhere the dialog would be born rejected.
+    if (options.withAddShortcut === true && day >= today) cell.append(addButton(day, null, translate('calendar.addOn', { date: formatShortDate(day, currentLanguage()) })));
     return cell;
 }
 
