@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import type { Bindings } from '../src/types';
 import { app } from '../src/index';
-import { daysAhead, envOfType, hotelBody, postJson, restaurantBody, setStatus } from './helpers';
+import { daysAhead, envOfType, hotelBody, postJson, restaurantBody, ROOM_A, setStatus } from './helpers';
 
 /** Logs the admin in (fake password from vitest.config.ts) and returns the session cookie. */
 async function adminCookie(bindings: Bindings = env): Promise<string> {
@@ -59,18 +59,19 @@ describe('decisions on hotel requests', () => {
         const cookie = await adminCookie();
         const checkIn = daysAhead(70);
         const checkOut = daysAhead(72);
+        // One request more than the rooms of the type: every approval passes but the last.
         const ids: number[] = [];
-        for (let i = 0; i < 3; i++) {
-            const created = await postJson('/api/requests', hotelBody({ room_type: 'Suite familiare', adults: 2, check_in: checkIn, check_out: checkOut }), undefined, `10.0.1.${10 + i}`);
+        for (let i = 0; i <= ROOM_A.quantity; i++) {
+            const created = await postJson('/api/requests', hotelBody({ check_in: checkIn, check_out: checkOut }), undefined, `10.0.1.${10 + i}`);
             expect(created.status).toBe(201);
             ids.push((await json<{ id: number }>(created)).id);
         }
-        expect((await adminPost(`/api/admin/requests/${ids[0]}/approve`, cookie)).status).toBe(200);
-        expect((await adminPost(`/api/admin/requests/${ids[1]}/approve`, cookie)).status).toBe(200);
-        const third = await adminPost(`/api/admin/requests/${ids[2]}/approve`, cookie);
-        expect(third.status).toBe(409);
-        expect((await json<{ error: string }>(third)).error).toBe('room_unavailable');
-        expect(await statusOf(ids[2])).toBe('pending');
+        for (let i = 0; i < ROOM_A.quantity; i++) expect((await adminPost(`/api/admin/requests/${ids[i]}/approve`, cookie)).status).toBe(200);
+        const extra = ids[ROOM_A.quantity];
+        const overbooked = await adminPost(`/api/admin/requests/${extra}/approve`, cookie);
+        expect(overbooked.status).toBe(409);
+        expect((await json<{ error: string }>(overbooked)).error).toBe('room_unavailable');
+        expect(await statusOf(extra)).toBe('pending');
     });
 
     it('rejects with an optional reason and cancels approved bookings', async () => {
@@ -113,7 +114,7 @@ describe('direct bookings', () => {
         const cookie = await adminCookie();
         const checkIn = daysAhead(120);
         const checkOut = daysAhead(121);
-        const body = { ...hotelBody({ room_type: 'Suite familiare', adults: 2, check_in: checkIn, check_out: checkOut }), lang: 'en' };
+        const body = { ...hotelBody({ check_in: checkIn, check_out: checkOut }), lang: 'en' };
         const first = await adminPost('/api/admin/bookings', cookie, body);
         expect(first.status).toBe(201);
         const id = (await json<{ id: number; status: string }>(first)).id;
@@ -123,10 +124,11 @@ describe('direct bookings', () => {
         expect(row!.guest_token).toMatch(/^[a-f0-9]{32}$/);
         expect(row!.decided_at).not.toBeNull();
 
-        expect((await adminPost('/api/admin/bookings', cookie, body)).status).toBe(201);
-        const third = await adminPost('/api/admin/bookings', cookie, body);
-        expect(third.status).toBe(409);
-        expect((await json<{ error: string }>(third)).error).toBe('room_unavailable');
+        // The remaining rooms of the type fill up, then the next booking is refused.
+        for (let i = 1; i < ROOM_A.quantity; i++) expect((await adminPost('/api/admin/bookings', cookie, body)).status).toBe(201);
+        const overbooked = await adminPost('/api/admin/bookings', cookie, body);
+        expect(overbooked.status).toBe(409);
+        expect((await json<{ error: string }>(overbooked)).error).toBe('room_unavailable');
     });
 
     it('hotel: applies the guest validation rules', async () => {

@@ -2,6 +2,23 @@ import { env } from 'cloudflare:test';
 import type { Bindings } from '../src/types';
 import { app } from '../src/index';
 import { addDays, romeNow } from '../src/dates';
+import { roomTypes } from '../src/rooms';
+
+/*
+ * The hotel tests never name a room type: they pick from rooms.csv by
+ * position, so the same suite runs on every deployment (each instance has
+ * its own CSV). ROOM_A is the default of hotelBody; ROOM_B and ROOM_C are
+ * two other types for the tests that need distinct ones; ROOM_LARGEST has
+ * the most rooms, for the availability arithmetic.
+ */
+const rooms = roomTypes();
+if (rooms.length < 3) throw new Error('the tests need at least three room types in rooms.csv');
+export const ROOM_A = rooms[0];
+export const ROOM_B = rooms[1];
+export const ROOM_C = rooms[2];
+export const ROOM_LARGEST = [...rooms].sort((a, b) => b.quantity - a.quantity)[0];
+/** A name that no deployment's CSV is expected to have. */
+export const UNKNOWN_ROOM = 'Tipologia inesistente';
 
 /** Today in the venue's time zone, 'YYYY-MM-DD'. */
 export function today(): string {
@@ -27,9 +44,9 @@ export async function get(path: string, bindings: Bindings = env): Promise<Respo
     return await app.request(path, {}, bindings);
 }
 
-/** A complete, valid hotel request body; override single fields as needed. */
+/** A complete, valid hotel request body (one adult in ROOM_A, so it fits any room type); override single fields as needed. */
 export function hotelBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return { first_name: 'Anna', last_name: 'Rossi', email: 'anna@example.com', phone: '+39 333 1234567', check_in: daysAhead(10), check_out: daysAhead(12), adults: 2, children: 0, room_type: 'Camera doppia', notes: 'Arrivo tardi', privacy_accepted: true, lang: 'it', ...overrides };
+    return { first_name: 'Anna', last_name: 'Rossi', email: 'anna@example.com', phone: '+39 333 1234567', check_in: daysAhead(10), check_out: daysAhead(12), adults: 1, children: 0, room_type: ROOM_A.name, notes: 'Arrivo tardi', privacy_accepted: true, lang: 'it', ...overrides };
 }
 
 /** A complete, valid restaurant request body. */

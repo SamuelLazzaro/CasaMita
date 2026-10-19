@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { daysAhead, envOfType, get, hotelBody, postJson, setStatus, today, tokenOf } from './helpers';
+import { daysAhead, envOfType, get, hotelBody, postJson, ROOM_A, setStatus, today, tokenOf, UNKNOWN_ROOM } from './helpers';
 
 describe('GET /api/config', () => {
     it('exposes the venue type, name and service windows', async () => {
@@ -8,7 +8,8 @@ describe('GET /api/config', () => {
         expect(response.status).toBe(200);
         const config = (await response.json()) as { type: string; name: string; restaurant: { lunch: { open: string } } };
         expect(config.type).toBe('hotel');
-        expect(config.name).toBe('Hotel Demo');
+        // The name comes from the instance's wrangler.jsonc, whatever it is.
+        expect(config.name).toBe(env.VENUE_NAME);
         expect(config.restaurant.lunch.open).toBe('12:00');
     });
 
@@ -54,8 +55,8 @@ describe('POST /api/requests (hotel)', () => {
         expect(body.status).toBe('pending');
         const row = await env.DB.prepare('SELECT * FROM requests WHERE id = ?1').bind(body.id).first<Record<string, unknown>>();
         expect(row!.type).toBe('hotel');
-        expect(row!.room_type).toBe('Camera doppia');
-        expect(row!.adults).toBe(2);
+        expect(row!.room_type).toBe(ROOM_A.name);
+        expect(row!.adults).toBe(1);
         expect(String(row!.guest_token)).toMatch(/^[a-f0-9]{32}$/);
         const audit = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'request_submitted'").first<{ n: number }>();
         expect(audit!.n).toBeGreaterThan(0);
@@ -71,9 +72,9 @@ describe('POST /api/requests (hotel)', () => {
             [{ check_in: '2020-01-01', check_out: '2020-01-03' }, 'date_in_past'],
             [{ check_in: daysAhead(400), check_out: daysAhead(402) }, 'date_too_far'],
             [{ check_out: daysAhead(10) }, 'checkout_before_checkin'],
-            [{ room_type: 'Attico' }, 'unknown_room'],
+            [{ room_type: UNKNOWN_ROOM }, 'unknown_room'],
             [{ adults: 0 }, 'invalid_guests'],
-            [{ adults: 2, children: 1 }, 'too_many_guests'],
+            [{ adults: ROOM_A.max_guests, children: 1 }, 'too_many_guests'],
         ];
         for (const [index, [overrides, code]] of cases.entries()) {
             const response = await postJson('/api/requests', hotelBody(overrides), undefined, `198.51.100.${100 + index}`);
@@ -85,15 +86,15 @@ describe('POST /api/requests (hotel)', () => {
     it('answers 409 when the chosen room type is sold out for the stay', async () => {
         const checkIn = daysAhead(60);
         const checkOut = daysAhead(61);
-        // Suite familiare has quantity 2 in rooms.csv: approve two, the third must fail.
-        for (let i = 0; i < 2; i++) {
-            const response = await postJson('/api/requests', hotelBody({ room_type: 'Suite familiare', adults: 2, check_in: checkIn, check_out: checkOut }), undefined, `198.51.100.${150 + i}`);
+        // Approve as many stays as the type has rooms: the next request must fail.
+        for (let i = 0; i < ROOM_A.quantity; i++) {
+            const response = await postJson('/api/requests', hotelBody({ check_in: checkIn, check_out: checkOut }), undefined, `198.51.100.${150 + i}`);
             expect(response.status).toBe(201);
             await setStatus(((await response.json()) as { id: number }).id, 'approved');
         }
-        const third = await postJson('/api/requests', hotelBody({ room_type: 'Suite familiare', adults: 2, check_in: checkIn, check_out: checkOut }), undefined, '198.51.100.152');
-        expect(third.status).toBe(409);
-        expect(((await third.json()) as { error: string }).error).toBe('room_unavailable');
+        const soldOut = await postJson('/api/requests', hotelBody({ check_in: checkIn, check_out: checkOut }), undefined, '198.51.100.199');
+        expect(soldOut.status).toBe(409);
+        expect(((await soldOut.json()) as { error: string }).error).toBe('room_unavailable');
     });
 
     it('silently drops honeypot submissions', async () => {
@@ -172,7 +173,8 @@ describe('personal link', () => {
 
 describe('embedding', () => {
     it('is disabled without EMBED_ORIGIN and framable by that origin only when set', async () => {
-        const off = await get('/embed');
+        // Explicitly empty: an instance's wrangler.jsonc may set EMBED_ORIGIN.
+        const off = await get('/embed', envOfType('hotel', { EMBED_ORIGIN: '' }));
         expect(off.status).toBe(404);
         const on = await get('/embed', envOfType('hotel', { EMBED_ORIGIN: 'https://www.hotel.example/' }));
         expect(on.status).toBe(200);
