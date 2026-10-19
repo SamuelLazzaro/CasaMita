@@ -6,6 +6,7 @@
 import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
 import { renderDay, renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
+import { renderPriceMonth, renderPriceWeek } from './price-calendar.js';
 import { initFacilityForm } from './form-facility.js';
 import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
@@ -53,6 +54,45 @@ function drawCalendar() {
     else if (view === 'week') renderWeek(calendarContainer, date, g_calendarItems, options);
     else renderMonth(calendarContainer, date, g_calendarItems, options);
 }
+
+/* ------------------------------------------------- price calendar (hotel) */
+
+/*
+ * Second calendar of the same section: the nightly price of every room type
+ * per day, drawn from the pricing data (g_pricing) the Prices section loads.
+ * Week and month only. The mode switch above the calendars decides which
+ * one is on screen; both keep their own interval.
+ */
+const priceCalendarContainer = byId('price-calendar');
+const priceCalendarStatus = byId('price-calendar-status');
+
+const priceCalendarView = createCalendarView({ title: byId('price-cal-title'), previous: byId('price-cal-prev'), next: byId('price-cal-next'), today: byId('price-cal-today'), switches: { week: byId('price-cal-view-week'), month: byId('price-cal-view-month') } }, async () => {
+    if (g_pricing === null) await loadPricing();
+    drawPriceCalendar();
+});
+
+function drawPriceCalendar() {
+    if (g_pricing === null || g_config?.type !== 'hotel') return;
+    hideStatus(priceCalendarStatus);
+    const { view, date } = priceCalendarView.interval();
+    if (view === 'week') renderPriceWeek(priceCalendarContainer, date, g_pricing);
+    else renderPriceMonth(priceCalendarContainer, date, g_pricing);
+}
+
+/**
+ * @param {'bookings'|'prices'} mode
+ * @returns {void}
+ */
+function setCalendarMode(mode) {
+    byId('bookings-calendar').hidden = mode !== 'bookings';
+    byId('price-calendar-block').hidden = mode !== 'prices';
+    byId('cal-mode-bookings').setAttribute('aria-pressed', String(mode === 'bookings'));
+    byId('cal-mode-prices').setAttribute('aria-pressed', String(mode === 'prices'));
+    if (mode === 'prices') priceCalendarView.refresh();
+}
+
+byId('cal-mode-bookings').addEventListener('click', () => setCalendarMode('bookings'));
+byId('cal-mode-prices').addEventListener('click', () => setCalendarMode('prices'));
 
 /* -------------------------------------------------------------- details */
 
@@ -325,9 +365,12 @@ async function loadPricing() {
         g_pricing = await fetchPricing();
     } catch (error) {
         showStatus(pricingStatus, errorMessage(error), 'error');
+        showStatus(priceCalendarStatus, errorMessage(error), 'error');
         return;
     }
     drawPricing();
+    // Price edits change the calendar figures too.
+    drawPriceCalendar();
 }
 
 function drawPricing() {
@@ -557,6 +600,7 @@ async function enterDashboard() {
     byId('nav-rooms').hidden = g_config.type !== 'hotel';
     byId('nav-pricing').hidden = g_config.type !== 'hotel';
     byId('nav-requesters').hidden = g_config.type !== 'facility';
+    byId('cal-mode').hidden = g_config.type !== 'hotel';
     initDirectForm();
     showSection('section-calendar');
     const loads = [calendarView.refresh(), loadPending()];
@@ -587,6 +631,7 @@ onLanguageChange(() => {
     drawCalendar();
     drawPending();
     drawPricing();
+    drawPriceCalendar();
     if (g_config?.type === 'facility') drawRequesters();
 });
 

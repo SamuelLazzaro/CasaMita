@@ -166,6 +166,14 @@ minuti). Sezioni:
   "Nuova prenotazione" registra una prenotazione già confermata con le stesse
   regole e gli stessi campi del cliente; il cliente riceve l'email di
   conferma con il link personale, il gestore nessuna email.
+  Per l'hotel la sezione ha un secondo calendario, **Prezzi** (selettore
+  Prenotazioni / Prezzi in alto): per ogni giorno il prezzo a notte di ogni
+  tipologia, calcolato nel browser dai dati della sezione Prezzi con la
+  stessa regola del preventivo (periodo che copre la notte, altrimenti prezzo
+  base, altrimenti nessun prezzo). Vista settimana (tabella tipologie ×
+  giorni) e mese (griglia con una riga per tipologia in ogni cella); niente
+  vista giorno. Solo lettura: i prezzi si modificano nella sezione Prezzi e il
+  calendario si aggiorna da solo.
 - **Notifiche**: richieste in attesa con approvazione e rifiuto immediati.
 - **Camere** (solo hotel): tipologie di `rooms.csv` e camere libere per le
   date scelte.

@@ -72,30 +72,69 @@
                         <h2 data-i18n="calendar.title">Calendario</h2>
                         <button type="button" class="btn btn-primary" id="new-booking" data-i18n="calendar.new">Nuova prenotazione</button>
                     </div>
-                    <div class="view-switch" role="group">
-                        <button type="button" class="btn btn-small" id="cal-view-day" aria-pressed="false" data-i18n="calendar.day">Giorno</button>
-                        <button type="button" class="btn btn-small" id="cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
-                        <button type="button" class="btn btn-small" id="cal-view-month" aria-pressed="false" data-i18n="calendar.month">Mese</button>
+                    <!-- Hotel only: the same section holds two calendars, bookings and
+                         nightly prices per room type; this switch picks the one on screen. -->
+                    <div class="view-switch mode-switch" role="group" id="cal-mode" hidden>
+                        <button type="button" class="btn btn-small" id="cal-mode-bookings" aria-pressed="true" data-i18n="calendar.modeBookings">Prenotazioni</button>
+                        <button type="button" class="btn btn-small" id="cal-mode-prices" aria-pressed="false" data-i18n="calendar.modePrices">Prezzi</button>
                     </div>
-                    <div class="toolbar">
-                        <button type="button" class="btn btn-arrow" id="cal-prev" aria-label="Precedente">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>
-                        </button>
-                        <div class="toolbar-center">
-                            <h3 id="cal-title">&nbsp;</h3>
-                            <button type="button" class="btn btn-text" id="cal-today" data-i18n="calendar.today">Oggi</button>
+
+                    <div id="bookings-calendar">
+                        <div class="view-switch" role="group">
+                            <button type="button" class="btn btn-small" id="cal-view-day" aria-pressed="false" data-i18n="calendar.day">Giorno</button>
+                            <button type="button" class="btn btn-small" id="cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
+                            <button type="button" class="btn btn-small" id="cal-view-month" aria-pressed="false" data-i18n="calendar.month">Mese</button>
                         </div>
-                        <button type="button" class="btn btn-arrow" id="cal-next" aria-label="Successivo">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
-                        </button>
+                        <div class="toolbar">
+                            <button type="button" class="btn btn-arrow" id="cal-prev" aria-label="Precedente">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>
+                            </button>
+                            <div class="toolbar-center">
+                                <h3 id="cal-title">&nbsp;</h3>
+                                <button type="button" class="btn btn-text" id="cal-today" data-i18n="calendar.today">Oggi</button>
+                            </div>
+                            <button type="button" class="btn btn-arrow" id="cal-next" aria-label="Successivo">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                            </button>
+                        </div>
+                        <p id="calendar-status" class="status" role="status" hidden></p>
+                        <div class="legend">
+                            <span class="chip"><span class="swatch is-approved"></span> <span data-i18n="calendar.legendApproved">Confermata</span></span>
+                            <span class="chip"><span class="swatch is-pending"></span> <span data-i18n="calendar.legendPending">In attesa</span></span>
+                        </div>
+                        <div class="calendar-scroll">
+                            <div id="calendar" class="calendar"></div>
+                        </div>
                     </div>
-                    <p id="calendar-status" class="status" role="status" hidden></p>
-                    <div class="legend">
-                        <span class="chip"><span class="swatch is-approved"></span> <span data-i18n="calendar.legendApproved">Confermata</span></span>
-                        <span class="chip"><span class="swatch is-pending"></span> <span data-i18n="calendar.legendPending">In attesa</span></span>
-                    </div>
-                    <div class="calendar-scroll">
-                        <div id="calendar" class="calendar"></div>
+
+                    <!-- Price calendar (hotel): week and month only, read-only figures. -->
+                    <div id="price-calendar-block" hidden>
+                        <div class="view-switch" role="group">
+                            <button type="button" class="btn btn-small" id="price-cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
+                            <button type="button" class="btn btn-small" id="price-cal-view-month" aria-pressed="false" data-i18n="calendar.month">Mese</button>
+                        </div>
+                        <div class="toolbar">
+                            <button type="button" class="btn btn-arrow" id="price-cal-prev" aria-label="Precedente">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>
+                            </button>
+                            <div class="toolbar-center">
+                                <h3 id="price-cal-title">&nbsp;</h3>
+                                <button type="button" class="btn btn-text" id="price-cal-today" data-i18n="calendar.today">Oggi</button>
+                            </div>
+                            <button type="button" class="btn btn-arrow" id="price-cal-next" aria-label="Successivo">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                            </button>
+                        </div>
+                        <p id="price-calendar-status" class="status" role="status" hidden></p>
+                        <div class="legend">
+                            <span class="chip"><span class="swatch is-price-base"></span> <span data-i18n="calendar.priceLegendBase">Prezzo base</span></span>
+                            <span class="chip"><span class="swatch is-price-period"></span> <span data-i18n="calendar.priceLegendPeriod">Periodo</span></span>
+                            <span class="chip"><span class="swatch is-price-none"></span> <span data-i18n="calendar.priceNone">Senza prezzo</span></span>
+                        </div>
+                        <p class="hint" data-i18n="calendar.priceHint">Prezzi a notte per tipologia, tasse incluse. Si modificano nella sezione Prezzi.</p>
+                        <div class="calendar-scroll">
+                            <div id="price-calendar" class="calendar"></div>
+                        </div>
                     </div>
                 </section>
 

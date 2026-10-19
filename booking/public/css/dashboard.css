@@ -233,6 +233,125 @@ body:has(.nav-sections:not([hidden])) {
     border-left-color: var(--pending);
 }
 
+/* The bookings / prices switch sits above the two calendars: a little more
+   room below separates it from the view switch of the visible calendar. */
+.mode-switch {
+    margin-bottom: var(--space-4);
+}
+
+/* ------------------------------------------------ price calendar (hotel) */
+
+/* Price figures share one look in both views: the source (base price,
+   period, none) is told by colour, matching the legend swatches. */
+.price-value {
+    --price-color: var(--accent-text);
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--price-color);
+    white-space: nowrap;
+}
+
+.price-value.is-period {
+    --price-color: var(--pending);
+}
+
+.price-value.is-unpriced {
+    --price-color: var(--text-muted);
+    font-weight: 400;
+}
+
+.swatch.is-price-base {
+    background: var(--accent-tint);
+    border-left-color: var(--accent-text);
+}
+
+.swatch.is-price-period {
+    background: var(--pending-tint);
+    border-left-color: var(--pending);
+}
+
+.swatch.is-price-none {
+    background: var(--page);
+    border-left-color: var(--text-muted);
+}
+
+/* week: rooms × days table */
+.price-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: separate;
+    border-spacing: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.price-table th,
+.price-table td {
+    background: var(--surface);
+    padding: 0.5rem 0.6rem;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.price-table thead th {
+    background: var(--page);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.price-table tbody th {
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.price-table .is-past {
+    background: var(--page);
+}
+
+.price-table .is-today {
+    background: var(--accent-tint);
+}
+
+/* month: the bookings grid with one price line per room type in each cell */
+.price-month .cal-cell {
+    min-height: 0;
+}
+
+.price-lines {
+    max-height: none;
+    overflow: visible;
+    gap: 1px;
+}
+
+.price-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
+}
+
+.price-line-room {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+.price-month .price-value {
+    font-size: 0.72rem;
+}
+
+.price-month .cal-cell.is-outside .price-line {
+    opacity: 0.45;
+}
+
 /* ------------------------------------------------------------- calendar */
 
 .calendar-scroll {
