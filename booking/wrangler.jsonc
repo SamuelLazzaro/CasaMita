@@ -50,8 +50,10 @@
 		"VENUE_NAME": "Casa Mita",
 		"DEFAULT_LANG": "it",
 		// sender on the venue's domain: authenticate the domain in Brevo first
-		"EMAIL_SENDER": "prenotazioni@ristorantealbergocasamita.it",
-		"EMAIL_ADMIN": "info@ristorantealbergocasamita.it",
+		// "EMAIL_SENDER": "prenotazioni@ristorantealbergocasamita.it",
+		// "EMAIL_ADMIN": "info@ristorantealbergocasamita.it",
+		"EMAIL_SENDER": "samuellazzaro@libero.it",
+		"EMAIL_ADMIN": "samuellazzaro@libero.it",
 		// facility: opening hours, 30-minute slots
 		"FACILITY_OPEN": "08:00",
 		"FACILITY_CLOSE": "24:00",
