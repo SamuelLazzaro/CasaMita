@@ -169,7 +169,8 @@ minuti). Sezioni:
   l'impianto). Nell'impianto una prenotazione occupa le sue fasce, colorate
   con il colore della società (richieste in attesa a righe); nel ristorante
   ogni fascia elenca i tavoli seduti a quell'ora. Ogni voce apre il popup con
-  i dettagli e le azioni (approva, rifiuta con messaggio facoltativo, annulla).
+  i dettagli e le azioni (approva, rifiuta con messaggio facoltativo, annulla;
+  per l'hotel anche i pagamenti, vedi sotto).
   "Nuova prenotazione" registra una prenotazione già confermata con le stesse
   regole e gli stessi campi del cliente; il cliente riceve l'email di
   conferma con il link personale, il gestore nessuna email. La stessa
@@ -212,6 +213,7 @@ se una fascia è già occupata.
 | `GET /api/admin/calendar?view=day\|week\|month&date=` | voci del calendario (in attesa e confermate) |
 | `GET /api/admin/requests?status=` | richieste per stato |
 | `POST /api/admin/requests/:id/approve\|reject\|cancel` | decisioni (il rifiuto accetta `reason`) |
+| `POST /api/admin/requests/:id/deposit\|paid` | hotel: pagamenti (l'acconto accetta `amount`) |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
 | `GET /api/admin/rooms` | hotel: tipologie del CSV |
 | `GET/POST /api/admin/requesters`, `PATCH /api/admin/requesters/:id` | impianto: società |
@@ -280,6 +282,24 @@ concordato" è precompilato con il calcolo e il gestore può sovrascriverlo.
 | `POST /api/admin/pricing/discounts`, `DELETE .../:id` | sconti |
 
 L'import CSV dei periodi è rimandato a una versione successiva.
+
+## Pagamenti (hotel, migrazione 0003)
+
+Una prenotazione confermata può essere segnata dal gestore, dal popup dei
+dettagli, come **Acconto pagato** (si digita l'importo ricevuto, che deve
+essere inferiore al totale) oppure come **Pagata**; un acconto si completa poi
+con "Segna come pagata", che è definitiva. Il popup di una prenotazione con
+acconto mostra l'acconto versato e il **saldo da pagare** (totale meno
+acconto). Senza un prezzo totale sulla prenotazione (listino incompleto al
+momento della richiesta) l'acconto non si può registrare, perché il saldo non
+sarebbe calcolabile; resta possibile segnarla come pagata.
+
+Lo stato della prenotazione resta `approved`: cambia solo `payment_status`
+(`none` / `deposit` / `paid`, con `paid_amount` e `paid_at`), così
+disponibilità, calendario e annullamenti non cambiano. La dashboard mostra il
+pagamento al posto di "Confermata" nel badge e con un colore proprio nel
+calendario e nella legenda. Il cliente non vede lo stato del pagamento e non
+riceve email. Ristorante e impianto non hanno pagamenti.
 
 ## Incorporare il form nel sito della struttura
 

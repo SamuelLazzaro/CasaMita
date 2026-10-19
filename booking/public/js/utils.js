@@ -197,3 +197,16 @@ export function formatWeekTitle(monday, lang) {
 export function formatEuro(amount, lang) {
     return new Intl.NumberFormat(lang === 'it' ? 'it-IT' : 'en-GB', { style: 'currency', currency: 'EUR' }).format(amount);
 }
+
+/**
+ * The state a booking is shown with. A confirmed hotel stay with a payment
+ * recorded shows the payment ('deposit', 'paid') in place of the plain
+ * 'approved'; every other booking shows its status as it is.
+ * @param {{status: string, payment_status?: string}} item
+ * @returns {string} 'pending' | 'approved' | 'deposit' | 'paid' | 'rejected' | 'cancelled'
+ */
+export function displayStatus(item) {
+    const paymentRecorded = item.payment_status === 'deposit' || item.payment_status === 'paid';
+    if (item.status === 'approved' && paymentRecorded) return item.payment_status;
+    return item.status;
+}

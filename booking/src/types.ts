@@ -26,6 +26,8 @@ export type Bindings = {
 
 export type BookingType = 'hotel' | 'facility' | 'restaurant';
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+/** Payment state of a confirmed hotel stay (migration 0003); always 'none' for the other types. */
+export type PaymentStatus = 'none' | 'deposit' | 'paid';
 export type RequesterStatus = 'active' | 'suspended';
 export type Lang = 'it' | 'en';
 
@@ -67,6 +69,10 @@ export type RequestRow = {
     quoted_subtotal: number | null;
     quoted_discount_percent: number | null;
     quoted_total: number | null;
+    /** Hotel payment tracking (migration 0003): paid_amount is the deposit, or the total once fully paid. */
+    payment_status: PaymentStatus;
+    paid_amount: number | null;
+    paid_at: string | null;
     created_at: string;
     decided_at: string | null;
     cancelled_at: string | null;

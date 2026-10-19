@@ -51,6 +51,11 @@
     --error-tint: #faf0ed;
     --pending: #8a6d00;
     --pending-tint: #fff6d6;
+    /* hotel payments: deposit received, paid in full */
+    --deposit: #0369a1;
+    --deposit-tint: #e0f2fe;
+    --paid: #6d28d9;
+    --paid-tint: #f1ebfd;
 
     /* layout */
     --page-width: 760px;

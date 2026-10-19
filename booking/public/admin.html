@@ -101,6 +101,8 @@
                         <div class="legend">
                             <span class="chip"><span class="swatch is-approved"></span> <span data-i18n="calendar.legendApproved">Confermata</span></span>
                             <span class="chip"><span class="swatch is-pending"></span> <span data-i18n="calendar.legendPending">In attesa</span></span>
+                            <span class="chip hotel-only"><span class="swatch is-deposit"></span> <span data-i18n="calendar.legendDeposit">Acconto pagato</span></span>
+                            <span class="chip hotel-only"><span class="swatch is-paid"></span> <span data-i18n="calendar.legendPaid">Pagata</span></span>
                         </div>
                         <p class="hint" data-i18n="calendar.addHint">Per aggiungere una prenotazione passa col mouse (o tocca) una casella del calendario e premi +.</p>
                         <div class="calendar-scroll">
@@ -324,6 +326,13 @@
                         <label for="reject-reason" data-i18n="reject.reasonLabel">Messaggio per il cliente (facoltativo)</label>
                         <textarea id="reject-reason" maxlength="300" rows="2"></textarea>
                         <div><button type="button" class="btn btn-danger" id="reject-confirm" data-i18n="reject.confirm">Conferma rifiuto</button></div>
+                    </div>
+                    <!-- Hotel: revealed by "Record deposit", asks the amount received. -->
+                    <div id="deposit-block" class="field" hidden>
+                        <label for="deposit-amount" data-i18n="deposit.amountLabel">Acconto ricevuto (€)</label>
+                        <input type="number" id="deposit-amount" min="0.01" step="0.01">
+                        <p class="hint" id="deposit-hint"></p>
+                        <div><button type="button" class="btn btn-primary" id="deposit-confirm" data-i18n="deposit.confirm">Conferma acconto</button></div>
                     </div>
                     <p id="details-status" class="status" role="status" hidden></p>
                 </div>

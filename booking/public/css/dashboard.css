@@ -243,6 +243,21 @@ body:has(.nav-sections:not([hidden])) {
     border-left-color: var(--pending);
 }
 
+.swatch.is-deposit {
+    background: var(--deposit-tint);
+    border-left-color: var(--deposit);
+}
+
+.swatch.is-paid {
+    background: var(--paid-tint);
+    border-left-color: var(--paid);
+}
+
+/* Payment states exist for hotel stays only: the other venues hide their legend chips. */
+:root:not([data-booking-type="hotel"]) .hotel-only {
+    display: none;
+}
+
 /* The bookings / prices switch sits above the two calendars: a little more
    room below separates it from the view switch of the visible calendar. */
 .mode-switch {
@@ -507,6 +522,14 @@ button.cal-cell-header:focus-visible {
 .cal-entry.is-pending {
     --entry-color: var(--pending);
     border-left-style: dashed;
+}
+
+.cal-entry.is-deposit {
+    --entry-color: var(--deposit);
+}
+
+.cal-entry.is-paid {
+    --entry-color: var(--paid);
 }
 
 @media (pointer: fine) {

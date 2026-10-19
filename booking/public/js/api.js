@@ -138,6 +138,25 @@ export function cancelRequestAdmin(id) {
 }
 
 /**
+ * Hotel: records the deposit received on a confirmed stay.
+ * @param {number} id
+ * @param {number} amount - euro, below the total of the stay
+ * @returns {Promise<{ok: boolean, payment_status: string, item: object}>} item = the updated request
+ */
+export function recordDeposit(id, amount) {
+    return postJson(`/api/admin/requests/${id}/deposit`, { amount });
+}
+
+/**
+ * Hotel: marks a confirmed stay as paid in full.
+ * @param {number} id
+ * @returns {Promise<{ok: boolean, payment_status: string, item: object}>} item = the updated request
+ */
+export function markPaid(id) {
+    return postJson(`/api/admin/requests/${id}/paid`);
+}
+
+/**
  * Direct booking by the venue, born approved.
  * @param {Record<string, unknown>} payload - fields of the hotel, restaurant or facility form
  * @returns {Promise<{id: number, status: string}>}

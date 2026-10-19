@@ -241,6 +241,16 @@ fieldset.field legend {
     color: var(--ok);
 }
 
+.badge.is-deposit {
+    background: var(--deposit-tint);
+    color: var(--deposit);
+}
+
+.badge.is-paid {
+    background: var(--paid-tint);
+    color: var(--paid);
+}
+
 .badge.is-rejected,
 .badge.is-cancelled {
     background: var(--error-tint);

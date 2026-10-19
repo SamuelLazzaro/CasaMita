@@ -174,6 +174,63 @@ admin.post('/requests/:id/cancel', async (c) => {
     return c.json({ ok: true, status: 'cancelled' });
 });
 
+/*
+ * Payments (hotel only, migration 0003). A confirmed stay goes
+ *   none → deposit → paid   or   none → paid
+ * and 'paid' is final. The status column stays 'approved' throughout: only
+ * payment_status changes, so rooms, calendar and cancellations are untouched.
+ * Both writes guard the previous payment state in the WHERE, so two
+ * concurrent clicks cannot record a payment twice.
+ */
+
+/** The common checks of both payment actions: an approved hotel stay, not yet fully paid. */
+function paymentPrecondition(request: AdminRequestRow): string | null {
+    if (request.type !== 'hotel') return 'not_hotel';
+    if (request.status !== 'approved') return 'not_approved';
+    if (request.payment_status === 'paid') return 'already_paid';
+    return null;
+}
+
+/** Deposit received: a positive amount below the total (the amount left is total - deposit). */
+admin.post('/requests/:id/deposit', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    const blocked = paymentPrecondition(request);
+    if (blocked !== null) return c.json({ error: blocked }, 409);
+    if (request.payment_status === 'deposit') return c.json({ error: 'deposit_recorded' }, 409);
+    // Without a total the amount left cannot be computed: the venue can only mark the stay as paid.
+    if (request.quoted_total === null) return c.json({ error: 'no_total' }, 409);
+    const body = (await readJson(c)) ?? {};
+    const amount = priceValue(body.amount);
+    if (amount === null || amount <= 0) return c.json({ error: 'invalid_amount' }, 400);
+    if (amount >= request.quoted_total) return c.json({ error: 'deposit_not_partial' }, 400);
+    const result = await c.env.DB.prepare("UPDATE requests SET payment_status = 'deposit', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status = 'none'").bind(request.id, amount).run();
+    if (result.meta.changes === 0) return c.json({ error: 'deposit_recorded' }, 409);
+    await writeAudit(c.env.DB, 'deposit_recorded', `request #${request.id}: ${amount} of ${request.quoted_total}`, 'admin');
+    return c.json({ ok: true, payment_status: 'deposit', item: await updatedView(c.env.DB, request.id) });
+});
+
+/** Paid in full: the amount paid becomes the total (when known), whatever deposit was recorded before. */
+admin.post('/requests/:id/paid', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    const blocked = paymentPrecondition(request);
+    if (blocked !== null) return c.json({ error: blocked }, 409);
+    const paidAmount = request.quoted_total ?? request.paid_amount;
+    const result = await c.env.DB.prepare("UPDATE requests SET payment_status = 'paid', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status IN ('none', 'deposit')").bind(request.id, paidAmount).run();
+    if (result.meta.changes === 0) return c.json({ error: 'already_paid' }, 409);
+    await writeAudit(c.env.DB, 'payment_recorded', `request #${request.id}: paid in full${paidAmount === null ? '' : ` (${paidAmount})`}`, 'admin');
+    return c.json({ ok: true, payment_status: 'paid', item: await updatedView(c.env.DB, request.id) });
+});
+
+/** The request as the dashboard sees it after a write, so the dialog can redraw without a second round trip. */
+async function updatedView(db: D1Database, id: number): Promise<Record<string, unknown> | null> {
+    const row = await loadRequest(db, id);
+    return row === null ? null : adminView(row);
+}
+
 /**
  * Direct booking by the venue, born approved (owner's decision): same fields
  * and same rules as a guest request; for a facility the requester must have

@@ -5,7 +5,7 @@
  * (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
@@ -17,7 +17,7 @@ import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.j
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { appendDetail, applyVenue, button, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
-import { addDays, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
+import { addDays, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
 
@@ -132,6 +132,31 @@ const detailsActions = byId('details-actions');
 const detailsStatus = byId('details-status');
 const rejectBlock = byId('reject-block');
 const rejectReason = byId('reject-reason');
+const depositBlock = byId('deposit-block');
+const depositAmount = byId('deposit-amount');
+const depositHint = byId('deposit-hint');
+
+/**
+ * Payment rows of a confirmed hotel stay: the deposit and the balance still
+ * due, or the amount paid in full; nothing while no payment is recorded.
+ * @param {object} item
+ * @param {string} lang
+ * @returns {[string, string][]}
+ */
+function paymentRows(item, lang) {
+    const rows = [];
+    const hasTotal = item.quoted_total !== null && item.quoted_total !== undefined;
+    if (item.payment_status === 'deposit') {
+        rows.push([translate('price.deposit'), formatEuro(item.paid_amount, lang)]);
+        if (hasTotal) rows.push([translate('price.remaining'), formatEuro(item.quoted_total - item.paid_amount, lang)]);
+    } else if (item.payment_status === 'paid') {
+        if (item.paid_amount !== null && item.paid_amount !== undefined) rows.push([translate('price.paidAmount'), formatEuro(item.paid_amount, lang)]);
+    } else {
+        return rows;
+    }
+    if (item.paid_at) rows.push([translate('price.paidOn'), formatTimestamp(item.paid_at, lang)]);
+    return rows;
+}
 
 /**
  * Label/value rows of a request, by type, plus the contact details the
@@ -148,6 +173,7 @@ function detailRows(item) {
             const discount = item.quoted_discount_percent > 0 ? ` (${translate('price.discount', { percent: item.quoted_discount_percent })})` : '';
             rows.push([translate('price.total'), `${formatEuro(item.quoted_total, lang)}${discount}`]);
         }
+        rows.push(...paymentRows(item, lang));
     } else if (item.type === 'restaurant') {
         rows.push([translate('field.date'), formatLongDate(item.date, lang)], [translate('field.time'), item.start_time], [translate('field.partySize'), String(item.party_size)]);
     } else {
@@ -162,22 +188,50 @@ function detailRows(item) {
 
 /**
  * Runs a decision, reports the outcome and refreshes every view that shows requests.
- * @param {() => Promise<unknown>} action
+ * @param {() => Promise<any>} action
  * @param {string} doneKey - translation key of the success message
  * @param {HTMLElement} statusElement
- * @returns {Promise<boolean>} true on success
+ * @returns {Promise<any|null>} the answer of the action, null on failure
  */
 async function runDecision(action, doneKey, statusElement) {
     hideStatus(statusElement);
     try {
-        await action();
+        const answer = await action();
         showStatus(statusElement, translate(doneKey), 'ok');
         await Promise.all([calendarView.refresh(), loadPending()]);
-        return true;
+        return answer ?? {};
     } catch (error) {
         showStatus(statusElement, errorMessage(error), 'error');
-        return false;
+        return null;
     }
+}
+
+/**
+ * Payment buttons of a confirmed hotel stay. "Record deposit" is two-step
+ * like the rejection: it reveals the amount field and its confirm button.
+ * "Mark as paid" closes the payment for good. Both refresh the dialog with
+ * the new state on success, so the rows and the badge follow.
+ * @param {object} item - a confirmed hotel request
+ * @returns {HTMLButtonElement[]}
+ */
+function paymentButtons(item) {
+    const buttons = [];
+    const hasTotal = item.quoted_total !== null && item.quoted_total !== undefined;
+    if (item.payment_status === 'none' && hasTotal) {
+        const depositButton = button(translate('actions.deposit'), 'btn', () => {
+            depositButton.hidden = true;
+            depositHint.textContent = translate('deposit.hint', { total: formatEuro(item.quoted_total, currentLanguage()) });
+            depositBlock.hidden = false;
+            depositAmount.focus();
+        });
+        buttons.push(depositButton);
+    }
+    buttons.push(button(translate('actions.paid'), 'btn btn-primary', async () => {
+        if (!window.confirm(translate('confirm.paid'))) return;
+        const answer = await runDecision(() => markPaid(item.id), 'done.paid', detailsStatus);
+        if (answer !== null) openDetails(answer.item ?? item, translate('done.paid'));
+    }));
+    return buttons;
 }
 
 /**
@@ -185,22 +239,27 @@ async function runDecision(action, doneKey, statusElement) {
  * "Reject" button reveals the optional message field and the confirm button,
  * so the venue can explain the refusal to the guest.
  * @param {object} item - a request (calendar item or pending list row)
+ * @param {string} [doneMessage] - success message to keep on screen when the dialog is redrawn after an action
  * @returns {void}
  */
-function openDetails(item) {
+function openDetails(item, doneMessage = '') {
     byId('details-title').textContent = itemName(item);
-    detailsBadge.replaceChildren(statusBadge(item.status));
+    detailsBadge.replaceChildren(statusBadge(displayStatus(item)));
     detailsList.replaceChildren();
     for (const [label, value] of detailRows(item)) appendDetail(detailsList, label, value);
     hideStatus(detailsStatus);
+    if (doneMessage !== '') showStatus(detailsStatus, doneMessage, 'ok');
     rejectReason.value = '';
     rejectBlock.hidden = true;
+    depositAmount.value = '';
+    depositBlock.hidden = true;
 
     detailsActions.replaceChildren();
+    if (item.type === 'hotel' && item.status === 'approved' && item.payment_status !== 'paid') detailsActions.append(...paymentButtons(item));
     if (item.status === 'pending') {
         detailsActions.append(button(translate('actions.approve'), 'btn btn-primary', async () => {
             if (!window.confirm(translate('confirm.approve'))) return;
-            if (await runDecision(() => approveRequest(item.id), 'done.approved', detailsStatus)) detailsActions.replaceChildren();
+            if (await runDecision(() => approveRequest(item.id), 'done.approved', detailsStatus) !== null) detailsActions.replaceChildren();
         }));
         const rejectButton = button(translate('actions.reject'), 'btn btn-danger', () => {
             // The confirm button below takes over: hide this one so only one "reject" is visible.
@@ -213,14 +272,24 @@ function openDetails(item) {
     if (item.status === 'pending' || item.status === 'approved') {
         detailsActions.append(button(translate('actions.cancel'), 'btn', async () => {
             if (!window.confirm(translate('confirm.cancel'))) return;
-            if (await runDecision(() => cancelRequestAdmin(item.id), 'done.cancelled', detailsStatus)) detailsActions.replaceChildren();
+            if (await runDecision(() => cancelRequestAdmin(item.id), 'done.cancelled', detailsStatus) !== null) detailsActions.replaceChildren();
         }));
     }
     byId('reject-confirm').onclick = async () => {
-        if (await runDecision(() => rejectRequest(item.id, rejectReason.value), 'done.rejected', detailsStatus)) {
+        if (await runDecision(() => rejectRequest(item.id, rejectReason.value), 'done.rejected', detailsStatus) !== null) {
             rejectBlock.hidden = true;
             detailsActions.replaceChildren();
         }
+    };
+    byId('deposit-confirm').onclick = async () => {
+        const amount = Number(depositAmount.value);
+        const isPartial = depositAmount.value !== '' && Number.isFinite(amount) && amount > 0 && amount < item.quoted_total;
+        if (!isPartial) {
+            showStatus(detailsStatus, translate('deposit.invalid'), 'error');
+            return;
+        }
+        const answer = await runDecision(() => recordDeposit(item.id, amount), 'done.deposit', detailsStatus);
+        if (answer !== null) openDetails(answer.item ?? item, translate('done.deposit'));
     };
     openDialog(detailsDialog);
 }

@@ -15,13 +15,14 @@
  */
 import { addButton } from './add-shortcut.js';
 import { currentLanguage, translate } from './i18n.js';
-import { addDays, formatDayHeader, formatShortDate, monthGridDays, mondayOf, todayInRome, weekDays } from './utils.js';
+import { addDays, displayStatus, formatDayHeader, formatShortDate, monthGridDays, mondayOf, todayInRome, weekDays } from './utils.js';
 
 /**
  * @typedef {object} CalendarItem - a request as GET /api/admin/calendar returns it
  * @property {number} id
  * @property {string} type
  * @property {string} status
+ * @property {string} [payment_status] - hotel: 'none' | 'deposit' | 'paid'
  * @property {string|null} first_name
  * @property {string|null} last_name
  * @property {string|null} requester_name
@@ -78,7 +79,8 @@ export function entryElement(item, day, options) {
     const selectable = options.canSelect === undefined || options.canSelect(item);
     const entry = document.createElement(selectable ? 'button' : 'div');
     if (selectable) entry.type = 'button';
-    entry.className = `cal-entry is-${item.status}`;
+    const shownStatus = displayStatus(item);
+    entry.className = `cal-entry is-${shownStatus}`;
     if (!selectable) entry.classList.add('is-readonly');
     if (item.requester_color) entry.style.setProperty('--entry-color', item.requester_color);
     const timeElement = document.createElement('span');
@@ -88,7 +90,7 @@ export function entryElement(item, day, options) {
     labelElement.className = 'cal-entry-label';
     labelElement.textContent = label;
     entry.append(timeElement, labelElement);
-    entry.title = `${time} ${label} · ${translate(`status.${item.status}`)}`;
+    entry.title = `${time} ${label} · ${translate(`status.${shownStatus}`)}`;
     if (selectable) entry.addEventListener('click', () => options.onSelect(item));
     return entry;
 }
