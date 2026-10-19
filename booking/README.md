@@ -28,6 +28,7 @@ istanze restano allineate.
 
 Sistema di prenotazione riusabile, configurabile per tipologia di struttura:
 
+
 | `BOOKING_TYPE` | Chi prenota | Cosa chiede |
 |---|---|---|
 | `hotel` | cliente anonimo, form pubblico | nome, cognome, email, telefono, check-in, check-out, adulti, bambini, tipologia di camera (da `rooms.csv`), note |
@@ -220,11 +221,16 @@ Gestiti dal gestore nella sezione **Prezzi** della dashboard, senza deploy.
 Prezzi per camera a notte, in euro, tasse incluse (tassa di soggiorno esclusa,
 dicitura mostrata al cliente e nelle email):
 
-- **Prezzo base** per tipologia: obbligatorio; finché manca, il form pubblico
-  non mostra il prezzo per quella tipologia e funziona come prima.
+- **Prezzo base** per tipologia: vale per ogni notte non coperta da un
+  periodo.
 - **Periodi**: intervallo di date (estremi inclusi) e tipologia con un prezzo
   a notte che sostituisce il base. Niente sovrapposizioni sulla stessa
   tipologia (409 `period_overlap`); un periodo di un giorno copre le eccezioni.
+- Il preventivo esiste solo se **ogni notte** del soggiorno ha un prezzo, dal
+  periodo che la copre o dal base: bastano i soli periodi se coprono tutte le
+  notti. Se una notte resta senza prezzo, il form pubblico non mostra il
+  prezzo e la prenotazione diretta lascia vuoto il totale (il gestore lo
+  scrive a mano).
 - **Sconti per durata**: regole globali "da N notti: X%". Si applica quella
   con la soglia più alta raggiunta.
 
@@ -238,7 +244,7 @@ concordato" è precompilato con il calcolo e il gestore può sovrascriverlo.
 
 | Metodo e percorso | Descrizione |
 |---|---|
-| `GET /api/quote?room_type&check_in&check_out` | pubblico: preventivo del soggiorno (`priced: false` senza prezzo base) |
+| `GET /api/quote?room_type&check_in&check_out` | pubblico: preventivo del soggiorno (`priced: false` se una notte non ha prezzo) |
 | `GET /api/admin/pricing` | prezzi base, periodi e sconti |
 | `PUT /api/admin/pricing/base` | imposta il prezzo base di una tipologia |
 | `POST /api/admin/pricing/periods`, `PATCH/DELETE .../:id` | periodi |

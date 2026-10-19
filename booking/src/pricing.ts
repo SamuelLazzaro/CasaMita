@@ -11,8 +11,11 @@ import { roomTypeByName } from './rooms';
  * total is rounded to the cent only at the end, so the public form, the
  * dashboard and the email all show the same figure.
  *
- * Without a base price for the room type there is no quote (null): the
- * public form then works as before, without prices (owner's decision).
+ * A night without any price (no period covering it and no base price for the
+ * room type) makes the whole quote impossible (null): the public form then
+ * works as before, without prices (owner's decision). Periods alone are
+ * enough when they cover every night of the stay, so a venue that prices
+ * only some dates still gets the quote on those dates.
  */
 
 export type NightPrice = { date: string; price: number };
@@ -35,12 +38,14 @@ function roundCents(value: number): number {
     return Math.round(value * 100) / 100;
 }
 
-/** Pure computation, exported for the tests. */
-export function computeQuote(checkIn: string, checkOut: string, basePrice: number, periods: Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules: Pick<DiscountRule, 'min_nights' | 'percent'>[]): Quote {
+/** Pure computation, exported for the tests; null when a night has no price. */
+export function computeQuote(checkIn: string, checkOut: string, basePrice: number | null, periods: Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules: Pick<DiscountRule, 'min_nights' | 'percent'>[]): Quote | null {
     const nights: NightPrice[] = [];
     for (let night = checkIn; night < checkOut; night = addDays(night, 1)) {
         const period = periods.find((candidate) => candidate.date_from <= night && night <= candidate.date_to);
-        nights.push({ date: night, price: period === undefined ? basePrice : period.price_per_night });
+        const price = period === undefined ? basePrice : period.price_per_night;
+        if (price === null) return null;
+        nights.push({ date: night, price });
     }
     const subtotal = roundCents(nights.reduce((sum, night) => sum + night.price, 0));
     const applicable = rules.filter((rule) => rule.min_nights <= nights.length).sort((a, b) => b.min_nights - a.min_nights)[0];
@@ -49,15 +54,15 @@ export function computeQuote(checkIn: string, checkOut: string, basePrice: numbe
     return { nights, subtotal, discount_percent: discountPercent, discount_amount: discountAmount, total: roundCents(subtotal - discountAmount) };
 }
 
-/** Quote of a stay from the database, or null when the room type has no base price. */
+/** Quote of a stay from the database, or null when some night of the stay has no price. */
 export async function quoteStay(db: D1Database, roomType: string, checkIn: string, checkOut: string): Promise<Quote | null> {
-    const base = await db.prepare('SELECT price_per_night FROM room_prices WHERE room_type = ?1').bind(roomType).first<{ price_per_night: number }>();
-    if (base === null) return null;
-    const [periods, rules] = await db.batch([
+    const [base, periods, rules] = await db.batch([
+        db.prepare('SELECT price_per_night FROM room_prices WHERE room_type = ?1').bind(roomType),
         db.prepare('SELECT date_from, date_to, price_per_night FROM rate_periods WHERE room_type = ?1 AND date_from < ?3 AND date_to >= ?2').bind(roomType, checkIn, checkOut),
         db.prepare('SELECT min_nights, percent FROM discount_rules'),
     ]);
-    return computeQuote(checkIn, checkOut, base.price_per_night, periods.results as Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules.results as Pick<DiscountRule, 'min_nights' | 'percent'>[]);
+    const basePrice = (base.results[0] as { price_per_night: number } | undefined)?.price_per_night ?? null;
+    return computeQuote(checkIn, checkOut, basePrice, periods.results as Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules.results as Pick<DiscountRule, 'min_nights' | 'percent'>[]);
 }
 
 /** A price in euro: finite, non-negative, at most MAX_PRICE, rounded to the cent; null when invalid. */
