@@ -1,0 +1,585 @@
+/* ===========================================================================
+   dashboard.css — manager dashboard only: section navigation, calendar
+   toolbar and grids, inbox lists, rooms table, dialogs.
+   =========================================================================== */
+
+/* ---------------------------------------------------- section navigation */
+
+/*
+ * Dashboard sections (Calendar / Notifications / Rooms / Organisations):
+ * a fixed bottom bar on small screens (mobile-first base styles) and a
+ * sticky left sidebar on desktop (media query below). Hidden until login.
+ */
+.nav-sections {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    background: var(--black);
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-sections[hidden] {
+    display: none;
+}
+
+body:has(.nav-sections:not([hidden])) {
+    padding-bottom: 4.5rem;
+}
+
+.nav-item {
+    --nav-active-color: #fff;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.5rem 0.25rem 0.55rem;
+    font: inherit;
+    font-size: 0.7rem;
+    color: var(--text-muted-dark);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.nav-item[hidden] {
+    display: none;
+}
+
+.nav-item svg {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+
+.nav-item.is-active {
+    color: var(--nav-active-color);
+}
+
+@media (pointer: fine) {
+    .nav-item:hover {
+        color: var(--nav-active-color);
+    }
+}
+
+.nav-item.is-tapped,
+.nav-item:focus-visible {
+    color: var(--nav-active-color);
+}
+
+.nav-icon {
+    position: relative;
+    display: inline-flex;
+}
+
+.nav-badge {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.6rem;
+    min-width: 1.1rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--white);
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1.1rem;
+    text-align: center;
+}
+
+@media (min-width: 900px) {
+    .layout {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        max-width: calc(var(--page-width) + 220px);
+        margin: 0 auto;
+    }
+
+    .nav-sections {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        flex-direction: column;
+        background: transparent;
+        padding: var(--space-4) 0 0 var(--space-3);
+        gap: var(--space-1);
+    }
+
+    body:has(.nav-sections:not([hidden])) {
+        padding-bottom: 0;
+    }
+
+    .nav-item {
+        --nav-active-color: var(--accent-text);
+        flex: none;
+        flex-direction: row;
+        gap: var(--space-2);
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius);
+    }
+
+    .nav-item.is-active {
+        background: var(--accent-tint);
+    }
+
+    .layout .container {
+        margin: 0;
+    }
+}
+
+/* --------------------------------------------------------- more buttons */
+
+.btn-small {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.82rem;
+}
+
+.btn-text {
+    --btn-active-bg: transparent;
+    --btn-active-border: transparent;
+    --btn-text-active-color: var(--accent-text-dark);
+    border: none;
+    background: none;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85rem;
+    color: var(--accent-text);
+    text-decoration: underline;
+}
+
+@media (pointer: fine) {
+    .btn-text:hover:not(:disabled) {
+        color: var(--btn-text-active-color);
+    }
+}
+
+.btn-text.is-tapped,
+.btn-text:focus-visible {
+    color: var(--btn-text-active-color);
+}
+
+.btn-arrow {
+    padding: 0.45rem 0.8rem;
+    line-height: 1;
+}
+
+.btn-arrow svg {
+    display: block;
+    width: 1em;
+    height: 1em;
+}
+
+/* ------------------------------------------------------ calendar toolbar */
+
+.view-switch {
+    display: flex;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+}
+
+.view-switch .btn[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--white);
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.toolbar-center {
+    text-align: center;
+}
+
+.toolbar-center h3 {
+    margin: 0;
+    font-size: 1rem;
+    text-transform: capitalize;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.swatch {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 3px;
+    background: var(--ok-tint);
+    border-left: 3px solid var(--ok);
+}
+
+.swatch.is-pending {
+    background: var(--pending-tint);
+    border-left-color: var(--pending);
+}
+
+/* ------------------------------------------------------------- calendar */
+
+.calendar-scroll {
+    overflow-x: auto;
+}
+
+.calendar-week,
+.calendar-month {
+    display: grid;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.calendar-week {
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+}
+
+.calendar-month {
+    grid-template-columns: repeat(7, minmax(96px, 1fr));
+}
+
+.cal-weekday {
+    background: var(--page);
+    padding: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.cal-cell {
+    background: var(--surface);
+    min-height: 7rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-month .cal-cell {
+    min-height: 5.5rem;
+}
+
+.cal-cell.is-past {
+    background: var(--page);
+}
+
+.cal-cell.is-today {
+    background: var(--accent-tint);
+}
+
+.cal-cell.is-outside .cal-cell-header {
+    color: var(--border-strong);
+}
+
+.cal-cell-header {
+    --header-active-color: var(--accent-text);
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    font-family: inherit;
+    text-align: left;
+}
+
+button.cal-cell-header {
+    cursor: pointer;
+}
+
+@media (pointer: fine) {
+    button.cal-cell-header:hover {
+        color: var(--header-active-color);
+        text-decoration: underline;
+    }
+}
+
+button.cal-cell-header.is-tapped,
+button.cal-cell-header:focus-visible {
+    color: var(--header-active-color);
+    text-decoration: underline;
+}
+
+.cal-cell-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0.3rem 0.3rem;
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.cal-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.cal-entry {
+    --entry-color: var(--ok);
+    --entry-active-bg: var(--accent-tint);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.05rem;
+    width: 100%;
+    padding: 0.25rem 0.45rem;
+    border: none;
+    border-left: 3px solid var(--entry-color);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.cal-entry.is-pending {
+    --entry-color: var(--pending);
+    border-left-style: dashed;
+}
+
+@media (pointer: fine) {
+    .cal-entry:hover {
+        background: var(--entry-active-bg);
+    }
+}
+
+.cal-entry.is-tapped,
+.cal-entry:focus-visible {
+    background: var(--entry-active-bg);
+}
+
+.cal-entry-time {
+    font-weight: 600;
+    font-size: 0.72rem;
+}
+
+.cal-entry-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.calendar-day .cal-entry {
+    flex-direction: row;
+    gap: var(--space-3);
+    align-items: baseline;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.7rem;
+}
+
+.calendar-day .cal-entry-time {
+    font-size: 0.85rem;
+    min-width: 5.5rem;
+}
+
+/* ----------------------------------------------------------------- lists */
+
+.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.list-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-3);
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.list-item-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    font-size: 0.9rem;
+    min-width: 0;
+}
+
+.list-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.color-dot {
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: var(--dot-color, var(--accent));
+    vertical-align: middle;
+}
+
+/* ----------------------------------------------------------------- table */
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.table th {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- dialog */
+
+.dialog {
+    border: none;
+    border-radius: var(--radius);
+    padding: 0;
+    width: min(92vw, 560px);
+    max-height: 90vh;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.dialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog-content {
+    padding: var(--space-4);
+}
+
+.dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.dialog-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.dialog .form[hidden] {
+    display: none;
+}
+
+/* ---------------------------------------------- read-only calendar entries */
+
+/* Other organisations' bookings in the requester area: visible, not clickable. */
+.cal-entry.is-readonly {
+    cursor: default;
+}
+
+@media (pointer: fine) {
+    .cal-entry.is-readonly:hover {
+        background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+    }
+}
+
+/* ------------------------------------------------------------ demo page */
+
+.demo-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: 0.6rem var(--space-3);
+    background: var(--pending-tint);
+    color: var(--pending);
+    font-size: 0.85rem;
+}
+
+.demo-bar .btn[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--white);
+}
+
+/* ------------------------------------------------------------ price box */
+
+.price-box {
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 0.7rem 0.9rem;
+    background: var(--accent-tint);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.9rem;
+}
+
+.price-box[hidden] {
+    display: none;
+}
+
+.price-total {
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.price-line {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.price-nights {
+    margin: 0.3rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    columns: 2;
+}
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-2) var(--space-3);
+    align-items: center;
+}
+
+.pricing-grid input {
+    width: 7rem;
+}

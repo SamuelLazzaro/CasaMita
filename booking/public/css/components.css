@@ -1,0 +1,267 @@
+/* ===========================================================================
+   components.css — panels, forms, buttons, status messages, badges, details.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------- panels */
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.panel h2 {
+    margin: 0 0 var(--space-3);
+    font-size: 1.15rem;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.panel-header h2 {
+    margin: 0;
+}
+
+.prose h2 {
+    margin-top: var(--space-4);
+    font-size: 1.05rem;
+}
+
+/* ----------------------------------------------------------------- forms */
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+fieldset.field {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+fieldset.field legend {
+    padding: 0;
+    margin-bottom: 0.3rem;
+}
+
+.field label,
+.field legend {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+}
+
+@media (min-width: 560px) {
+    .field-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.field input,
+.field select,
+.field textarea {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.65rem;
+    width: 100%;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible,
+.check-label input:focus-visible {
+    outline: 2px solid var(--accent-dark);
+    outline-offset: 1px;
+}
+
+.field input:disabled,
+.field select:disabled {
+    background: var(--page);
+    color: var(--text-muted);
+}
+
+.field textarea {
+    resize: vertical;
+}
+
+.hint {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.check-label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.check-label input {
+    margin: 0.2rem 0 0;
+    flex-shrink: 0;
+}
+
+.choice-row {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+/* Honeypot: off-screen for humans and assistive tech, present for bots. */
+.honeypot {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+    --btn-active-bg: var(--accent-tint);
+    --btn-active-border: var(--accent-dark);
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+@media (pointer: fine) {
+    .btn:hover:not(:disabled) {
+        background: var(--btn-active-bg);
+        border-color: var(--btn-active-border);
+    }
+}
+
+.btn.is-tapped,
+.btn:focus-visible {
+    background: var(--btn-active-bg);
+    border-color: var(--btn-active-border);
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.btn-primary {
+    --btn-active-bg: var(--accent-dark);
+    --btn-active-border: var(--accent-dark);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.btn-danger {
+    --btn-active-bg: var(--error-tint);
+    --btn-active-border: var(--error);
+    color: var(--error);
+    border-color: #dcc0b8;
+}
+
+.actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+    margin-top: var(--space-3);
+}
+
+/* ------------------------------------------------------- status messages */
+
+.status {
+    margin: var(--space-3) 0 0;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius);
+    background: var(--accent-tint);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.status.is-ok {
+    background: var(--ok-tint);
+    color: var(--ok);
+}
+
+.status.is-error {
+    background: var(--error-tint);
+    color: var(--error);
+}
+
+/* ---------------------------------------------------------------- badges */
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--accent-tint);
+    color: var(--accent-text);
+}
+
+.badge.is-pending {
+    background: var(--pending-tint);
+    color: var(--pending);
+}
+
+.badge.is-approved {
+    background: var(--ok-tint);
+    color: var(--ok);
+}
+
+.badge.is-rejected,
+.badge.is-cancelled {
+    background: var(--error-tint);
+    color: var(--error);
+}
+
+/* --------------------------------------------------------------- details */
+
+.details {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.4rem var(--space-3);
+    margin: var(--space-3) 0 0;
+}
+
+.details dt {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.details dd {
+    margin: 0;
+    white-space: pre-wrap;
+}

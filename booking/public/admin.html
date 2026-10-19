@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it" data-i18n-doc-title="admin.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Gestione prenotazioni</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/admin.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div>
+                <h1 data-i18n="admin.heading">Gestione prenotazioni</h1>
+                <p class="subtitle" id="venue-name">&nbsp;</p>
+            </div>
+            <nav class="site-header-nav">
+                <button type="button" id="logout" data-i18n="admin.logout" hidden>Esci</button>
+                <button type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+            </nav>
+        </div>
+    </header>
+
+    <div class="layout">
+        <nav id="nav-sections" class="nav-sections" aria-label="Sezioni" hidden>
+            <button type="button" class="nav-item is-active" data-target="section-calendar" aria-current="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span data-i18n="nav.calendar">Calendario</span>
+            </button>
+            <button type="button" class="nav-item" data-target="section-notifications">
+                <span class="nav-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    <span id="pending-badge" class="nav-badge" hidden></span>
+                </span>
+                <span data-i18n="nav.notifications">Notifiche</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-rooms" data-target="section-rooms" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6"></path><path d="M5 10V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"></path><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                <span data-i18n="nav.rooms">Camere</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-pricing" data-target="section-pricing" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <span data-i18n="nav.pricing">Prezzi</span>
+            </button>
+            <button type="button" class="nav-item" id="nav-requesters" data-target="section-requesters" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <span data-i18n="nav.requesters">Società</span>
+            </button>
+        </nav>
+
+        <main class="container">
+            <p id="loading" class="status" role="status" data-i18n="common.loading">Caricamento…</p>
+
+            <section id="login-view" class="panel" hidden>
+                <h2 data-i18n="admin.loginTitle">Accesso gestore</h2>
+                <form id="login-form" class="form">
+                    <div class="field">
+                        <label for="password" data-i18n="field.password">Password</label>
+                        <input type="password" id="password" autocomplete="current-password" required>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary" data-i18n="admin.enter">Entra</button>
+                    </div>
+                </form>
+                <p id="login-status" class="status" role="status" hidden></p>
+            </section>
+
+            <div id="admin-view" hidden>
+                <section id="section-calendar" class="panel" data-section>
+                    <div class="panel-header">
+                        <h2 data-i18n="calendar.title">Calendario</h2>
+                        <button type="button" class="btn btn-primary" id="new-booking" data-i18n="calendar.new">Nuova prenotazione</button>
+                    </div>
+                    <div class="view-switch" role="group">
+                        <button type="button" class="btn btn-small" id="cal-view-day" aria-pressed="false" data-i18n="calendar.day">Giorno</button>
+                        <button type="button" class="btn btn-small" id="cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
+                        <button type="button" class="btn btn-small" id="cal-view-month" aria-pressed="false" data-i18n="calendar.month">Mese</button>
+                    </div>
+                    <div class="toolbar">
+                        <button type="button" class="btn btn-arrow" id="cal-prev" aria-label="Precedente">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>
+                        </button>
+                        <div class="toolbar-center">
+                            <h3 id="cal-title">&nbsp;</h3>
+                            <button type="button" class="btn btn-text" id="cal-today" data-i18n="calendar.today">Oggi</button>
+                        </div>
+                        <button type="button" class="btn btn-arrow" id="cal-next" aria-label="Successivo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        </button>
+                    </div>
+                    <p id="calendar-status" class="status" role="status" hidden></p>
+                    <div class="legend">
+                        <span class="chip"><span class="swatch is-approved"></span> <span data-i18n="calendar.legendApproved">Confermata</span></span>
+                        <span class="chip"><span class="swatch is-pending"></span> <span data-i18n="calendar.legendPending">In attesa</span></span>
+                    </div>
+                    <div class="calendar-scroll">
+                        <div id="calendar" class="calendar"></div>
+                    </div>
+                </section>
+
+                <section id="section-notifications" class="panel" data-section hidden>
+                    <h2 data-i18n="notifications.title">Richieste in attesa</h2>
+                    <p id="pending-status" class="status" role="status" hidden></p>
+                    <ul id="pending-list" class="list"></ul>
+                    <p id="pending-empty" class="hint" data-i18n="notifications.empty" hidden>Nessuna richiesta in attesa.</p>
+                </section>
+
+                <section id="section-rooms" class="panel" data-section hidden>
+                    <h2 data-i18n="rooms.title">Camere</h2>
+                    <p class="hint" data-i18n="rooms.intro">Tipologie definite in rooms.csv. Scegli le date per vedere le camere libere.</p>
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="rooms-check-in" data-i18n="field.checkIn">Check-in</label>
+                            <input type="date" id="rooms-check-in">
+                        </div>
+                        <div class="field">
+                            <label for="rooms-check-out" data-i18n="field.checkOut">Check-out</label>
+                            <input type="date" id="rooms-check-out">
+                        </div>
+                    </div>
+                    <p id="rooms-status" class="status" role="status" hidden></p>
+                    <div class="table-scroll">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" data-i18n="rooms.name">Tipologia</th>
+                                    <th scope="col" data-i18n="rooms.maxGuests">Ospiti max</th>
+                                    <th scope="col" data-i18n="rooms.quantity">Camere</th>
+                                    <th scope="col" data-i18n="rooms.available">Libere</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rooms-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="section-pricing" class="panel" data-section hidden>
+                    <h2 data-i18n="pricing.title">Prezzi</h2>
+                    <p class="hint" data-i18n="pricing.intro">Prezzi per camera a notte, in euro, tasse incluse. Il prezzo base vale per tutte le date non coperte da un periodo.</p>
+                    <p id="pricing-status" class="status" role="status" hidden></p>
+
+                    <h3 data-i18n="pricing.baseTitle">Prezzo base per tipologia</h3>
+                    <div id="pricing-base" class="pricing-grid"></div>
+
+                    <h3 data-i18n="pricing.periodsTitle">Periodi (stagioni ed eccezioni)</h3>
+                    <form id="period-form" class="form" novalidate>
+                        <div class="field-row">
+                            <div class="field"><label for="period-room" data-i18n="field.roomType">Tipologia di camera</label><select id="period-room" name="room_type" required></select></div>
+                            <div class="field"><label for="period-label" data-i18n="pricing.label">Etichetta (facoltativa)</label><input type="text" id="period-label" name="label" maxlength="60"></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="period-from" data-i18n="pricing.from">Dal</label><input type="date" id="period-from" name="date_from" required></div>
+                            <div class="field"><label for="period-to" data-i18n="pricing.to">Al (incluso)</label><input type="date" id="period-to" name="date_to" required></div>
+                        </div>
+                        <div class="field"><label for="period-price" data-i18n="pricing.pricePerNight">Prezzo a notte (€)</label><input type="number" id="period-price" name="price_per_night" min="0" step="0.01" required></div>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="pricing.addPeriod">Aggiungi periodo</button></div>
+                    </form>
+                    <ul id="periods-list" class="list"></ul>
+                    <p id="periods-empty" class="hint" data-i18n="pricing.noPeriods" hidden>Nessun periodo: vale sempre il prezzo base.</p>
+
+                    <h3 data-i18n="pricing.discountsTitle">Sconti per durata del soggiorno</h3>
+                    <form id="discount-form" class="form" novalidate>
+                        <div class="field-row">
+                            <div class="field"><label for="discount-nights" data-i18n="pricing.minNights">A partire da (notti)</label><input type="number" id="discount-nights" name="min_nights" min="2" max="365" value="3" required></div>
+                            <div class="field"><label for="discount-percent" data-i18n="pricing.percent">Sconto (%)</label><input type="number" id="discount-percent" name="percent" min="1" max="100" required></div>
+                        </div>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="pricing.addDiscount">Aggiungi sconto</button></div>
+                    </form>
+                    <ul id="discounts-list" class="list"></ul>
+                    <p id="discounts-empty" class="hint" data-i18n="pricing.noDiscounts" hidden>Nessuno sconto per durata.</p>
+                </section>
+
+                <section id="section-requesters" class="panel" data-section hidden>
+                    <div class="panel-header">
+                        <h2 data-i18n="requesters.title">Società</h2>
+                        <button type="button" class="btn btn-primary" id="new-requester" data-i18n="requesters.new">Nuova società</button>
+                    </div>
+                    <p id="requesters-status" class="status" role="status" hidden></p>
+                    <ul id="requesters-list" class="list"></ul>
+                    <p id="requesters-empty" class="hint" data-i18n="requesters.empty" hidden>Nessuna società registrata.</p>
+                </section>
+            </div>
+
+            <dialog id="dialog-booking" class="dialog" aria-labelledby="booking-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="booking-dialog-title" data-i18n="booking.newTitle">Nuova prenotazione</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <p class="hint" data-i18n="booking.newHint">La prenotazione nasce già confermata. Il cliente riceve l'email di conferma.</p>
+
+                    <form id="direct-hotel-form" class="form" novalidate hidden>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-hotel-first-name" data-i18n="field.firstName">Nome</label><input type="text" id="direct-hotel-first-name" name="first_name" maxlength="100" required></div>
+                            <div class="field"><label for="direct-hotel-last-name" data-i18n="field.lastName">Cognome</label><input type="text" id="direct-hotel-last-name" name="last_name" maxlength="100" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-hotel-email" data-i18n="field.email">Email</label><input type="email" id="direct-hotel-email" name="email" maxlength="200" required></div>
+                            <div class="field"><label for="direct-hotel-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="direct-hotel-phone" name="phone" maxlength="30" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-hotel-check-in" data-i18n="field.checkIn">Check-in</label><input type="date" id="direct-hotel-check-in" name="check_in" required></div>
+                            <div class="field"><label for="direct-hotel-check-out" data-i18n="field.checkOut">Check-out</label><input type="date" id="direct-hotel-check-out" name="check_out" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-hotel-adults" data-i18n="field.adults">Adulti</label><input type="number" id="direct-hotel-adults" name="adults" min="1" max="20" value="2" required></div>
+                            <div class="field"><label for="direct-hotel-children" data-i18n="field.children">Bambini</label><input type="number" id="direct-hotel-children" name="children" min="0" max="10" value="0" required></div>
+                        </div>
+                        <div class="field">
+                            <label for="direct-hotel-room-type" data-i18n="field.roomType">Tipologia di camera</label>
+                            <select id="direct-hotel-room-type" name="room_type" required disabled></select>
+                            <p class="hint" id="direct-hotel-availability-hint" data-i18n="hotel.pickDates">Scegli le date per vedere le camere disponibili.</p>
+                        </div>
+                        <div id="direct-hotel-price" class="price-box" aria-live="polite" hidden></div>
+                        <div class="field">
+                            <label for="direct-hotel-total" data-i18n="price.agreedTotal">Prezzo totale concordato (€)</label>
+                            <input type="number" id="direct-hotel-total" name="total" min="0" step="0.01">
+                            <p class="hint" data-i18n="price.agreedHint">Precompilato con il prezzo calcolato: modificalo solo se avete concordato una cifra diversa.</p>
+                        </div>
+                        <div class="field"><label for="direct-hotel-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="direct-hotel-notes" name="notes" maxlength="500" rows="2"></textarea></div>
+                        <div class="field">
+                            <label for="direct-hotel-lang" data-i18n="field.lang">Lingua delle email al cliente</label>
+                            <select id="direct-hotel-lang" name="lang"><option value="it">Italiano</option><option value="en">English</option></select>
+                        </div>
+                        <div><button type="submit" class="btn btn-primary" id="direct-hotel-submit" data-i18n="common.submit">Invia richiesta</button></div>
+                    </form>
+                    <p id="direct-hotel-status" class="status" role="status" hidden></p>
+
+                    <form id="direct-restaurant-form" class="form" novalidate hidden>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-restaurant-first-name" data-i18n="field.firstName">Nome</label><input type="text" id="direct-restaurant-first-name" name="first_name" maxlength="100" required></div>
+                            <div class="field"><label for="direct-restaurant-last-name" data-i18n="field.lastName">Cognome</label><input type="text" id="direct-restaurant-last-name" name="last_name" maxlength="100" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-restaurant-email" data-i18n="field.email">Email</label><input type="email" id="direct-restaurant-email" name="email" maxlength="200" required></div>
+                            <div class="field"><label for="direct-restaurant-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="direct-restaurant-phone" name="phone" maxlength="30" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-restaurant-date" data-i18n="field.date">Data</label><input type="date" id="direct-restaurant-date" name="date" required></div>
+                            <div class="field"><label for="direct-restaurant-party-size" data-i18n="field.partySize">Numero di persone</label><input type="number" id="direct-restaurant-party-size" name="party_size" min="1" max="30" value="2" required></div>
+                        </div>
+                        <fieldset class="field">
+                            <legend data-i18n="field.service">Servizio</legend>
+                            <div class="choice-row" role="radiogroup">
+                                <label class="check-label"><input type="radio" name="service" value="lunch" checked><span data-i18n="restaurant.lunch">Pranzo</span></label>
+                                <label class="check-label"><input type="radio" name="service" value="dinner"><span data-i18n="restaurant.dinner">Cena</span></label>
+                            </div>
+                        </fieldset>
+                        <div class="field"><label for="direct-restaurant-time" data-i18n="field.time">Orario</label><select id="direct-restaurant-time" name="time" required></select></div>
+                        <div class="field"><label for="direct-restaurant-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="direct-restaurant-notes" name="notes" maxlength="500" rows="2"></textarea></div>
+                        <div class="field">
+                            <label for="direct-restaurant-lang" data-i18n="field.lang">Lingua delle email al cliente</label>
+                            <select id="direct-restaurant-lang" name="lang"><option value="it">Italiano</option><option value="en">English</option></select>
+                        </div>
+                        <div><button type="submit" class="btn btn-primary" id="direct-restaurant-submit" data-i18n="common.submit">Invia richiesta</button></div>
+                    </form>
+                    <p id="direct-restaurant-status" class="status" role="status" hidden></p>
+
+                    <form id="direct-facility-form" class="form" novalidate hidden>
+                        <div class="field"><label for="direct-facility-requester" data-i18n="field.requester">Società</label><select id="direct-facility-requester" name="requester_id" required></select></div>
+                        <div class="field"><label for="direct-facility-date" data-i18n="field.date">Data</label><input type="date" id="direct-facility-date" name="date" required></div>
+                        <div class="field-row">
+                            <div class="field"><label for="direct-facility-start-time" data-i18n="field.startTime">Dalle</label><select id="direct-facility-start-time" name="start_time" required></select></div>
+                            <div class="field"><label for="direct-facility-end-time" data-i18n="field.endTime">Alle</label><select id="direct-facility-end-time" name="end_time" required></select></div>
+                        </div>
+                        <div class="field"><label for="direct-facility-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="direct-facility-notes" name="notes" maxlength="500" rows="2"></textarea></div>
+                        <div><button type="submit" class="btn btn-primary" id="direct-facility-submit" data-i18n="common.submit">Invia richiesta</button></div>
+                    </form>
+                    <p id="direct-facility-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <dialog id="dialog-details" class="dialog" aria-labelledby="details-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="details-title" data-i18n="details.title">Prenotazione</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <div id="details-badge"></div>
+                    <dl class="details" id="details-list"></dl>
+                    <div class="actions" id="details-actions"></div>
+                    <div id="reject-block" class="field" hidden>
+                        <label for="reject-reason" data-i18n="reject.reasonLabel">Messaggio per il cliente (facoltativo)</label>
+                        <textarea id="reject-reason" maxlength="300" rows="2"></textarea>
+                        <div><button type="button" class="btn btn-danger" id="reject-confirm" data-i18n="reject.confirm">Conferma rifiuto</button></div>
+                    </div>
+                    <p id="details-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <dialog id="dialog-requester" class="dialog" aria-labelledby="requester-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="requester-dialog-title">Nuova società</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <form id="requester-form" class="form" novalidate>
+                        <input type="hidden" id="requester-id" name="id">
+                        <div class="field-row">
+                            <div class="field"><label for="requester-name" data-i18n="field.requesterName">Nome della società</label><input type="text" id="requester-name" name="name" maxlength="100" required></div>
+                            <div class="field"><label for="requester-contact" data-i18n="field.contactName">Referente</label><input type="text" id="requester-contact" name="contact_name" maxlength="100" required></div>
+                        </div>
+                        <div class="field-row">
+                            <div class="field"><label for="requester-email" data-i18n="field.email">Email</label><input type="email" id="requester-email" name="email" maxlength="200" required></div>
+                            <div class="field"><label for="requester-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="requester-phone" name="phone" maxlength="30" required></div>
+                        </div>
+                        <div class="field"><label for="requester-color" data-i18n="field.color">Colore nel calendario</label><input type="color" id="requester-color" name="color" value="#3b82f6"></div>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button></div>
+                    </form>
+                    <p id="requester-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+        </main>
+    </div>
+</body>
+</html>

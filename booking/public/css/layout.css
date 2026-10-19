@@ -1,0 +1,78 @@
+/* ===========================================================================
+   layout.css — page structure: header, main container, footer.
+   =========================================================================== */
+
+.site-header {
+    background: var(--black);
+    color: #fff;
+}
+
+.site-header-inner {
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: 1.1rem var(--space-3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.site-header h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    letter-spacing: 0.01em;
+}
+
+.subtitle {
+    margin: 0.1rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted-dark);
+}
+
+.site-header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.site-header-nav button {
+    --header-button-active-bg: #fff;
+    --header-button-active-color: var(--black);
+    font: inherit;
+    color: #fff;
+    background: none;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+@media (pointer: fine) {
+    .site-header-nav button:hover {
+        background: var(--header-button-active-bg);
+        color: var(--header-button-active-color);
+    }
+}
+
+.site-header-nav button.is-tapped,
+.site-header-nav button:focus-visible {
+    background: var(--header-button-active-bg);
+    color: var(--header-button-active-color);
+}
+
+.container {
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: var(--space-4) var(--space-3) 3rem;
+}
+
+.site-footer {
+    max-width: var(--page-width);
+    margin: 0 auto;
+    padding: 0 var(--space-3) var(--space-4);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+# Local secrets: never commit them (keep the .example templates).
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+!.dev.vars.*.example
+# Database dumps (contain personal data and access tokens).
+backup*.sql

@@ -40,11 +40,6 @@ export const TAP_FEEDBACK_CLASS = "is-tapped";
  */
 export const TAP_FEEDBACK_SELECTOR = 'a[href], button, [role="button"]';
 
-/* ----- booking form (see booking.js) ----- */
-
-/** @type {string} address the booking request email is sent to */
-export const BOOKING_EMAIL = "info@ristorantealbergocasamita.it";
-
 /* ----- cookie consent (see cookie-banner.js and where-map.js) ----- */
 
 /** @type {string} localStorage key recording the visitor's banner choice */
@@ -238,19 +233,10 @@ export const TRANSLATIONS = {
 
         "booking.kicker": "Prenotazioni",
         "booking.title": "Pronto a soggiornare da noi?",
-        "booking.intro": "Seleziona le date di arrivo e partenza, inserisci i tuoi dati e invia la richiesta: ti risponderemo al più presto per confermare la disponibilità.",
-        "booking.name": "Nome e cognome",
-        "booking.email": "Email",
-        "booking.phone": "Telefono",
-        "booking.checkin": "Check-in",
-        "booking.checkout": "Check-out",
-        "booking.room": "Camera",
-        "booking.roomPlaceholder": "Seleziona la camera",
-        "booking.message": "Messaggio (facoltativo)",
-        "booking.send": "Invia la richiesta",
-        "booking.dateError": "La data di check-out deve essere successiva a quella di check-in.",
-        "booking.privacy": "Il pulsante apre il tuo programma di posta con la richiesta già compilata: nessun dato viene salvato o trasmesso da questo sito. I dati inviati via email saranno usati solo per rispondere alla richiesta.",
-        "booking.subject": "Richiesta prenotazione camera — Casa Mita",
+        "booking.intro": "Scegli le date di arrivo e partenza, controlla le camere disponibili e il prezzo del soggiorno e invia la richiesta: riceverai subito un'email di riepilogo e ti confermeremo la prenotazione al più presto.",
+        "booking.fallback": "Se il modulo non compare, apri la pagina di prenotazione:",
+        "booking.fallbackLink": "Prenota il tuo soggiorno",
+        "booking.privacy": "La richiesta viene gestita dal nostro servizio di prenotazione: i dati inseriti servono solo a valutare e confermare il soggiorno e vengono cancellati automaticamente 90 giorni dopo la partenza. Dettagli nella Privacy & Cookie Policy.",
 
         "where.kicker": "Dove siamo",
         "where.title": "Nel cuore della Marina di Pulsano",
@@ -323,6 +309,10 @@ export const TRANSLATIONS = {
         "policy.s4p1": "La sezione «Dove siamo» può mostrare una mappa interattiva fornita da Google Maps (Google Ireland Limited, Gordon House, Barrow Street, Dublino 4, Irlanda, per gli utenti dello Spazio Economico Europeo; capogruppo Google LLC, USA).",
         "policy.s4p2": "La mappa non viene caricata all'apertura della pagina: al suo posto compare un riquadro informativo. Solo dopo il tuo consenso esplicito (pulsante nel riquadro oppure «Accetta tutto» nel banner) il browser si collega ai server di Google, che ricevono il tuo indirizzo IP e altri dati tecnici e possono impostare propri cookie. Base giuridica: consenso (art. 6, par. 1, lett. a GDPR), revocabile in ogni momento (vedi sezione 9).",
         "policy.s4p3": "Privacy policy di Google:",
+        "policy.s4bookingT": "Servizio di prenotazione (Cloudflare e Brevo)",
+        "policy.s4bookingP1": "Il modulo della sezione «Prenotazioni camere» è fornito dal nostro servizio di prenotazione, che gira su Cloudflare Workers e usa il database Cloudflare D1 (Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA). Cloudflare tratta i dati per nostro conto come responsabile del trattamento (art. 28 GDPR); al caricamento del modulo il browser si collega ai server di Cloudflare, che ricevono il tuo indirizzo IP e i dati tecnici della connessione necessari a servire la pagina. Il modulo non imposta cookie: nel localStorage del suo dominio salva solo la lingua (chiave booking-lang).",
+        "policy.s4bookingP2": "Le email automatiche di riepilogo, conferma o rifiuto della richiesta vengono inviate tramite Brevo (Sendinblue SAS, 7 rue de Madrid, 75008 Parigi, Francia), anch'esso responsabile del trattamento per nostro conto.",
+        "policy.s4bookingP3": "Privacy policy di Cloudflare e di Brevo:",
         "policy.s4hostT": "Hosting",
         "policy.s4hostTodo": "[Da completare quando il fornitore di hosting sarà scelto: nome del provider, eventuale CDN sottostante, paese, log tecnici raccolti (indirizzo IP, user-agent, data e ora) e relativo periodo di conservazione.]",
 
@@ -330,10 +320,11 @@ export const TRANSLATIONS = {
         "policy.s5p1": "Tutti i font tipografici e tutte le immagini sono ospitati direttamente su questo sito (self-hosted): il loro caricamento non comporta alcuna trasmissione di dati a terze parti.",
 
         "policy.s6t": "6. Form di richiesta prenotazione",
-        "policy.s6p1": "Il form della sezione «Prenotazioni camere» non invia dati a questo sito né a server di terzi: il pulsante apre il tuo programma di posta con un'email già compilata, che sei tu a inviare. I dati che ci comunichi via email (nome, email, telefono, date e camera richiesta) vengono usati solo per rispondere alla richiesta e gestire l'eventuale prenotazione (art. 6, par. 1, lett. b GDPR — misure precontrattuali) e conservati per il tempo necessario a tali finalità.",
+        "policy.s6p1": "Con il modulo della sezione «Prenotazioni camere» ci comunichi nome, cognome, email, telefono, date del soggiorno, numero di ospiti, tipologia di camera ed eventuali note. I dati vengono salvati nel nostro servizio di prenotazione (vedi sezione 4) e usati solo per valutare la richiesta, confermarla o rifiutarla e comunicare con te in merito (art. 6, par. 1, lett. b GDPR — misure precontrattuali ed esecuzione del contratto). Riceverai un'email di riepilogo con un link personale per controllare lo stato della richiesta o annullarla.",
+        "policy.s6p2": "I dati identificativi vengono cancellati automaticamente 90 giorni dopo la fine del soggiorno, anche se la richiesta è stata rifiutata o annullata; restano, in forma anonima, solo date e dettagli della prenotazione per finalità statistiche. Il conferimento dei dati è facoltativo, ma senza di essi non è possibile gestire la richiesta.",
 
         "policy.s7t": "7. Trasferimenti di dati fuori dall'Unione Europea",
-        "policy.s7p1": "Se acconsenti alla mappa, i tuoi dati possono essere trattati anche da Google LLC negli Stati Uniti. Google LLC aderisce all'EU–U.S. Data Privacy Framework, il meccanismo riconosciuto dalla Commissione Europea come garanzia di un livello adeguato di protezione dei dati:",
+        "policy.s7p1": "Se acconsenti alla mappa, i tuoi dati possono essere trattati anche da Google LLC negli Stati Uniti; i dati del servizio di prenotazione possono essere trattati da Cloudflare, Inc., anch'essa negli Stati Uniti. Google LLC e Cloudflare, Inc. aderiscono all'EU–U.S. Data Privacy Framework, il meccanismo riconosciuto dalla Commissione Europea come garanzia di un livello adeguato di protezione dei dati:",
 
         "policy.s8t": "8. I tuoi diritti",
         "policy.s8p1": "In qualità di interessato hai i diritti previsti dagli artt. 15–22 del GDPR: accesso, rettifica, cancellazione, limitazione del trattamento, portabilità, opposizione e revoca dei consensi prestati. Puoi esercitarli scrivendo a:",
@@ -495,19 +486,10 @@ export const TRANSLATIONS = {
 
         "booking.kicker": "Booking",
         "booking.title": "Ready to stay with us?",
-        "booking.intro": "Pick your arrival and departure dates, fill in your details and send the request: we will get back to you as soon as possible to confirm availability.",
-        "booking.name": "Full name",
-        "booking.email": "Email",
-        "booking.phone": "Phone",
-        "booking.checkin": "Check-in",
-        "booking.checkout": "Check-out",
-        "booking.room": "Room",
-        "booking.roomPlaceholder": "Select a room",
-        "booking.message": "Message (optional)",
-        "booking.send": "Send the request",
-        "booking.dateError": "The check-out date must be after the check-in date.",
-        "booking.privacy": "The button opens your email client with the request already filled in: no data is stored or transmitted by this website. The details you send by email will only be used to answer your request.",
-        "booking.subject": "Room booking request — Casa Mita",
+        "booking.intro": "Pick your arrival and departure dates, check the available rooms and the price of your stay and send the request: you will receive a summary email right away and we will confirm the booking as soon as possible.",
+        "booking.fallback": "If the form does not appear, open the booking page:",
+        "booking.fallbackLink": "Book your stay",
+        "booking.privacy": "Your request is handled by our booking service: the details you enter are used only to assess and confirm the stay and are deleted automatically 90 days after departure. See the Privacy & Cookie Policy for details.",
 
         "where.kicker": "Where we are",
         "where.title": "In the heart of Marina di Pulsano",
@@ -580,6 +562,10 @@ export const TRANSLATIONS = {
         "policy.s4p1": "The \"Where we are\" section can show an interactive map provided by Google Maps (Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland, for users in the European Economic Area; parent company Google LLC, USA).",
         "policy.s4p2": "The map is not loaded when the page opens: an information box is shown in its place. Only after your explicit consent (the button in the box, or \"Accept all\" in the banner) does your browser connect to Google's servers, which receive your IP address and other technical data and may set their own cookies. Legal basis: consent (Art. 6(1)(a) GDPR), withdrawable at any time (see section 9).",
         "policy.s4p3": "Google's privacy policy:",
+        "policy.s4bookingT": "Booking service (Cloudflare and Brevo)",
+        "policy.s4bookingP1": "The form in the \"Room booking\" section is provided by our booking service, which runs on Cloudflare Workers and uses the Cloudflare D1 database (Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA). Cloudflare processes the data on our behalf as a data processor (Art. 28 GDPR); when the form loads, your browser connects to Cloudflare's servers, which receive your IP address and the technical connection data needed to serve the page. The form sets no cookies: it only stores the language in the localStorage of its own domain (key booking-lang).",
+        "policy.s4bookingP2": "The automatic summary, confirmation and rejection emails are sent through Brevo (Sendinblue SAS, 7 rue de Madrid, 75008 Paris, France), also a data processor acting on our behalf.",
+        "policy.s4bookingP3": "Privacy policies of Cloudflare and Brevo:",
         "policy.s4hostT": "Hosting",
         "policy.s4hostTodo": "[To be completed once the hosting provider is chosen: provider name, underlying CDN if any, country, technical logs collected (IP address, user agent, date and time) and their retention period.]",
 
@@ -587,10 +573,11 @@ export const TRANSLATIONS = {
         "policy.s5p1": "All fonts and images are hosted directly on this website (self-hosted): loading them involves no data transmission to third parties.",
 
         "policy.s6t": "6. Booking request form",
-        "policy.s6p1": "The form in the \"Room booking\" section sends no data to this website or to third-party servers: the button opens your email client with a pre-filled message, which you send yourself. The data you share with us by email (name, email, phone, dates and requested room) is used only to answer your request and manage the booking (Art. 6(1)(b) GDPR — pre-contractual measures) and kept for the time needed for those purposes.",
+        "policy.s6p1": "Through the form in the \"Room booking\" section you give us your first and last name, email, phone number, stay dates, number of guests, room type and any notes. The data is stored in our booking service (see section 4) and used only to assess the request, confirm or reject it and communicate with you about it (Art. 6(1)(b) GDPR — pre-contractual measures and performance of the contract). You will receive a summary email with a personal link to check the status of the request or cancel it.",
+        "policy.s6p2": "Identifying data is deleted automatically 90 days after the end of the stay, even if the request was rejected or cancelled; only the dates and details of the booking remain, in anonymous form, for statistical purposes. Providing the data is optional, but without it the request cannot be handled.",
 
         "policy.s7t": "7. Data transfers outside the European Union",
-        "policy.s7p1": "If you consent to the map, your data may also be processed by Google LLC in the United States. Google LLC participates in the EU–U.S. Data Privacy Framework, the mechanism recognised by the European Commission as ensuring an adequate level of data protection:",
+        "policy.s7p1": "If you consent to the map, your data may also be processed by Google LLC in the United States; the booking service data may be processed by Cloudflare, Inc., also in the United States. Google LLC and Cloudflare, Inc. participate in the EU–U.S. Data Privacy Framework, the mechanism recognised by the European Commission as ensuring an adequate level of data protection:",
 
         "policy.s8t": "8. Your rights",
         "policy.s8p1": "As a data subject you have the rights set out in Articles 15–22 GDPR: access, rectification, erasure, restriction of processing, portability, objection and withdrawal of any consent given. You can exercise them by writing to:",

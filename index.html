@@ -499,56 +499,33 @@
                 <div class="section-head reveal">
                     <p class="section-kicker" data-i18n="booking.kicker">Prenotazioni</p>
                     <h2 class="section-title" data-i18n="booking.title">Pronto a soggiornare da noi?</h2>
-                    <p data-i18n="booking.intro">Seleziona le date di arrivo e partenza, inserisci i tuoi dati e
-                        invia la richiesta: ti risponderemo al più presto per confermare la disponibilità.</p>
+                    <p data-i18n="booking.intro">Scegli le date di arrivo e partenza, controlla le camere
+                        disponibili e il prezzo del soggiorno e invia la richiesta: riceverai subito un'email di
+                        riepilogo e ti confermeremo la prenotazione al più presto.</p>
                 </div>
 
-                <form class="booking-form reveal" id="booking-form">
-                    <div class="form-field">
-                        <label for="bk-name" data-i18n="booking.name">Nome e cognome</label>
-                        <input type="text" id="bk-name" name="name" autocomplete="name" required>
-                    </div>
-                    <div class="form-field">
-                        <label for="bk-email" data-i18n="booking.email">Email</label>
-                        <input type="email" id="bk-email" name="email" autocomplete="email" required>
-                    </div>
-                    <div class="form-field">
-                        <label for="bk-phone" data-i18n="booking.phone">Telefono</label>
-                        <input type="tel" id="bk-phone" name="phone" autocomplete="tel" required>
-                    </div>
-                    <div class="form-field">
-                        <label for="bk-room" data-i18n="booking.room">Camera</label>
-                        <select id="bk-room" name="room" required>
-                            <option value="" data-i18n="booking.roomPlaceholder">Seleziona la camera</option>
-                            <option value="Singola" data-i18n="rooms.type1">Singola</option>
-                            <option value="Matrimoniale" data-i18n="rooms.type2">Matrimoniale</option>
-                            <option value="Doppia" data-i18n="rooms.type3">Doppia</option>
-                            <option value="Tripla" data-i18n="rooms.type4">Tripla</option>
-                            <option value="Quadrupla" data-i18n="rooms.type5">Quadrupla</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label for="bk-checkin" data-i18n="booking.checkin">Check-in</label>
-                        <input type="date" id="bk-checkin" name="checkin" required>
-                    </div>
-                    <div class="form-field">
-                        <label for="bk-checkout" data-i18n="booking.checkout">Check-out</label>
-                        <input type="date" id="bk-checkout" name="checkout" required>
-                    </div>
-                    <div class="form-field form-field--full">
-                        <label for="bk-message" data-i18n="booking.message">Messaggio (facoltativo)</label>
-                        <textarea id="bk-message" name="message"></textarea>
-                    </div>
+                <!-- Booking form served by the booking Worker (booking/ in this repo)
+                     and embedded as an auto-resizing iframe by its embed.js. The
+                     script also keeps the form in the language of this page
+                     (<html lang>), so the language FAB switches both.
+                     TODO before go-live: replace the host below with the address
+                     printed by `npm run deploy` (see booking/README.md). -->
+                <div class="booking-embed reveal" id="booking">
+                    <p class="booking-embed-fallback">
+                        <span data-i18n="booking.fallback">Se il modulo non compare, apri la pagina di
+                            prenotazione:</span>
+                        <a href="https://booking-casamita.samuellazzaro.workers.dev/"
+                           target="_blank" rel="noopener noreferrer" data-i18n="booking.fallbackLink">Prenota
+                            il tuo soggiorno</a>
+                    </p>
+                </div>
+                <script src="https://booking-casamita.samuellazzaro.workers.dev/embed.js"
+                        data-target="#booking" data-title="Prenotazione camere — Casa Mita" defer></script>
 
-                    <p class="form-error" id="booking-date-error" role="alert" data-i18n="booking.dateError">
-                        La data di check-out deve essere successiva a quella di check-in.</p>
-
-                    <button class="btn btn--teal" type="submit" data-i18n="booking.send">Invia la richiesta</button>
-
-                    <p class="form-privacy" data-i18n="booking.privacy">Il pulsante apre il tuo programma di
-                        posta con la richiesta già compilata: nessun dato viene salvato o trasmesso da questo
-                        sito. I dati inviati via email saranno usati solo per rispondere alla richiesta.</p>
-                </form>
+                <p class="booking-note" data-i18n="booking.privacy">La richiesta viene gestita dal nostro
+                    servizio di prenotazione: i dati inseriti servono solo a valutare e confermare il
+                    soggiorno e vengono cancellati automaticamente 90 giorni dopo la partenza.
+                    Dettagli nella Privacy &amp; Cookie Policy.</p>
             </div>
         </section>
 

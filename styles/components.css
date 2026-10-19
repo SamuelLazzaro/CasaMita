@@ -1,6 +1,6 @@
 /* ==========================================================================
    components.css — reusable components: hamburger, off-canvas nav, buttons,
-   cards, service tiles, room list, booking form, FABs (language, cookie),
+   cards, service tiles, room list, booking embed, FABs (language, cookie),
    cookie banner, consent-gate theming.
    All :hover rules are wrapped in @media (pointer: fine) so they never
    stick on touch devices. Right below each of those blocks sits the touch
@@ -489,102 +489,43 @@
 }
 
 /* ==========================================================================
-   Booking form
+   Booking embed
+   The form itself lives in the booking Worker and arrives as an iframe
+   (booking/public/embed.js): this is only the white card around it, in
+   the same shape the old on-page form had. The iframe has a transparent
+   background, so the card colour is what the visitor sees behind the fields.
    ========================================================================== */
-.booking-form {
-    max-width: 680px;
+.booking-embed {
+    max-width: 760px;
     margin: 0 auto;
     background: var(--c-white);
     border-radius: 16px;
-    padding: clamp(24px, 5vw, 44px);
+    padding: clamp(16px, 4vw, 32px);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
 }
 
-.form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.form-field--full {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    font-weight: 600;
-    font-size: 0.92rem;
-    color: var(--c-heading);
-}
-
-.form-field input,
-.form-field select,
-.form-field textarea {
-    font: inherit;
+/* Shown only until embed.js replaces it with the iframe (or forever when
+   the script could not load): a plain link to the booking page. */
+.booking-embed-fallback {
+    margin: 0;
+    text-align: center;
     color: var(--c-text);
-    padding: 12px 14px;
-    border: 1.5px solid var(--c-border);
-    border-radius: 10px;
-    background: var(--c-white);
-    width: 100%;
 }
 
-/* iOS Safari draws date inputs with the native widget, which forces an
-   intrinsic width (overflowing the form on narrow screens), centers the
-   value and collapses the height while the field is empty. Strip the
-   native chrome so the shared rules above apply, and rebuild the height
-   the other fields get from their text content (line-height 1.65em +
-   12px vertical padding + 1.5px border on each side). */
-.form-field input[type="date"] {
-    -webkit-appearance: none;
-    appearance: none;
-    min-width: 0;
-    min-height: calc(1.65em + 24px + 3px);
-}
-
-.form-field input[type="date"]::-webkit-date-and-time-value {
-    text-align: left;
-}
-
-.form-field input:focus,
-.form-field select:focus,
-.form-field textarea:focus {
-    outline: none;
-    border-color: var(--c-teal-light);
-    box-shadow: 0 0 0 3px rgba(26, 135, 166, 0.18);
-}
-
-.form-field textarea {
-    resize: vertical;
-    min-height: 100px;
-}
-
-.form-error {
-    grid-column: 1 / -1;
-    display: none;
-    color: #b3261e;
+.booking-embed-fallback a {
+    color: var(--c-teal);
     font-weight: 600;
-    font-size: 0.92rem;
+    text-decoration: underline;
 }
 
-.form-error.is-visible {
-    display: block;
-}
-
-.form-privacy {
-    grid-column: 1 / -1;
+/* sits on the teal section, below the white card */
+.booking-note {
+    max-width: 760px;
+    margin: 20px auto 0;
     font-size: 0.82rem;
     line-height: 1.5;
-    color: var(--c-text-muted);
-}
-
-.booking-form .btn {
-    grid-column: 1 / -1;
-    justify-self: center;
-    min-width: 240px;
     text-align: center;
+    color: var(--c-white);
 }
 
 /* ==========================================================================
@@ -1022,10 +963,6 @@
        always-visible description covering most of the photo */
     .card {
         aspect-ratio: 4 / 5;
-    }
-
-    .booking-form {
-        grid-template-columns: 1fr;
     }
 
     .photo-grid {

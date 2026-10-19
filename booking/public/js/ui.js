@@ -1,0 +1,137 @@
+/* ui.js — DOM helpers shared by the pages: status messages, selects, venue theme. */
+import { STATUS_ERROR_CLASS, STATUS_OK_CLASS } from './constants.js';
+import { translate } from './i18n.js';
+
+/**
+ * Shows a status message; kind 'ok' and 'error' color it, anything else is neutral.
+ * @param {HTMLElement} element - the role="status" paragraph
+ * @param {string} message - already translated text
+ * @param {'ok'|'error'|'info'} [kind]
+ * @returns {void}
+ */
+export function showStatus(element, message, kind = 'info') {
+    element.textContent = message;
+    element.classList.toggle(STATUS_OK_CLASS, kind === 'ok');
+    element.classList.toggle(STATUS_ERROR_CLASS, kind === 'error');
+    element.hidden = false;
+}
+
+/**
+ * @param {HTMLElement} element
+ * @returns {void}
+ */
+export function hideStatus(element) {
+    element.hidden = true;
+    element.textContent = '';
+}
+
+/**
+ * Translates a server/network error into a message for the user.
+ * @param {Error} error - thrown by api.js, message = error code
+ * @returns {string}
+ */
+export function errorMessage(error) {
+    const key = `error.${error.message}`;
+    const translated = translate(key);
+    return translated === key ? translate('error.generic') : translated;
+}
+
+/**
+ * Replaces the options of a select.
+ * @param {HTMLSelectElement} select
+ * @param {{value: string, label: string, disabled?: boolean}[]} options
+ * @param {string} [selectedValue] - value to keep selected when still present
+ * @returns {void}
+ */
+export function fillSelect(select, options, selectedValue = '') {
+    select.replaceChildren(...options.map((option) => {
+        const element = document.createElement('option');
+        element.value = option.value;
+        element.textContent = option.label;
+        element.disabled = option.disabled === true;
+        return element;
+    }));
+    const stillThere = options.some((option) => option.value === selectedValue && option.disabled !== true);
+    if (stillThere) select.value = selectedValue;
+}
+
+/**
+ * Applies the venue to the page: accent theme and name in the header.
+ * @param {{type: string, name: string}} config
+ * @returns {void}
+ */
+export function applyVenue(config) {
+    document.documentElement.dataset.bookingType = config.type;
+    const venueName = document.getElementById('venue-name');
+    if (venueName !== null) venueName.textContent = config.name;
+}
+
+/**
+ * Appends a label/value pair to a definition list.
+ * @param {HTMLDListElement} list
+ * @param {string} label
+ * @param {string} value
+ * @returns {void}
+ */
+export function appendDetail(list, label, value) {
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const definition = document.createElement('dd');
+    definition.textContent = value;
+    list.append(term, definition);
+}
+
+/**
+ * Opens a <dialog> as modal and wires its close button once.
+ * @param {HTMLDialogElement} dialog
+ * @returns {void}
+ */
+export function openDialog(dialog) {
+    if (dialog.dataset.wired === undefined) {
+        dialog.dataset.wired = 'true';
+        for (const button of dialog.querySelectorAll('[data-close]')) button.addEventListener('click', () => dialog.close());
+    }
+    if (!dialog.open) dialog.showModal();
+}
+
+/**
+ * @param {string} status - request status
+ * @returns {HTMLSpanElement} a colored badge with the translated status
+ */
+export function statusBadge(status) {
+    const badge = document.createElement('span');
+    badge.className = `badge is-${status}`;
+    badge.textContent = translate(`status.${status}`);
+    return badge;
+}
+
+/**
+ * Creates a button.
+ * @param {string} label - already translated text
+ * @param {string} className - CSS classes
+ * @param {() => void} onClick
+ * @returns {HTMLButtonElement}
+ */
+export function button(label, className, onClick) {
+    const element = document.createElement('button');
+    element.type = 'button';
+    element.className = className;
+    element.textContent = label;
+    element.addEventListener('click', onClick);
+    return element;
+}
+
+/**
+ * Shows the matching section and marks its nav button as current.
+ * @param {string} sectionId
+ * @returns {void}
+ */
+export function showSection(sectionId) {
+    for (const section of document.querySelectorAll('[data-section]')) section.hidden = section.id !== sectionId;
+    for (const navButton of document.querySelectorAll('.nav-item')) {
+        const active = navButton.dataset.target === sectionId;
+        navButton.classList.toggle('is-active', active);
+        if (active) navButton.setAttribute('aria-current', 'true');
+        else navButton.removeAttribute('aria-current');
+    }
+}

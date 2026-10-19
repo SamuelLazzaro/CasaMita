@@ -1,0 +1,472 @@
+import { Hono } from 'hono';
+import type { Bindings, RequesterRow, RequestRow } from '../types';
+import { ADMIN_SESSION_S, clearSessionCookie, constantTimeEqual, COOKIE_ADMIN, createSession, requireAdmin, writeSessionCookie } from '../auth';
+import { venueConfig, type VenueConfig } from '../config';
+import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
+import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
+import { attemptAllowed } from '../ratelimit';
+import { periodFields, periodOverlaps, priceValue, quoteStay, type DiscountRule, type RatePeriod } from '../pricing';
+import { roomTypeByName, roomTypes } from '../rooms';
+import { isSlotConflict, keysOf, occupiedSlots, slotInserts } from '../slots';
+import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, randomToken, readJson, text, writeAudit } from '../util';
+import { facilityFields, guestFields, hotelFields, restaurantFields } from '../validation';
+
+/*
+ * Admin dashboard routes: login, calendar, decisions on the requests, direct
+ * bookings (every type) and, for facilities, the registered requesters.
+ */
+
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+const MAX_REASON = 300;
+const MAX_LIST = 300;
+const DEFAULT_COLOR = '#3b82f6';
+
+/** A request row joined with the requester it belongs to (facility), as read by every admin query. */
+type AdminRequestRow = RequestRow & { requester_name: string | null; requester_email: string | null; requester_color: string | null };
+
+const SELECT_REQUEST = `SELECT r.*, q.name AS requester_name, q.email AS requester_email, q.color AS requester_color FROM requests r LEFT JOIN requesters q ON q.id = r.requester_id`;
+
+/** What the dashboard sees of a request: everything but the guest's credential. */
+function adminView(row: AdminRequestRow): Record<string, unknown> {
+    const { guest_token: _token, ...rest } = row;
+    return rest;
+}
+
+/** The recipient of the notifications about a request: the requester organisation, or null for guests. */
+function requesterRecipient(row: AdminRequestRow): Recipient | null {
+    if (row.requester_id === null) return null;
+    return { name: row.requester_name ?? '', email: row.requester_email ?? '' };
+}
+
+/** Start date of a booking, whatever its type. */
+function startDate(row: RequestRow): string {
+    return row.check_in ?? row.date ?? '';
+}
+
+async function loadRequest(db: D1Database, id: number): Promise<AdminRequestRow | null> {
+    return await db.prepare(`${SELECT_REQUEST} WHERE r.id = ?1`).bind(id).first<AdminRequestRow>();
+}
+
+/**
+ * Hotel approval and direct booking share one condition: the approved
+ * stays of the same room type overlapping the requested one must be fewer
+ * than the rooms of that type. Evaluated INSIDE the write statement, so the
+ * check and the write are one atomic step and two concurrent approvals
+ * cannot both pass. `alias` is the row being written (requests in UPDATE, the
+ * bound values in INSERT ... SELECT).
+ */
+const OVERLAPPING_APPROVED = `(SELECT COUNT(*) FROM requests o WHERE o.type = 'hotel' AND o.status = 'approved' AND o.room_type = %ROOM% AND o.check_in < %OUT% AND o.check_out > %IN% AND o.id != %ID%)`;
+
+function overlappingSql(room: string, checkIn: string, checkOut: string, id: string): string {
+    return OVERLAPPING_APPROVED.replace('%ROOM%', room).replace('%OUT%', checkOut).replace('%IN%', checkIn).replace('%ID%', id);
+}
+
+export const admin = new Hono<{ Bindings: Bindings }>();
+
+admin.post('/login', async (c) => {
+    if (!(await attemptAllowed(c.env.DB, `login:${clientIp(c)}`, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS))) return c.json({ error: 'too_many_requests' }, 429);
+    const body = await readJson(c);
+    const password = typeof body?.password === 'string' ? body.password : '';
+    if (password === '' || !(await constantTimeEqual(password, c.env.ADMIN_PASSWORD))) {
+        await writeAudit(c.env.DB, 'admin_login_failed', `ip ${clientIp(c)}`, 'system');
+        return c.json({ error: 'invalid_credentials' }, 401);
+    }
+    const cookie = await createSession(c.env.ADMIN_SECRET, ['admin'], ADMIN_SESSION_S, new Date());
+    writeSessionCookie(c, COOKIE_ADMIN, cookie, ADMIN_SESSION_S);
+    await writeAudit(c.env.DB, 'admin_login', '', 'admin');
+    return c.json({ ok: true });
+});
+
+admin.post('/logout', (c) => {
+    clearSessionCookie(c, COOKIE_ADMIN);
+    return c.json({ ok: true });
+});
+
+admin.use('*', requireAdmin());
+
+admin.get('/me', (c) => c.json({ ok: true }));
+
+/**
+ * Calendar items of a view: pending and approved requests touching the
+ * range. Hotel stays overlap it (check-out excluded), the others fall on a
+ * date inside it.
+ */
+admin.get('/calendar', async (c) => {
+    const venue = venueConfig(c.env);
+    const view = c.req.query('view') ?? 'week';
+    const date = c.req.query('date') ?? romeNow(new Date()).date;
+    if (!['day', 'week', 'month'].includes(view) || !isValidDate(date)) return c.json({ error: 'invalid_body' }, 400);
+    const { from, to } = calendarRange(view as CalendarView, date);
+    const condition = venue.type === 'hotel' ? `r.type = ?3 AND r.check_in <= ?2 AND r.check_out > ?1` : `r.type = ?3 AND r.date >= ?1 AND r.date <= ?2`;
+    const { results } = await c.env.DB.prepare(`${SELECT_REQUEST} WHERE r.status IN ('pending', 'approved') AND ${condition} ORDER BY COALESCE(r.check_in, r.date), r.start_time`).bind(from, to, venue.type).all<AdminRequestRow>();
+    return c.json({ view, date, from, to, items: results.map(adminView) });
+});
+
+/** Requests by status (pending by default), newest first for the inbox. */
+admin.get('/requests', async (c) => {
+    const status = c.req.query('status') ?? 'pending';
+    if (!['pending', 'approved', 'rejected', 'cancelled'].includes(status)) return c.json({ error: 'invalid_body' }, 400);
+    const order = status === 'pending' ? 'r.created_at ASC' : 'r.created_at DESC';
+    const { results } = await c.env.DB.prepare(`${SELECT_REQUEST} WHERE r.status = ?1 ORDER BY ${order} LIMIT ${MAX_LIST}`).bind(status).all<AdminRequestRow>();
+    return c.json({ status, items: results.map(adminView) });
+});
+
+admin.post('/requests/:id/approve', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    if (request.status !== 'pending') return c.json({ error: 'not_pending' }, 409);
+    const today = romeNow(new Date()).date;
+    if (startDate(request) < today) return c.json({ error: 'in_past' }, 409);
+    const venue = venueConfig(c.env);
+
+    if (request.type === 'hotel') {
+        const quantity = roomTypeByName(request.room_type ?? '')?.quantity ?? 0;
+        const overlapping = overlappingSql('requests.room_type', 'requests.check_in', 'requests.check_out', 'requests.id');
+        const result = await c.env.DB.prepare(`UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending' AND ${overlapping} < ?2`).bind(request.id, quantity).run();
+        if (result.meta.changes === 0) return c.json({ error: 'room_unavailable' }, 409);
+    } else if (request.type === 'facility') {
+        const keys = keysOf({ date: request.date ?? '', start_time: request.start_time ?? '', end_time: request.end_time ?? '' }, venue.facility.slotMinutes);
+        const taken = await occupiedSlots(c.env.DB, keys);
+        if (taken.length > 0) return c.json({ error: 'slots_taken', slots: taken }, 409);
+        try {
+            await c.env.DB.batch([c.env.DB.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id), ...slotInserts(c.env.DB, request.id, keys)]);
+        } catch (error) {
+            if (isSlotConflict(error)) return c.json({ error: 'slots_taken', slots: await occupiedSlots(c.env.DB, keys) }, 409);
+            throw error;
+        }
+    } else {
+        await c.env.DB.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
+    }
+
+    await writeAudit(c.env.DB, 'request_approved', `request #${request.id}`, 'admin');
+    notifyApproved(c, { ...request, status: 'approved' }, requesterRecipient(request));
+    return c.json({ ok: true, status: 'approved' });
+});
+
+admin.post('/requests/:id/reject', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    if (request.status !== 'pending') return c.json({ error: 'not_pending' }, 409);
+    const body = (await readJson(c)) ?? {};
+    const reason = optionalText(body.reason, MAX_REASON);
+    if (reason === undefined) return c.json({ error: 'reason_too_long' }, 400);
+    await c.env.DB.prepare("UPDATE requests SET status = 'rejected', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
+    await writeAudit(c.env.DB, 'request_rejected', `request #${request.id}${reason ? `: ${reason}` : ''}`, 'admin');
+    notifyRejected(c, { ...request, status: 'rejected' }, reason, requesterRecipient(request));
+    return c.json({ ok: true, status: 'rejected' });
+});
+
+/** Immediate cancellation by the venue of a pending or approved booking; facility slots are freed. */
+admin.post('/requests/:id/cancel', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    if (request.status !== 'pending' && request.status !== 'approved') return c.json({ error: 'cannot_cancel' }, 409);
+    await c.env.DB.batch([
+        c.env.DB.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id),
+        c.env.DB.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id),
+        auditStatement(c.env.DB, 'request_cancelled', `request #${request.id} cancelled by the venue`, 'admin'),
+    ]);
+    notifyCancelledByAdmin(c, { ...request, status: 'cancelled' }, requesterRecipient(request));
+    return c.json({ ok: true, status: 'cancelled' });
+});
+
+/**
+ * Direct booking by the venue, born approved (owner's decision): same fields
+ * and same rules as a guest request; for a facility the requester must have
+ * been registered first. The guest gets the confirmation email with the
+ * personal link; the owner, being the author, gets none.
+ */
+admin.post('/bookings', async (c) => {
+    const venue = venueConfig(c.env);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const lang = langOf(body.lang, venue.defaultLang);
+    const now = romeNow(new Date());
+
+    const outcome = venue.type === 'hotel' ? await directHotel(c.env.DB, body, lang, now.date) : venue.type === 'restaurant' ? await directRestaurant(c.env.DB, body, venue, lang, now) : await directFacility(c.env.DB, body, venue, lang, now);
+    if ('error' in outcome) return c.json({ error: outcome.error, ...(outcome.slots ? { slots: outcome.slots } : {}) }, outcome.status);
+
+    const request = await loadRequest(c.env.DB, outcome.id);
+    await writeAudit(c.env.DB, 'booking_registered', `${venue.type} booking #${outcome.id} registered by the venue`, 'admin');
+    if (request) notifyRegisteredByAdmin(c, request, requesterRecipient(request));
+    return c.json({ id: outcome.id, status: 'approved' }, 201);
+});
+
+type DirectOutcome = { id: number } | { error: string; status: 400 | 404 | 409; slots?: string[] };
+
+async function directHotel(db: D1Database, body: Record<string, unknown>, lang: string, today: string): Promise<DirectOutcome> {
+    const guest = guestFields(body);
+    if ('error' in guest) return { error: guest.error, status: 400 };
+    const stay = hotelFields(body, today);
+    if ('error' in stay) return { error: stay.error, status: 400 };
+    const quantity = roomTypeByName(stay.roomType)?.quantity ?? 0;
+    // Price: the computed quote, unless the venue typed an agreed total
+    // (owner's decision, e.g. a price settled by phone); then the subtotal
+    // is that total and no discount is recorded.
+    const quote = await quoteStay(db, stay.roomType, stay.checkIn, stay.checkOut);
+    let subtotal = quote?.subtotal ?? null;
+    let discountPercent = quote?.discount_percent ?? null;
+    let total = quote?.total ?? null;
+    if (body.total !== undefined && body.total !== null && body.total !== '') {
+        const agreed = priceValue(body.total);
+        if (agreed === null) return { error: 'invalid_price', status: 400 };
+        if (agreed !== total) {
+            subtotal = agreed;
+            discountPercent = 0;
+            total = agreed;
+        }
+    }
+    // INSERT ... SELECT ... WHERE: the row is written only if a room is still free, atomically.
+    const overlapping = overlappingSql('?11', '?7', '?8', '0');
+    const result = await db
+        .prepare(
+            `INSERT INTO requests (type, first_name, last_name, email, phone, lang, notes, check_in, check_out, adults, children, room_type, guest_token, status, decided_at, quoted_subtotal, quoted_discount_percent, quoted_total)
+             SELECT 'hotel', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'approved', datetime('now'), ?14, ?15, ?16
+             WHERE ${overlapping} < ?13`,
+        )
+        .bind(guest.firstName, guest.lastName, guest.email, guest.phone, lang, guest.notes, stay.checkIn, stay.checkOut, stay.adults, stay.children, stay.roomType, randomToken(), quantity, subtotal, discountPercent, total)
+        .run();
+    if (result.meta.changes === 0) return { error: 'room_unavailable', status: 409 };
+    return { id: result.meta.last_row_id };
+}
+
+async function directRestaurant(db: D1Database, body: Record<string, unknown>, venue: VenueConfig, lang: string, now: { date: string; time: string }): Promise<DirectOutcome> {
+    const guest = guestFields(body);
+    if ('error' in guest) return { error: guest.error, status: 400 };
+    const seating = restaurantFields(body, venue, now);
+    if ('error' in seating) return { error: seating.error, status: 400 };
+    const result = await db
+        .prepare(
+            `INSERT INTO requests (type, first_name, last_name, email, phone, lang, notes, date, start_time, party_size, guest_token, status, decided_at)
+             VALUES ('restaurant', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'approved', datetime('now'))`,
+        )
+        .bind(guest.firstName, guest.lastName, guest.email, guest.phone, lang, guest.notes, seating.date, seating.time, seating.partySize, randomToken())
+        .run();
+    return { id: result.meta.last_row_id };
+}
+
+async function directFacility(db: D1Database, body: Record<string, unknown>, venue: VenueConfig, lang: string, now: { date: string; time: string }): Promise<DirectOutcome> {
+    const requesterId = typeof body.requester_id === 'number' ? positiveInt(String(body.requester_id)) : null;
+    const requester = requesterId === null ? null : await db.prepare("SELECT id FROM requesters WHERE id = ?1 AND status = 'active'").bind(requesterId).first<{ id: number }>();
+    if (requester === null) return { error: 'unknown_requester', status: 404 };
+    const fields = facilityFields(body, venue, now);
+    if ('error' in fields) return { error: fields.error, status: 400 };
+    const keys = keysOf({ date: fields.date, start_time: fields.startTime, end_time: fields.endTime }, venue.facility.slotMinutes);
+    const taken = await occupiedSlots(db, keys);
+    if (taken.length > 0) return { error: 'slots_taken', status: 409, slots: taken };
+    // The request row is written first (pending), then the slots and the
+    // approval go in one batch: if a slot was taken meanwhile the batch
+    // fails as a whole and the row is removed again.
+    const inserted = await db.prepare("INSERT INTO requests (type, requester_id, lang, notes, date, start_time, end_time) VALUES ('facility', ?1, ?2, ?3, ?4, ?5, ?6)").bind(requester.id, lang, fields.notes, fields.date, fields.startTime, fields.endTime).run();
+    const id = inserted.meta.last_row_id;
+    try {
+        await db.batch([...slotInserts(db, id, keys), db.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1").bind(id)]);
+    } catch (error) {
+        await db.prepare('DELETE FROM requests WHERE id = ?1').bind(id).run();
+        if (isSlotConflict(error)) return { error: 'slots_taken', status: 409, slots: await occupiedSlots(db, keys) };
+        throw error;
+    }
+    return { id };
+}
+
+/** Hotel: the room types of rooms.csv, read-only. */
+admin.get('/rooms', (c) => c.json({ rooms: roomTypes() }));
+
+// ---------------------------------------------------------------------------
+// Hotel pricing (migration 0002): base prices, rate periods, discounts
+// ---------------------------------------------------------------------------
+
+/** Everything the Prices section shows: base price per room type (null when missing), periods, discount rules. */
+admin.get('/pricing', async (c) => {
+    const [base, periods, discounts] = await c.env.DB.batch([
+        c.env.DB.prepare('SELECT room_type, price_per_night FROM room_prices'),
+        c.env.DB.prepare('SELECT id, room_type, date_from, date_to, price_per_night, label FROM rate_periods ORDER BY date_from, room_type'),
+        c.env.DB.prepare('SELECT id, min_nights, percent FROM discount_rules ORDER BY min_nights'),
+    ]);
+    const baseByRoom = new Map((base.results as { room_type: string; price_per_night: number }[]).map((row) => [row.room_type, row.price_per_night]));
+    const rooms = roomTypes().map((room) => ({ room_type: room.name, price_per_night: baseByRoom.get(room.name) ?? null }));
+    return c.json({ base: rooms, periods: periods.results as RatePeriod[], discounts: discounts.results as DiscountRule[] });
+});
+
+/** Sets (or replaces) the base price of a room type. */
+admin.put('/pricing/base', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const roomType = typeof body.room_type === 'string' ? body.room_type.trim() : '';
+    if (roomTypeByName(roomType) === undefined) return c.json({ error: 'unknown_room' }, 400);
+    const price = priceValue(body.price_per_night);
+    if (price === null) return c.json({ error: 'invalid_price' }, 400);
+    await c.env.DB.prepare("INSERT INTO room_prices (room_type, price_per_night) VALUES (?1, ?2) ON CONFLICT(room_type) DO UPDATE SET price_per_night = ?2, updated_at = datetime('now')").bind(roomType, price).run();
+    await writeAudit(c.env.DB, 'price_base_set', `${roomType}: ${price}`, 'admin');
+    return c.json({ ok: true });
+});
+
+admin.post('/pricing/periods', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const fields = periodFields(body);
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    if (await periodOverlaps(c.env.DB, fields)) return c.json({ error: 'period_overlap' }, 409);
+    const result = await c.env.DB.prepare('INSERT INTO rate_periods (room_type, date_from, date_to, price_per_night, label) VALUES (?1, ?2, ?3, ?4, ?5)').bind(fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
+    await writeAudit(c.env.DB, 'price_period_created', `${fields.roomType} ${fields.dateFrom}..${fields.dateTo}: ${fields.price}`, 'admin');
+    return c.json({ id: result.meta.last_row_id }, 201);
+});
+
+admin.patch('/pricing/periods/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const existing = id === null ? null : await c.env.DB.prepare('SELECT * FROM rate_periods WHERE id = ?1').bind(id).first<RatePeriod>();
+    if (existing === null) return c.json({ error: 'not_found' }, 404);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const fields = periodFields({ room_type: existing.room_type, date_from: existing.date_from, date_to: existing.date_to, price_per_night: existing.price_per_night, label: existing.label ?? '', ...body });
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    if (await periodOverlaps(c.env.DB, fields, existing.id)) return c.json({ error: 'period_overlap' }, 409);
+    await c.env.DB.prepare('UPDATE rate_periods SET room_type = ?2, date_from = ?3, date_to = ?4, price_per_night = ?5, label = ?6 WHERE id = ?1').bind(existing.id, fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
+    await writeAudit(c.env.DB, 'price_period_updated', `period #${existing.id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+admin.delete('/pricing/periods/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const result = id === null ? null : await c.env.DB.prepare('DELETE FROM rate_periods WHERE id = ?1').bind(id).run();
+    if (result === null || result.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
+    await writeAudit(c.env.DB, 'price_period_deleted', `period #${id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+admin.post('/pricing/discounts', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const minNights = integerBetween(body.min_nights, 2, 365);
+    const percent = integerBetween(body.percent, 1, 100);
+    if (minNights === null || percent === null) return c.json({ error: 'invalid_discount' }, 400);
+    const existing = await c.env.DB.prepare('SELECT id FROM discount_rules WHERE min_nights = ?1').bind(minNights).first<{ id: number }>();
+    if (existing !== null) return c.json({ error: 'discount_exists' }, 409);
+    const result = await c.env.DB.prepare('INSERT INTO discount_rules (min_nights, percent) VALUES (?1, ?2)').bind(minNights, percent).run();
+    await writeAudit(c.env.DB, 'discount_created', `from ${minNights} nights: ${percent}%`, 'admin');
+    return c.json({ id: result.meta.last_row_id }, 201);
+});
+
+admin.delete('/pricing/discounts/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const result = id === null ? null : await c.env.DB.prepare('DELETE FROM discount_rules WHERE id = ?1').bind(id).run();
+    if (result === null || result.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
+    await writeAudit(c.env.DB, 'discount_deleted', `rule #${id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Facility requesters
+// ---------------------------------------------------------------------------
+
+function accessLinkOf(origin: string, token: string): string {
+    return `${origin}/access/${token}`;
+}
+
+function requesterView(row: RequesterRow, origin: string): Record<string, unknown> {
+    return { id: row.id, name: row.name, contact_name: row.contact_name, email: row.email, phone: row.phone, status: row.status, color: row.color, created_at: row.created_at, access_link: accessLinkOf(origin, row.access_token) };
+}
+
+type RequesterFields = { name: string; contactName: string; email: string; phone: string; color: string };
+
+function requesterFields(body: Record<string, unknown>): RequesterFields | { error: string } {
+    const name = text(body.name, 100);
+    const contactName = text(body.contact_name, 100);
+    if (name === null || contactName === null) return { error: 'invalid_name' };
+    const email = text(body.email, 200);
+    if (email === null || !isValidEmail(email)) return { error: 'invalid_email' };
+    const phone = text(body.phone, 30);
+    if (phone === null || !isValidPhone(phone)) return { error: 'invalid_phone' };
+    const colorValue = typeof body.color === 'string' && body.color.trim() !== '' ? body.color.trim().toLowerCase() : DEFAULT_COLOR;
+    if (!/^#[0-9a-f]{6}$/.test(colorValue)) return { error: 'invalid_color' };
+    return { name, contactName, email, phone, color: colorValue };
+}
+
+async function loadRequester(db: D1Database, idText: string | undefined): Promise<RequesterRow | null> {
+    const id = positiveInt(idText);
+    if (id === null) return null;
+    return await db.prepare('SELECT * FROM requesters WHERE id = ?1').bind(id).first<RequesterRow>();
+}
+
+admin.get('/requesters', async (c) => {
+    const origin = new URL(c.req.url).origin;
+    const { results } = await c.env.DB.prepare('SELECT * FROM requesters ORDER BY name').all<RequesterRow>();
+    return c.json({ items: results.map((row) => requesterView(row, origin)) });
+});
+
+admin.post('/requesters', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const fields = requesterFields(body);
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    const token = randomToken();
+    const result = await c.env.DB.prepare('INSERT INTO requesters (name, contact_name, email, phone, color, access_token) VALUES (?1, ?2, ?3, ?4, ?5, ?6)').bind(fields.name, fields.contactName, fields.email, fields.phone, fields.color, token).run();
+    const id = result.meta.last_row_id;
+    await writeAudit(c.env.DB, 'requester_created', `requester #${id} ${fields.name}`, 'admin');
+    const link = accessLinkOf(new URL(c.req.url).origin, token);
+    notifyAccessLink(c, { name: fields.name, email: fields.email }, venueConfig(c.env).defaultLang, link, 'creation');
+    return c.json({ id, access_link: link }, 201);
+});
+
+admin.patch('/requesters/:id', async (c) => {
+    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    if (requester === null) return c.json({ error: 'not_found' }, 404);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const merged = { name: requester.name, contact_name: requester.contact_name, email: requester.email, phone: requester.phone, color: requester.color, ...body };
+    const fields = requesterFields(merged);
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    await c.env.DB.prepare('UPDATE requesters SET name = ?2, contact_name = ?3, email = ?4, phone = ?5, color = ?6 WHERE id = ?1').bind(requester.id, fields.name, fields.contactName, fields.email, fields.phone, fields.color).run();
+    await writeAudit(c.env.DB, 'requester_updated', `requester #${requester.id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+/** Suspension also cancels the requester's future bookings and frees their slots (atomic). */
+admin.post('/requesters/:id/suspend', async (c) => {
+    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    if (requester === null) return c.json({ error: 'not_found' }, 404);
+    const today = romeNow(new Date()).date;
+    const results = await c.env.DB.batch([
+        c.env.DB.prepare("DELETE FROM slots WHERE request_id IN (SELECT id FROM requests WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved'))").bind(requester.id, today),
+        c.env.DB.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved')").bind(requester.id, today),
+        c.env.DB.prepare("UPDATE requesters SET status = 'suspended' WHERE id = ?1").bind(requester.id),
+        auditStatement(c.env.DB, 'requester_suspended', `requester #${requester.id}`, 'admin'),
+    ]);
+    return c.json({ ok: true, slots_freed: results[0].meta.changes, requests_cancelled: results[1].meta.changes });
+});
+
+admin.post('/requesters/:id/reactivate', async (c) => {
+    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    if (requester === null) return c.json({ error: 'not_found' }, 404);
+    await c.env.DB.prepare("UPDATE requesters SET status = 'active' WHERE id = ?1").bind(requester.id).run();
+    await writeAudit(c.env.DB, 'requester_reactivated', `requester #${requester.id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+/** New access token: every session issued with the old one stops working at once. */
+admin.post('/requesters/:id/regenerate-link', async (c) => {
+    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    if (requester === null) return c.json({ error: 'not_found' }, 404);
+    const token = randomToken();
+    await c.env.DB.prepare('UPDATE requesters SET access_token = ?2 WHERE id = ?1').bind(requester.id, token).run();
+    await writeAudit(c.env.DB, 'requester_link_regenerated', `requester #${requester.id}`, 'admin');
+    const link = accessLinkOf(new URL(c.req.url).origin, token);
+    sendAccessLink(c, requester, link, 'regeneration');
+    return c.json({ ok: true, access_link: link });
+});
+
+admin.post('/requesters/:id/send-link', async (c) => {
+    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    if (requester === null) return c.json({ error: 'not_found' }, 404);
+    sendAccessLink(c, requester, accessLinkOf(new URL(c.req.url).origin, requester.access_token), 'resend');
+    await writeAudit(c.env.DB, 'requester_link_sent', `requester #${requester.id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+function sendAccessLink(c: Parameters<typeof notifyAccessLink>[0], requester: RequesterRow, link: string, reason: AccessLinkReason): void {
+    notifyAccessLink(c, { name: requester.name, email: requester.email }, venueConfig(c.env).defaultLang, link, reason);
+}

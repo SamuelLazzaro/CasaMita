@@ -1,0 +1,153 @@
+/* ===========================================================================
+   base.css — reset, design tokens, global typography, shared utilities.
+   Light functional palette with one accent per booking type (see the
+   [data-booking-type] overrides): the JS sets the attribute on <html> from
+   GET /api/config, so the first paint is neutral and takes the venue's hue
+   as soon as the answer arrives.
+   =========================================================================== */
+
+/* ----- Font (self-hosted, GDPR-safe): the one and only family ----- */
+@font-face {
+    font-family: "Inter";
+    src: url("../assets/fonts/inter-v20-latin-regular.woff2") format("woff2");
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Inter";
+    src: url("../assets/fonts/inter-v20-latin-600.woff2") format("woff2");
+    font-weight: 600;
+    font-display: swap;
+}
+
+:root {
+    --font-family-base: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* neutral palette */
+    --black: #0a0a0a;
+    --page: #f6f5f3;
+    --surface: #ffffff;
+    --text: #1c1a17;
+    --text-muted: #6b655d;
+    --text-muted-dark: #b5b5b5;
+    --border: #e4e1dc;
+    --border-strong: #c9c4bc;
+    --white: #f5f5f5;
+
+    /* accent, split by role: the bright fill fails WCAG contrast for text
+       and thin strokes, so darker variants cover those. Neutral default
+       (slate), overridden per booking type below. */
+    --accent: #475569;
+    --accent-dark: #334155;
+    --accent-text: #334155;
+    --accent-text-dark: #1e293b;
+    --accent-tint: #eef2f6;
+
+    /* semantic */
+    --ok: #2e7d54;
+    --ok-tint: #e8f3ed;
+    --error: #a8442f;
+    --error-tint: #faf0ed;
+    --pending: #8a6d00;
+    --pending-tint: #fff6d6;
+
+    /* layout */
+    --page-width: 760px;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 1rem;
+    --space-4: 1.5rem;
+
+    /* shape & motion */
+    --radius: 8px;
+    --transition-fast: 0.15s ease;
+    --transition-tap: 0.25s ease;
+}
+
+/* Casa Mita instance: the teal palette of the website (styles/main.css of
+   the site), so the embedded form blends in with the page around it. */
+:root[data-booking-type="hotel"] {
+    --accent: #237a87;
+    --accent-dark: #1b5f6a;
+    --accent-text: #1b5f6a;
+    --accent-text-dark: #24333a;
+    --accent-tint: #e4f0f2;
+}
+
+:root[data-booking-type="facility"] {
+    --accent: #ff8800;
+    --accent-dark: #e07000;
+    --accent-text: #a35100;
+    --accent-text-dark: #7d3e00;
+    --accent-tint: #fff3e5;
+}
+
+:root[data-booking-type="restaurant"] {
+    --accent: #b91c1c;
+    --accent-dark: #991b1b;
+    --accent-text: #991b1b;
+    --accent-text-dark: #7f1d1d;
+    --accent-tint: #fbeaea;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    /* Tap feedback is handled by .is-tapped: the native highlight would stack on top of it. */
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text);
+    font-family: var(--font-family-base);
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+a {
+    color: var(--accent-text);
+}
+
+h1,
+h2,
+h3 {
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+/*
+ * Tap feedback utility: js/tap-feedback.js puts this class on the tapped
+ * element for TAP_FEEDBACK_MS, during which it shows its desktop :hover
+ * style (see the .component.is-tapped twin rules next to each hover).
+ */
+.is-tapped {
+    transition: all var(--transition-tap) !important;
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+    }
+}
+
+/* Embedded in the venue's website (see main.js): no page chrome, the host page provides it. */
+.is-embedded .site-header,
+.is-embedded .site-footer {
+    display: none;
+}
+
+.is-embedded body,
+.is-embedded .container {
+    background: transparent;
+    padding-top: 0;
+}

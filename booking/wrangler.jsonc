@@ -1,0 +1,75 @@
+/**
+ * Cloudflare Workers configuration of the booking module.
+ *
+ * One deployment serves ONE booking type (BOOKING_TYPE): "hotel", "facility"
+ * (sports hall, track, court...) or "restaurant". To run several venues, or
+ * several types, publish the same code once per venue through wrangler
+ * environments ("env" key), each with its own D1 database, secrets and
+ * hostname: "vars" and "d1_databases" are NOT inherited and must be repeated
+ * in full inside every environment.
+ *
+ * Required secrets (never in this file, never in git), per deployment:
+ *   wrangler secret put ADMIN_SECRET    # HMAC key signing the session cookies
+ *   wrangler secret put ADMIN_PASSWORD  # password of the admin dashboard
+ *   wrangler secret put BREVO_API_KEY   # email notifications (missing = disabled)
+ * For local development copy .dev.vars.example to .dev.vars.
+ */
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "booking-casamita",
+    "main": "src/index.ts",
+    // Aligned with the workerd version bundled in wrangler ~4.35 (also used by
+    // the test pool): do not raise it without upgrading wrangler.
+    "compatibility_date": "2025-09-01",
+    // Static assets are served BEFORE the Worker runs (zero CPU): their
+    // security headers live in public/_headers.
+    "assets": {
+        "directory": "./public",
+        "binding": "ASSETS"
+    },
+    // rooms.csv (hotel only) is bundled into the Worker as a plain string at
+    // build time: the file is the single source of truth of the room types.
+    "rules": [
+        {
+            "type": "Text",
+            "globs": ["**/*.csv"],
+            "fallthrough": true
+        }
+    ],
+    // Data retention (GDPR art. 5.1.e): once a day the guests' personal data
+    // of bookings ended more than RETENTION_DAYS ago are anonymised.
+    "triggers": {
+        "crons": ["30 3 * * *"]
+    },
+    "vars": {
+        "BOOKING_TYPE": "hotel",
+        "VENUE_NAME": "Casa Mita",
+        "DEFAULT_LANG": "it",
+        // sender on the venue's domain: authenticate the domain in Brevo first
+        "EMAIL_SENDER": "prenotazioni@ristorantealbergocasamita.it",
+        "EMAIL_ADMIN": "info@ristorantealbergocasamita.it",
+        // facility: opening hours, 30-minute slots
+        "FACILITY_OPEN": "08:00",
+        "FACILITY_CLOSE": "24:00",
+        // restaurant: lunch and dinner service windows, 15-minute steps
+        "LUNCH_OPEN": "12:00",
+        "LUNCH_CLOSE": "14:30",
+        "DINNER_OPEN": "19:00",
+        "DINNER_CLOSE": "22:30",
+        // days after the end of a booking before the guest data are anonymised (0 = never)
+        "RETENTION_DAYS": "90",
+        // origin of the venue's own website allowed to embed the public form
+        // (GET /embed + public/embed.js); empty = embedding disabled
+        "EMBED_ORIGIN": "https://samuellazzaro.github.io/CasaMita/"
+    },
+    "d1_databases": [
+        {
+            // "binding" is the variable name the code sees the DB through
+            // (c.env.DB): it does not have to match the database name.
+            "binding": "DB",
+            "database_name": "booking-casamita",
+            "database_id": "REPLACE-WITH-THE-ID-FROM-wrangler-d1-create",
+            "migrations_dir": "./migrations"
+        }
+    ]
+}

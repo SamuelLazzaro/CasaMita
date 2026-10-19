@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it" data-i18n-doc-title="area.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Area riservata</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/area.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div>
+                <h1 data-i18n="area.heading">Area riservata</h1>
+                <p class="subtitle" id="venue-name">&nbsp;</p>
+            </div>
+            <nav class="site-header-nav">
+                <button type="button" id="logout" data-i18n="admin.logout" hidden>Esci</button>
+                <button type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <p id="loading" class="status" role="status" data-i18n="common.loading">Caricamento…</p>
+
+        <section id="denied-view" class="panel" hidden>
+            <h2 data-i18n="facility.reservedTitle">Area riservata</h2>
+            <p data-i18n="area.deniedText">Questa pagina è riservata alle società autorizzate. Per entrare usa il link personale che ti è stato inviato dalla struttura; se non lo hai più, chiedi alla struttura di inviartelo di nuovo.</p>
+        </section>
+
+        <div id="area-view" hidden>
+            <section class="panel">
+                <div class="panel-header">
+                    <h2 data-i18n="calendar.title">Calendario</h2>
+                    <button type="button" class="btn btn-primary" id="new-request" data-i18n="area.newRequest">Nuova richiesta</button>
+                </div>
+                <p class="hint" data-i18n="area.calendarHint">Vedi chi occupa la struttura. Le tue richieste in attesa sono tratteggiate; clicca sulle tue prenotazioni per i dettagli.</p>
+                <div class="view-switch" role="group">
+                    <button type="button" class="btn btn-small" id="cal-view-day" aria-pressed="false" data-i18n="calendar.day">Giorno</button>
+                    <button type="button" class="btn btn-small" id="cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
+                    <button type="button" class="btn btn-small" id="cal-view-month" aria-pressed="false" data-i18n="calendar.month">Mese</button>
+                </div>
+                <div class="toolbar">
+                    <button type="button" class="btn btn-arrow" id="cal-prev" aria-label="Precedente">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"></polyline></svg>
+                    </button>
+                    <div class="toolbar-center">
+                        <h3 id="cal-title">&nbsp;</h3>
+                        <button type="button" class="btn btn-text" id="cal-today" data-i18n="calendar.today">Oggi</button>
+                    </div>
+                    <button type="button" class="btn btn-arrow" id="cal-next" aria-label="Successivo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                    </button>
+                </div>
+                <p id="calendar-status" class="status" role="status" hidden></p>
+                <div class="calendar-scroll">
+                    <div id="calendar" class="calendar"></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2 data-i18n="area.myRequests">Le tue richieste</h2>
+                <p id="requests-status" class="status" role="status" hidden></p>
+                <ul id="requests-list" class="list"></ul>
+                <p id="requests-empty" class="hint" data-i18n="area.noRequests" hidden>Nessuna richiesta inviata.</p>
+            </section>
+        </div>
+
+        <dialog id="dialog-request" class="dialog" aria-labelledby="request-dialog-title">
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h2 id="request-dialog-title" data-i18n="area.newRequest">Nuova richiesta</h2>
+                    <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                </div>
+                <p class="hint" data-i18n="area.requestHint">La richiesta resta in attesa finché la struttura non la conferma. Riceverai un'email con l'esito.</p>
+                <form id="area-facility-form" class="form" novalidate>
+                    <div class="field"><label for="area-facility-date" data-i18n="field.date">Data</label><input type="date" id="area-facility-date" name="date" required></div>
+                    <div class="field-row">
+                        <div class="field"><label for="area-facility-start-time" data-i18n="field.startTime">Dalle</label><select id="area-facility-start-time" name="start_time" required></select></div>
+                        <div class="field"><label for="area-facility-end-time" data-i18n="field.endTime">Alle</label><select id="area-facility-end-time" name="end_time" required></select></div>
+                    </div>
+                    <div class="field"><label for="area-facility-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="area-facility-notes" name="notes" maxlength="500" rows="2"></textarea></div>
+                    <div><button type="submit" class="btn btn-primary" id="area-facility-submit" data-i18n="common.submit">Invia richiesta</button></div>
+                </form>
+                <p id="area-facility-status" class="status" role="status" hidden></p>
+            </div>
+        </dialog>
+
+        <dialog id="dialog-details" class="dialog" aria-labelledby="details-title">
+            <div class="dialog-content">
+                <div class="dialog-header">
+                    <h2 id="details-title" data-i18n="details.title">Prenotazione</h2>
+                    <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                </div>
+                <div id="details-badge"></div>
+                <dl class="details" id="details-list"></dl>
+                <div class="actions" id="details-actions"></div>
+                <p id="details-status" class="status" role="status" hidden></p>
+            </div>
+        </dialog>
+    </main>
+
+    <footer class="site-footer">
+        <p><a href="/privacy.html" data-i18n="common.privacy">Informativa privacy</a></p>
+    </footer>
+</body>
+</html>

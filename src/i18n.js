@@ -79,7 +79,7 @@ function applyLanguage(lang) {
 
 /**
  * Look up a single string in the language currently applied.
- * Needed by code that builds strings at runtime (see booking.js), which
+ * Needed by code that builds strings at runtime (see ui.js), which
  * cannot rely on the data-i18n attributes being scanned at load time.
  * @param {string} key - flat "section.key" translation key
  * @returns {string} the translated string, or the key itself if unknown

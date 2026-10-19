@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it" data-i18n-doc-title="public.title">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Demo prenotazione</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/demo.js"></script>
+</head>
+<body>
+    <div class="demo-bar" role="group" aria-label="Tipologia della demo">
+        <strong>Demo</strong>
+        <span>Tipologia:</span>
+        <button type="button" class="btn btn-small" data-demo-type="hotel" aria-pressed="false">Hotel</button>
+        <button type="button" class="btn btn-small" data-demo-type="restaurant" aria-pressed="false">Ristorante</button>
+        <button type="button" class="btn btn-small" data-demo-type="facility" aria-pressed="false">Impianto</button>
+        <span>Nessun dato viene inviato: le API sono simulate nel browser.</span>
+    </div>
+
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div>
+                <h1 data-i18n="public.heading">Richiesta di prenotazione</h1>
+                <p class="subtitle" id="venue-name">&nbsp;</p>
+            </div>
+            <nav class="site-header-nav">
+                <button type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <p id="loading" class="status" role="status" data-i18n="common.loading">Caricamento…</p>
+
+        <section id="facility-notice" class="panel" hidden>
+            <h2 data-i18n="facility.reservedTitle">Area riservata</h2>
+            <p data-i18n="facility.reservedText">Le prenotazioni di questa struttura sono riservate alle società autorizzate: accedi con il link personale che ti è stato inviato.</p>
+        </section>
+
+        <section id="hotel-section" class="panel" hidden>
+            <h2 data-i18n="hotel.formTitle">Prenota il tuo soggiorno</h2>
+            <form id="hotel-form" class="form" novalidate>
+                <div class="field-row">
+                    <div class="field"><label for="hotel-first-name" data-i18n="field.firstName">Nome</label><input type="text" id="hotel-first-name" name="first_name" maxlength="100" autocomplete="given-name" required></div>
+                    <div class="field"><label for="hotel-last-name" data-i18n="field.lastName">Cognome</label><input type="text" id="hotel-last-name" name="last_name" maxlength="100" autocomplete="family-name" required></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label for="hotel-email" data-i18n="field.email">Email</label><input type="email" id="hotel-email" name="email" maxlength="200" autocomplete="email" required></div>
+                    <div class="field"><label for="hotel-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="hotel-phone" name="phone" maxlength="30" autocomplete="tel" required></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label for="hotel-check-in" data-i18n="field.checkIn">Check-in</label><input type="date" id="hotel-check-in" name="check_in" required></div>
+                    <div class="field"><label for="hotel-check-out" data-i18n="field.checkOut">Check-out</label><input type="date" id="hotel-check-out" name="check_out" required></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label for="hotel-adults" data-i18n="field.adults">Adulti</label><input type="number" id="hotel-adults" name="adults" min="1" max="20" value="2" required></div>
+                    <div class="field"><label for="hotel-children" data-i18n="field.children">Bambini</label><input type="number" id="hotel-children" name="children" min="0" max="10" value="0" required></div>
+                </div>
+                <div class="field">
+                    <label for="hotel-room-type" data-i18n="field.roomType">Tipologia di camera</label>
+                    <select id="hotel-room-type" name="room_type" required disabled></select>
+                    <p class="hint" id="hotel-availability-hint" data-i18n="hotel.pickDates">Scegli le date per vedere le camere disponibili.</p>
+                </div>
+                <div id="hotel-price" class="price-box" aria-live="polite" hidden></div>
+                <div class="field"><label for="hotel-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="hotel-notes" name="notes" maxlength="500" rows="3"></textarea></div>
+                <div class="field honeypot" aria-hidden="true"><label for="hotel-website">Website</label><input type="text" id="hotel-website" name="website" tabindex="-1" autocomplete="off"></div>
+                <label class="check-label">
+                    <input type="checkbox" id="hotel-privacy" name="privacy_accepted" required>
+                    <span><span data-i18n="field.privacyConsent">Ho letto l'informativa privacy e acconsento al trattamento dei dati per gestire la prenotazione.</span> <a href="/privacy.html" target="_blank" rel="noopener" data-i18n="field.privacyLink">Leggi l'informativa</a></span>
+                </label>
+                <div><button type="submit" class="btn btn-primary" id="hotel-submit" data-i18n="common.submit">Invia richiesta</button></div>
+            </form>
+            <p id="hotel-status" class="status" role="status" hidden></p>
+        </section>
+
+        <section id="restaurant-section" class="panel" hidden>
+            <h2 data-i18n="restaurant.formTitle">Prenota un tavolo</h2>
+            <form id="restaurant-form" class="form" novalidate>
+                <div class="field-row">
+                    <div class="field"><label for="restaurant-first-name" data-i18n="field.firstName">Nome</label><input type="text" id="restaurant-first-name" name="first_name" maxlength="100" autocomplete="given-name" required></div>
+                    <div class="field"><label for="restaurant-last-name" data-i18n="field.lastName">Cognome</label><input type="text" id="restaurant-last-name" name="last_name" maxlength="100" autocomplete="family-name" required></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label for="restaurant-email" data-i18n="field.email">Email</label><input type="email" id="restaurant-email" name="email" maxlength="200" autocomplete="email" required></div>
+                    <div class="field"><label for="restaurant-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="restaurant-phone" name="phone" maxlength="30" autocomplete="tel" required></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label for="restaurant-date" data-i18n="field.date">Data</label><input type="date" id="restaurant-date" name="date" required></div>
+                    <div class="field"><label for="restaurant-party-size" data-i18n="field.partySize">Numero di persone</label><input type="number" id="restaurant-party-size" name="party_size" min="1" max="30" value="2" required></div>
+                </div>
+                <fieldset class="field">
+                    <legend data-i18n="field.service">Servizio</legend>
+                    <div class="choice-row" role="radiogroup">
+                        <label class="check-label"><input type="radio" name="service" value="lunch" checked><span data-i18n="restaurant.lunch">Pranzo</span></label>
+                        <label class="check-label"><input type="radio" name="service" value="dinner"><span data-i18n="restaurant.dinner">Cena</span></label>
+                    </div>
+                </fieldset>
+                <div class="field"><label for="restaurant-time" data-i18n="field.time">Orario</label><select id="restaurant-time" name="time" required></select></div>
+                <div class="field"><label for="restaurant-notes" data-i18n="field.notesOptional">Note (facoltative)</label><textarea id="restaurant-notes" name="notes" maxlength="500" rows="3"></textarea></div>
+                <div class="field honeypot" aria-hidden="true"><label for="restaurant-website">Website</label><input type="text" id="restaurant-website" name="website" tabindex="-1" autocomplete="off"></div>
+                <label class="check-label">
+                    <input type="checkbox" id="restaurant-privacy" name="privacy_accepted" required>
+                    <span><span data-i18n="field.privacyConsent">Ho letto l'informativa privacy e acconsento al trattamento dei dati per gestire la prenotazione.</span> <a href="/privacy.html" target="_blank" rel="noopener" data-i18n="field.privacyLink">Leggi l'informativa</a></span>
+                </label>
+                <div><button type="submit" class="btn btn-primary" id="restaurant-submit" data-i18n="common.submit">Invia richiesta</button></div>
+            </form>
+            <p id="restaurant-status" class="status" role="status" hidden></p>
+        </section>
+
+        <section id="success-section" class="panel" hidden>
+            <h2 data-i18n="success.title">Richiesta inviata</h2>
+            <p data-i18n="success.text">Grazie! La richiesta è in attesa di conferma da parte della struttura. Ti abbiamo inviato un'email di riepilogo con il link personale per controllarne lo stato.</p>
+            <button type="button" class="btn" id="new-request" data-i18n="success.again">Nuova richiesta</button>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p><a href="/privacy.html" data-i18n="common.privacy">Informativa privacy</a></p>
+    </footer>
+</body>
+</html>

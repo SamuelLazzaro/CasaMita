@@ -3,7 +3,6 @@
  * language FAB. All the behaviour lives in the other modules.
  */
 
-import { initBookingForm } from "./booking.js";
 import { initDishesCarousel } from "./carousel.js";
 import { initCookieBanner } from "./cookie-banner.js";
 import { initI18n, toggleLanguage } from "./i18n.js";
@@ -23,7 +22,6 @@ initI18n();
 initTopbar();
 initNav();
 initScrollReveal();
-initBookingForm();
 initDishesCarousel();
 initFooterYear();
 initCookieBanner();

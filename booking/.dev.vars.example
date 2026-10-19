@@ -1,0 +1,7 @@
+# Copy this file to .dev.vars (ignored by git) for local development.
+# In production use `wrangler secret put <NAME>`.
+ADMIN_SECRET=long-random-string-at-least-32-characters
+ADMIN_PASSWORD=strong-password-for-the-admin-dashboard
+# Brevo API key for the email notifications: leave empty (or remove the
+# line) to disable sending during local development.
+BREVO_API_KEY=

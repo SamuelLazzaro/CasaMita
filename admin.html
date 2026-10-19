@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Owner-only shortcut to the booking dashboard: never indexed, never
+         linked from the site. The dashboard itself lives in the booking
+         Worker (booking/ in this repo) and asks for ADMIN_PASSWORD.
+         TODO before go-live: replace the host below (in both the meta
+         refresh and the link) with the address printed by `npm run deploy`. -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="refresh" content="0; url=https://booking-casamita.samuellazzaro.workers.dev/admin">
+    <title>Gestione prenotazioni — Casa Mita</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="public/assets/img/favicon-32.png">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/layout.css">
+    <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+    <main class="policy">
+        <h1>Gestione prenotazioni</h1>
+        <p>Stai per essere reindirizzato alla dashboard delle prenotazioni. Se non succede nulla, usa il pulsante.</p>
+        <p>
+            <a class="btn btn--teal" href="https://booking-casamita.samuellazzaro.workers.dev/admin">Apri la dashboard</a>
+        </p>
+    </main>
+</body>
+</html>
