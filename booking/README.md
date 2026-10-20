@@ -188,8 +188,12 @@ minuti). Sezioni:
   escludendo se stessa dal conteggio); un soggiorno già iniziato conserva il
   suo check-in. Il prezzo resta quello registrato finché date, camera e totale
   non cambiano; altrimenti viene ricalcolato, con l'eventuale cifra concordata.
-  I pagamenti già registrati non vengono toccati: il popup mostra il nuovo
-  saldo.
+  L'importo già pagato resta registrato e il suo stato segue il nuovo totale:
+  se non lo copre più, la prenotazione torna "Acconto pagato" con il saldo da
+  pagare; se lo copre o lo supera resta "Pagata" e il popup mostra
+  "Da rimborsare" per l'eccedenza. Il riepilogo delle modifiche anticipa la
+  conseguenza (stato del pagamento e saldo prima → dopo) e l'email al cliente
+  riporta importo già pagato e saldo da pagare (mai il rimborso).
   "Nuova prenotazione" registra una prenotazione già confermata con le stesse
   regole e gli stessi campi del cliente; il cliente riceve l'email di
   conferma con il link personale, il gestore nessuna email. La stessa
@@ -240,7 +244,7 @@ se una fascia è già occupata.
 | `GET /api/admin/requests?status=` | richieste per stato |
 | `POST /api/admin/requests/:id/approve\|reject\|cancel` | decisioni (il rifiuto accetta `reason`) |
 | `POST /api/admin/requests/:id/deposit\|paid` | hotel: pagamenti (l'acconto accetta `amount`) |
-| `PATCH /api/admin/requests/:id` | modifica di una prenotazione in attesa o confermata: stessi campi della prenotazione diretta più `notify` (false per non avvisare il cliente); risponde con `changed` (colonne cambiate) e `item`; 409 `cannot_edit`, `in_past`, `room_unavailable`, `slots_taken` |
+| `PATCH /api/admin/requests/:id` | modifica di una prenotazione in attesa o confermata: stessi campi della prenotazione diretta più `notify` (false per non avvisare il cliente); risponde con `changed` (colonne cambiate, incluso `payment_status` quando il nuovo totale lo fa cambiare) e `item`; 409 `cannot_edit`, `in_past`, `room_unavailable`, `slots_taken` |
 | `GET /api/admin/availability?check_in=&check_out=&exclude=` | hotel: camere libere escludendo una prenotazione dal conteggio (quella in modifica) |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
 | `GET /api/admin/pricing`, `POST /api/admin/pricing/periods`, `PATCH/DELETE /api/admin/pricing/periods/:id`, `POST/DELETE /api/admin/pricing/discounts[/:id]` | hotel: prezzi base, periodi (409 `period_overlap`) e sconti |

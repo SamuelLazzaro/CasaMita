@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { Bindings, RequesterRow, RequestRow } from '../types';
+import type { Bindings, PaymentStatus, RequesterRow, RequestRow } from '../types';
 import { ADMIN_SESSION_S, clearSessionCookie, constantTimeEqual, COOKIE_ADMIN, createSession, requireAdmin, writeSessionCookie } from '../auth';
 import { venueConfig, type VenueConfig } from '../config';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
@@ -206,6 +206,19 @@ admin.post('/requests/:id/cancel', async (c) => {
  * Both writes guard the previous payment state in the WHERE, so two
  * concurrent clicks cannot record a payment twice.
  */
+
+/**
+ * Payment state of a stay whose total is about to change (edited dates,
+ * room or agreed total): derived from the figures, so what the guest paid
+ * stays recorded and only the label follows. The amount paid covers the new
+ * total (or exceeds it: the dashboard then shows the refund due) → paid;
+ * otherwise what was paid is a deposit and the difference is still due.
+ * Untouched while nothing was paid or the new total is unknown.
+ */
+function paymentStatusForTotal(request: AdminRequestRow, total: number | null): PaymentStatus {
+    if (request.payment_status === 'none' || request.paid_amount === null || total === null) return request.payment_status;
+    return request.paid_amount >= total ? 'paid' : 'deposit';
+}
 
 /** The common checks of both payment actions: an approved hotel stay, not yet fully paid. */
 function paymentPrecondition(request: AdminRequestRow): string | null {
@@ -418,13 +431,15 @@ async function editHotel(db: D1Database, request: AdminRequestRow, body: Record<
     const price: StayPrice | { error: string } = stayKept && totalKept ? { subtotal: request.quoted_subtotal, discountPercent: request.quoted_discount_percent, total: request.quoted_total } : await stayPrice(db, body, stay);
     if ('error' in price) return { error: price.error, status: 400 };
     const lang = langOf(body.lang, request.lang);
-    const next = { first_name: guest.firstName, last_name: guest.lastName, email: guest.email, phone: guest.phone, lang, notes: guest.notes, check_in: stay.checkIn, check_out: stay.checkOut, adults: stay.adults, children: stay.children, room_type: stay.roomType, quoted_subtotal: price.subtotal, quoted_discount_percent: price.discountPercent, quoted_total: price.total };
+    // A recorded payment keeps its amount; its state follows the new total (paid → deposit when more is due, and back).
+    const paymentStatus = paymentStatusForTotal(request, price.total);
+    const next = { first_name: guest.firstName, last_name: guest.lastName, email: guest.email, phone: guest.phone, lang, notes: guest.notes, check_in: stay.checkIn, check_out: stay.checkOut, adults: stay.adults, children: stay.children, room_type: stay.roomType, quoted_subtotal: price.subtotal, quoted_discount_percent: price.discountPercent, quoted_total: price.total, payment_status: paymentStatus };
     const changed = changedColumns(request, next);
     if (changed.length === 0) return { changed };
     const quantity = (await roomTypeByName(db, stay.roomType))?.quantity ?? 0;
     // An approved stay must still fit the rooms of its type, itself left out of the count (same atomic guard as the approval).
     const overlapping = overlappingSql('?12', '?8', '?9', '?1');
-    const result = await db.prepare(`UPDATE requests SET first_name = ?2, last_name = ?3, email = ?4, phone = ?5, lang = ?6, notes = ?7, check_in = ?8, check_out = ?9, adults = ?10, children = ?11, room_type = ?12, quoted_subtotal = ?13, quoted_discount_percent = ?14, quoted_total = ?15 WHERE id = ?1 AND status IN ('pending', 'approved') AND (status = 'pending' OR ${overlapping} < ?16)`).bind(request.id, next.first_name, next.last_name, next.email, next.phone, next.lang, next.notes, next.check_in, next.check_out, next.adults, next.children, next.room_type, next.quoted_subtotal, next.quoted_discount_percent, next.quoted_total, quantity).run();
+    const result = await db.prepare(`UPDATE requests SET first_name = ?2, last_name = ?3, email = ?4, phone = ?5, lang = ?6, notes = ?7, check_in = ?8, check_out = ?9, adults = ?10, children = ?11, room_type = ?12, quoted_subtotal = ?13, quoted_discount_percent = ?14, quoted_total = ?15, payment_status = ?17 WHERE id = ?1 AND status IN ('pending', 'approved') AND (status = 'pending' OR ${overlapping} < ?16)`).bind(request.id, next.first_name, next.last_name, next.email, next.phone, next.lang, next.notes, next.check_in, next.check_out, next.adults, next.children, next.room_type, next.quoted_subtotal, next.quoted_discount_percent, next.quoted_total, quantity, next.payment_status).run();
     if (result.meta.changes === 0) return { error: 'room_unavailable', status: 409 };
     return { changed };
 }

@@ -229,23 +229,41 @@ bindPriceInput(depositAmount);
 bindPriceInput(byId('period-price'));
 
 /**
+ * What the figures say about the balance of a stay: the amount still due,
+ * the amount to refund (a stay shortened after it was paid), or nothing
+ * when the payment matches the total or the total is unknown.
+ * @param {number|null|undefined} total
+ * @param {number|null|undefined} paid
+ * @returns {[string, string]|null} label and amount
+ */
+function balanceRow(total, paid) {
+    if (total === null || total === undefined || paid === null || paid === undefined) return null;
+    const lang = currentLanguage();
+    const balance = total - paid;
+    if (balance > 0) return [translate('price.remaining'), formatEuro(balance, lang)];
+    if (balance < 0) return [translate('price.refund'), formatEuro(-balance, lang)];
+    return null;
+}
+
+/**
  * Payment rows of a confirmed hotel stay: the deposit and the balance still
- * due, or the amount paid in full; nothing while no payment is recorded.
+ * due, or the amount paid in full (and the refund due when the stay now
+ * costs less); nothing while no payment is recorded.
  * @param {object} item
  * @param {string} lang
  * @returns {[string, string][]}
  */
 function paymentRows(item, lang) {
     const rows = [];
-    const hasTotal = item.quoted_total !== null && item.quoted_total !== undefined;
     if (item.payment_status === 'deposit') {
         rows.push([translate('price.deposit'), formatEuro(item.paid_amount, lang)]);
-        if (hasTotal) rows.push([translate('price.remaining'), formatEuro(item.quoted_total - item.paid_amount, lang)]);
     } else if (item.payment_status === 'paid') {
         if (item.paid_amount !== null && item.paid_amount !== undefined) rows.push([translate('price.paidAmount'), formatEuro(item.paid_amount, lang)]);
     } else {
         return rows;
     }
+    const balance = balanceRow(item.quoted_total, item.paid_amount);
+    if (balance !== null) rows.push(balance);
     if (item.paid_at) rows.push([translate('price.paidOn'), formatTimestamp(item.paid_at, lang)]);
     return rows;
 }
@@ -540,6 +558,29 @@ function changedRows(item, payload) {
         const same = before === after || (typeof before === 'number' && after !== null && Number(after) === before) || (typeof after === 'number' && before !== null && Number(before) === after);
         if (!same) rows.push({ label: translate(labelKey), before: format(before), after: format(after) });
     }
+    if (item.type === 'hotel') rows.push(...paymentConsequenceRows(item, payload));
+    return rows;
+}
+
+/**
+ * Hotel: what a new total means for a payment already recorded, mirroring
+ * the server rule (the amount paid stays, its state follows the total: paid
+ * when it covers the new total, a deposit otherwise). One row for the
+ * payment state when it changes, one for the balance (due or to refund).
+ * @param {object} item - the booking being edited
+ * @param {Record<string, unknown>} payload - what the form is about to send
+ * @returns {{label: string, before: string, after: string}[]}
+ */
+function paymentConsequenceRows(item, payload) {
+    if (item.payment_status === 'none' || item.paid_amount === null || item.paid_amount === undefined) return [];
+    const newTotal = payload.total === null || payload.total === undefined || payload.total === '' ? null : Number(payload.total);
+    if (newTotal === null || newTotal === item.quoted_total) return [];
+    const none = translate('edit.none');
+    const rows = [];
+    const newStatus = item.paid_amount >= newTotal ? 'paid' : 'deposit';
+    if (newStatus !== item.payment_status) rows.push({ label: translate('edit.paymentStatus'), before: translate(`status.${item.payment_status}`), after: translate(`status.${newStatus}`) });
+    const describe = (row) => (row === null ? none : `${row[0]}: ${row[1]}`);
+    rows.push({ label: translate('edit.balance'), before: describe(balanceRow(item.quoted_total, item.paid_amount)), after: describe(balanceRow(newTotal, item.paid_amount)) });
     return rows;
 }
 

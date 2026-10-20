@@ -178,7 +178,8 @@ export function notifyChangedByAdmin(c: NotificationContext, request: RequestRow
     const texts = emailTexts(request.lang);
     const origin = new URL(c.req.url).origin;
     const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(origin, request.guest_token)}`] : [];
-    send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.changedSubject, message: texts.changedMessage, details: [...requestDetails(request, request.lang, false), ...linkRows] });
+    // With the payment rows: a change of the total tells the guest what is still due.
+    send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.changedSubject, message: texts.changedMessage, details: [...requestDetails(request, request.lang, false, true), ...linkRows] });
 }
 
 /** Why the access link of a facility requester is being delivered. */

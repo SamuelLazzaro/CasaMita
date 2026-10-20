@@ -39,7 +39,7 @@ type EmailTexts = {
     footerReply: string;
     footerReplyAdmin: string;
     privacy: string;
-    labels: { checkIn: string; checkOut: string; guests: string; adults: (count: number) => string; children: (count: number) => string; room: string; date: string; time: string; people: string; notes: string; status: string; total: string; discount: (percent: number, amount: string) => string; taxes: string };
+    labels: { checkIn: string; checkOut: string; guests: string; adults: (count: number) => string; children: (count: number) => string; room: string; date: string; time: string; people: string; notes: string; status: string; total: string; discount: (percent: number, amount: string) => string; taxes: string; paid: string; balance: string };
     statuses: Record<string, string>;
 };
 
@@ -79,7 +79,7 @@ const TEXTS: Record<Lang, EmailTexts> = {
         footerReply: 'Per domande è possibile rispondere a questa email.',
         footerReplyAdmin: 'Rispondendo a questa email si scrive direttamente al cliente.',
         privacy: 'Informativa privacy',
-        labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Ospiti', adults: (count) => `${count} ${count === 1 ? 'adulto' : 'adulti'}`, children: (count) => `${count} ${count === 1 ? 'bambino' : 'bambini'}`, room: 'Camera', date: 'Data', time: 'Orario', people: 'Persone', notes: 'Note (scritte dal cliente)', status: 'Stato', total: 'Prezzo totale', discount: (percent, amount) => `Sconto ${percent}% per la durata del soggiorno: -${amount}`, taxes: 'Tasse incluse, tassa di soggiorno esclusa' },
+        labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Ospiti', adults: (count) => `${count} ${count === 1 ? 'adulto' : 'adulti'}`, children: (count) => `${count} ${count === 1 ? 'bambino' : 'bambini'}`, room: 'Camera', date: 'Data', time: 'Orario', people: 'Persone', notes: 'Note (scritte dal cliente)', status: 'Stato', total: 'Prezzo totale', discount: (percent, amount) => `Sconto ${percent}% per la durata del soggiorno: -${amount}`, taxes: 'Tasse incluse, tassa di soggiorno esclusa', paid: 'Importo già pagato', balance: 'Saldo da pagare' },
         statuses: { pending: 'in attesa', approved: 'confermata', rejected: 'rifiutata', cancelled: 'annullata' },
     },
     en: {
@@ -117,7 +117,7 @@ const TEXTS: Record<Lang, EmailTexts> = {
         footerReply: 'You can reply to this email with any question.',
         footerReplyAdmin: 'Replying to this email writes directly to the guest.',
         privacy: 'Privacy notice',
-        labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Guests', adults: (count) => `${count} ${count === 1 ? 'adult' : 'adults'}`, children: (count) => `${count} ${count === 1 ? 'child' : 'children'}`, room: 'Room', date: 'Date', time: 'Time', people: 'People', notes: 'Notes (written by the guest)', status: 'Status', total: 'Total price', discount: (percent, amount) => `${percent}% length-of-stay discount: -${amount}`, taxes: 'Taxes included, tourist tax excluded' },
+        labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Guests', adults: (count) => `${count} ${count === 1 ? 'adult' : 'adults'}`, children: (count) => `${count} ${count === 1 ? 'child' : 'children'}`, room: 'Room', date: 'Date', time: 'Time', people: 'People', notes: 'Notes (written by the guest)', status: 'Status', total: 'Total price', discount: (percent, amount) => `${percent}% length-of-stay discount: -${amount}`, taxes: 'Taxes included, tourist tax excluded', paid: 'Amount already paid', balance: 'Balance due' },
         statuses: { pending: 'pending', approved: 'confirmed', rejected: 'rejected', cancelled: 'cancelled' },
     },
 };
@@ -138,7 +138,7 @@ export function formatDate(date: string, lang: Lang): string {
  * produce lines indistinguishable from the system-generated details in the
  * owner's email, which is exactly where the decision is taken.
  */
-export type RequestSummary = Pick<RequestRow, 'type' | 'check_in' | 'check_out' | 'adults' | 'children' | 'room_type' | 'date' | 'start_time' | 'end_time' | 'party_size' | 'notes'> & Partial<Pick<RequestRow, 'quoted_subtotal' | 'quoted_discount_percent' | 'quoted_total'>>;
+export type RequestSummary = Pick<RequestRow, 'type' | 'check_in' | 'check_out' | 'adults' | 'children' | 'room_type' | 'date' | 'start_time' | 'end_time' | 'party_size' | 'notes'> & Partial<Pick<RequestRow, 'quoted_subtotal' | 'quoted_discount_percent' | 'quoted_total' | 'payment_status' | 'paid_amount'>>;
 
 /** Euro amount as written in the reader's language: "1.234,50 €" or "€1,234.50". */
 export function formatEuro(amount: number, lang: Lang): string {
@@ -156,7 +156,26 @@ function priceRows(request: RequestSummary, lang: Lang): string[] {
     return rows;
 }
 
-export function requestDetails(request: RequestSummary, lang: Lang, withNotes: boolean): string[] {
+/**
+ * Payment rows of a hotel stay with a recorded payment: what the guest has
+ * paid and, when the total is known and higher, what is still due. An amount
+ * paid beyond the total is never written to the guest (owner's decision):
+ * the refund is settled directly.
+ */
+function paymentRows(request: RequestSummary, lang: Lang): string[] {
+    if (request.payment_status === undefined || request.payment_status === 'none' || request.paid_amount === null || request.paid_amount === undefined) return [];
+    const texts = emailTexts(lang);
+    const rows = [`${texts.labels.paid}: ${formatEuro(request.paid_amount, lang)}`];
+    const balance = request.quoted_total === null || request.quoted_total === undefined ? 0 : request.quoted_total - request.paid_amount;
+    if (balance > 0) rows.push(`${texts.labels.balance}: ${formatEuro(balance, lang)}`);
+    return rows;
+}
+
+/**
+ * @param withNotes - the guest's notes too (only where the reader wrote them or decides on them)
+ * @param withPayments - the payment rows too (the email about a change of the stay)
+ */
+export function requestDetails(request: RequestSummary, lang: Lang, withNotes: boolean, withPayments = false): string[] {
     const texts = emailTexts(lang);
     const rows: string[] = [];
     const type: BookingType = request.type;
@@ -166,6 +185,7 @@ export function requestDetails(request: RequestSummary, lang: Lang, withNotes: b
         rows.push(`${texts.labels.guests}: ${texts.labels.adults(request.adults ?? 0)}, ${texts.labels.children(request.children ?? 0)}`);
         rows.push(`${texts.labels.room}: ${request.room_type ?? ''}`);
         rows.push(...priceRows(request, lang));
+        if (withPayments) rows.push(...paymentRows(request, lang));
     } else if (type === 'restaurant') {
         rows.push(`${texts.labels.date}: ${formatDate(request.date ?? '', lang)}`);
         rows.push(`${texts.labels.time}: ${request.start_time ?? ''}`);

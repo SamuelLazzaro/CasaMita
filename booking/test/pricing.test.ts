@@ -186,4 +186,19 @@ describe('pricing administration and public quote', () => {
         expect(english.some((row) => row.startsWith('Total price: €500.00') && row.includes('tourist tax excluded'))).toBe(true);
         expect(english.some((row) => row.includes('discount'))).toBe(false);
     });
+
+    it('writes what was paid and what is still due in the email about a change, never a refund', () => {
+        const base = { type: 'hotel' as const, check_in: '2027-07-30', check_out: '2027-08-03', adults: 2, children: 0, room_type: 'Camera tripla', date: null, start_time: null, end_time: null, party_size: null, notes: null, quoted_subtotal: 300, quoted_discount_percent: 0, quoted_total: 300 };
+        const deposit = requestDetails({ ...base, payment_status: 'deposit', paid_amount: 200 }, 'it', false, true);
+        // Intl writes a non-breaking space before the euro sign: match the start of the row.
+        expect(deposit.some((row) => row.startsWith('Importo già pagato: 200,00'))).toBe(true);
+        expect(deposit.some((row) => row.startsWith('Saldo da pagare: 100,00'))).toBe(true);
+        // Paid beyond the total: the amount paid only.
+        const overpaid = requestDetails({ ...base, quoted_total: 150, payment_status: 'paid', paid_amount: 200 }, 'en', false, true);
+        expect(overpaid.some((row) => row.startsWith('Amount already paid: €200.00'))).toBe(true);
+        expect(overpaid.some((row) => row.includes('Balance') || row.includes('refund'))).toBe(false);
+        // Without the flag (every other email) and without a payment: nothing.
+        expect(requestDetails({ ...base, payment_status: 'deposit', paid_amount: 200 }, 'it', false).some((row) => row.startsWith('Importo'))).toBe(false);
+        expect(requestDetails({ ...base, payment_status: 'none', paid_amount: null }, 'it', false, true).some((row) => row.startsWith('Importo'))).toBe(false);
+    });
 });
