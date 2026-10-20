@@ -31,10 +31,6 @@
     padding-bottom: env(safe-area-inset-bottom);
 }
 
-.nav-sections[hidden] {
-    display: none;
-}
-
 body:has(.nav-sections:not([hidden])) {
     padding-bottom: 4.5rem;
 }
@@ -54,10 +50,6 @@ body:has(.nav-sections:not([hidden])) {
     border: none;
     cursor: pointer;
     transition: color var(--transition-fast);
-}
-
-.nav-item[hidden] {
-    display: none;
 }
 
 .nav-item svg {
@@ -1017,10 +1009,6 @@ button.cal-cell-header:focus-visible {
     font-size: 1.1rem;
 }
 
-.dialog .form[hidden] {
-    display: none;
-}
-
 /* Edit recap: every changed field with the value it had struck through and
    the new one beside it, in the same two-column list as the details. */
 .edit-diff .diff-before {
@@ -1083,10 +1071,6 @@ button.cal-cell-header:focus-visible {
     flex-direction: column;
     gap: 0.15rem;
     font-size: 0.9rem;
-}
-
-.price-box[hidden] {
-    display: none;
 }
 
 .price-total {

@@ -102,6 +102,12 @@
     box-sizing: border-box;
 }
 
+/* The hidden attribute must win over any author display rule (.field, .form,
+   .btn, ...): the user-agent default loses to every one of them. */
+[hidden] {
+    display: none !important;
+}
+
 html {
     -webkit-text-size-adjust: 100%;
     /* Tap feedback is handled by .is-tapped: the native highlight would stack on top of it. */
