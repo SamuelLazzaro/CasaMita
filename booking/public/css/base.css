@@ -51,9 +51,11 @@
     --error-tint: #faf0ed;
     --pending: #8a6d00;
     --pending-tint: #fff6d6;
-    /* hotel payments: deposit received, paid in full */
-    --deposit: #0369a1;
-    --deposit-tint: #e0f2fe;
+    /* hotel payments: deposit received, paid in full. Magenta for the
+       deposit: a blue would blend with the confirmed green once washed
+       into calendar cells, and with the hotel accent. */
+    --deposit: #be185d;
+    --deposit-tint: #fce7f3;
     --paid: #6d28d9;
     --paid-tint: #f1ebfd;
 
