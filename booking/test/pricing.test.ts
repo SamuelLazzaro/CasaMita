@@ -3,20 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 import { computeQuote, quoteStay } from '../src/pricing';
 import { requestDetails } from '../src/texts';
-import { daysAhead, get, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, UNKNOWN_ROOM } from './helpers';
+import { adminCall, adminCookie, daysAhead, get, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, setBasePrice } from './helpers';
 
 /** Query string of GET /api/quote for a stay in a room type. */
 function quoteQuery(room: string, checkIn: string, checkOut: string): string {
     return `/api/quote?room_type=${encodeURIComponent(room)}&check_in=${checkIn}&check_out=${checkOut}`;
-}
-
-async function adminCookie(): Promise<string> {
-    const response = await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.5.1' }, body: JSON.stringify({ password: 'test-password' }) }, env);
-    return response.headers.get('set-cookie')!.split(';')[0];
-}
-
-async function adminCall(method: string, path: string, cookie: string, body?: unknown): Promise<Response> {
-    return await app.request(path, { method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }, env);
 }
 
 async function json<T>(response: Response): Promise<T> {
@@ -70,13 +61,13 @@ describe('pricing administration and public quote', () => {
         const coveringId = (await json<{ id: number }>(covering)).id;
         expect((await adminCall('DELETE', `/api/admin/pricing/periods/${coveringId}`, cookie)).status).toBe(200);
 
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120 })).status).toBe(200);
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: UNKNOWN_ROOM, price_per_night: 120 })).status).toBe(400);
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: -1 })).status).toBe(400);
+        expect((await setBasePrice(cookie, ROOM_A, 120)).status).toBe(200);
+        expect((await setBasePrice(cookie, { id: 9999 }, 120)).status).toBe(404);
+        expect((await setBasePrice(cookie, ROOM_A, -1)).status).toBe(400);
         // Prices carry two decimals at most: a third one is refused, not rounded.
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120.005 })).status).toBe(400);
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120.5 })).status).toBe(200);
-        expect((await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 120 })).status).toBe(200);
+        expect((await setBasePrice(cookie, ROOM_A, 120.005)).status).toBe(400);
+        expect((await setBasePrice(cookie, ROOM_A, 120.5)).status).toBe(200);
+        expect((await setBasePrice(cookie, ROOM_A, 120)).status).toBe(200);
 
         const period = await adminCall('POST', '/api/admin/pricing/periods', cookie, { room_type: ROOM_A.name, date_from: daysAhead(202), date_to: daysAhead(210), price_per_night: 180, label: 'Alta stagione' });
         expect(period.status).toBe(201);
@@ -108,7 +99,7 @@ describe('pricing administration and public quote', () => {
         expect(row).toEqual({ quoted_subtotal: 600, quoted_discount_percent: 10, quoted_total: 540 });
 
         // Changing the price afterwards does not touch the frozen quote.
-        await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_A.name, price_per_night: 999 });
+        await setBasePrice(cookie, ROOM_A, 999);
         const again = await env.DB.prepare('SELECT quoted_total FROM requests WHERE id = ?1').bind(id).first<{ quoted_total: number }>();
         expect(again!.quoted_total).toBe(540);
         expect((await quoteStay(env.DB, ROOM_A.name, checkIn, checkOut))!.subtotal).toBe(999 * 2 + 180 * 2);
@@ -116,7 +107,7 @@ describe('pricing administration and public quote', () => {
 
     it('direct bookings take the computed quote or the agreed total typed by the venue', async () => {
         const cookie = await adminCookie();
-        await adminCall('PUT', '/api/admin/pricing/base', cookie, { room_type: ROOM_B.name, price_per_night: 80 });
+        await setBasePrice(cookie, ROOM_B, 80);
         // Two nights at the base price; every booking on its own dates, so a type with a single room is enough.
         const checkIn = daysAhead(230);
         const checkOut = daysAhead(232);

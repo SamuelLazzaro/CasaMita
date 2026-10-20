@@ -5,10 +5,10 @@ import { venueConfig, type VenueConfig } from '../config';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
 import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
 import { attemptAllowed } from '../ratelimit';
-import { periodFields, periodOverlaps, priceValue, quoteStay, type DiscountRule, type RatePeriod } from '../pricing';
-import { roomTypeByName, roomTypes } from '../rooms';
+import { periodFields, periodOverlaps, quoteStay, type DiscountRule, type RatePeriod } from '../pricing';
+import { createRoomType, deleteRoomType, futureBookingsOf, overbookedRooms, roomFields, roomNameTaken, roomTypeById, roomTypeByName, roomTypes, updateRoomType } from '../rooms';
 import { isSlotConflict, keysOf, occupiedSlots, slotInserts } from '../slots';
-import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, randomToken, readJson, text, writeAudit } from '../util';
+import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, priceValue, randomToken, readJson, text, writeAudit } from '../util';
 import { facilityFields, guestFields, hotelFields, restaurantFields } from '../validation';
 
 /*
@@ -122,7 +122,7 @@ admin.post('/requests/:id/approve', async (c) => {
     const venue = venueConfig(c.env);
 
     if (request.type === 'hotel') {
-        const quantity = roomTypeByName(request.room_type ?? '')?.quantity ?? 0;
+        const quantity = (await roomTypeByName(c.env.DB, request.room_type ?? ''))?.quantity ?? 0;
         const overlapping = overlappingSql('requests.room_type', 'requests.check_in', 'requests.check_out', 'requests.id');
         const result = await c.env.DB.prepare(`UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending' AND ${overlapping} < ?2`).bind(request.id, quantity).run();
         if (result.meta.changes === 0) return c.json({ error: 'room_unavailable' }, 409);
@@ -258,9 +258,9 @@ type DirectOutcome = { id: number } | { error: string; status: 400 | 404 | 409; 
 async function directHotel(db: D1Database, body: Record<string, unknown>, lang: string, today: string): Promise<DirectOutcome> {
     const guest = guestFields(body);
     if ('error' in guest) return { error: guest.error, status: 400 };
-    const stay = hotelFields(body, today);
+    const stay = await hotelFields(db, body, today);
     if ('error' in stay) return { error: stay.error, status: 400 };
-    const quantity = roomTypeByName(stay.roomType)?.quantity ?? 0;
+    const quantity = (await roomTypeByName(db, stay.roomType))?.quantity ?? 0;
     // Price: the computed quote, unless the venue typed an agreed total
     // (owner's decision, e.g. a price settled by phone); then the subtotal
     // is that total and no discount is recorded.
@@ -330,42 +330,75 @@ async function directFacility(db: D1Database, body: Record<string, unknown>, ven
     return { id };
 }
 
-/** Hotel: the room types of rooms.csv, read-only. */
-admin.get('/rooms', (c) => c.json({ rooms: roomTypes() }));
+// ---------------------------------------------------------------------------
+// Hotel room types (migration 0004): name, guests, quantity, base price
+// ---------------------------------------------------------------------------
+
+admin.get('/rooms', async (c) => c.json({ rooms: await roomTypes(c.env.DB) }));
+
+admin.post('/rooms', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const fields = roomFields(body);
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    if (await roomNameTaken(c.env.DB, fields.name)) return c.json({ error: 'room_exists' }, 409);
+    const id = await createRoomType(c.env.DB, fields);
+    await writeAudit(c.env.DB, 'room_type_created', `${fields.name}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
+    return c.json({ id }, 201);
+});
+
+/**
+ * Edits a room type (every field, missing ones keep their value). A smaller
+ * quantity than the approved future bookings need is accepted: the answer
+ * carries `overbooked`, the rooms short at the busiest night, as a warning.
+ */
+admin.patch('/rooms/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const existing = id === null ? null : await roomTypeById(c.env.DB, id);
+    if (existing === null) return c.json({ error: 'not_found' }, 404);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const fields = roomFields({ name: existing.name, max_guests: existing.max_guests, quantity: existing.quantity, price_per_night: existing.price_per_night, ...body });
+    if ('error' in fields) return c.json({ error: fields.error }, 400);
+    if (await roomNameTaken(c.env.DB, fields.name, existing.id)) return c.json({ error: 'room_exists' }, 409);
+    await updateRoomType(c.env.DB, existing, fields);
+    const renamed = fields.name === existing.name ? '' : ` (was "${existing.name}")`;
+    await writeAudit(c.env.DB, 'room_type_updated', `${fields.name}${renamed}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
+    const overbooked = await overbookedRooms(c.env.DB, fields.name, fields.quantity, romeNow(new Date()).date);
+    return c.json({ ok: true, overbooked });
+});
+
+/** Refused (409 room_in_use) while a pending or approved booking of the type has not checked out yet. */
+admin.delete('/rooms/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const existing = id === null ? null : await roomTypeById(c.env.DB, id);
+    if (existing === null) return c.json({ error: 'not_found' }, 404);
+    const bookings = await futureBookingsOf(c.env.DB, existing.name, romeNow(new Date()).date);
+    if (bookings > 0) return c.json({ error: 'room_in_use', bookings }, 409);
+    await deleteRoomType(c.env.DB, existing);
+    await writeAudit(c.env.DB, 'room_type_deleted', existing.name, 'admin');
+    return c.json({ ok: true });
+});
 
 // ---------------------------------------------------------------------------
-// Hotel pricing (migration 0002): base prices, rate periods, discounts
+// Hotel pricing (migration 0002): rate periods, discounts. The base price
+// per room type lives on the type itself (migration 0004).
 // ---------------------------------------------------------------------------
 
 /** Everything the Prices section shows: base price per room type (null when missing), periods, discount rules. */
 admin.get('/pricing', async (c) => {
     const [base, periods, discounts] = await c.env.DB.batch([
-        c.env.DB.prepare('SELECT room_type, price_per_night FROM room_prices'),
+        c.env.DB.prepare('SELECT name AS room_type, price_per_night FROM room_types ORDER BY id'),
         c.env.DB.prepare('SELECT id, room_type, date_from, date_to, price_per_night, label FROM rate_periods ORDER BY date_from, room_type'),
         c.env.DB.prepare('SELECT id, min_nights, percent FROM discount_rules ORDER BY min_nights'),
     ]);
-    const baseByRoom = new Map((base.results as { room_type: string; price_per_night: number }[]).map((row) => [row.room_type, row.price_per_night]));
-    const rooms = roomTypes().map((room) => ({ room_type: room.name, price_per_night: baseByRoom.get(room.name) ?? null }));
-    return c.json({ base: rooms, periods: periods.results as RatePeriod[], discounts: discounts.results as DiscountRule[] });
-});
-
-/** Sets (or replaces) the base price of a room type. */
-admin.put('/pricing/base', async (c) => {
-    const body = await readJson(c);
-    if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const roomType = typeof body.room_type === 'string' ? body.room_type.trim() : '';
-    if (roomTypeByName(roomType) === undefined) return c.json({ error: 'unknown_room' }, 400);
-    const price = priceValue(body.price_per_night);
-    if (price === null) return c.json({ error: 'invalid_price' }, 400);
-    await c.env.DB.prepare("INSERT INTO room_prices (room_type, price_per_night) VALUES (?1, ?2) ON CONFLICT(room_type) DO UPDATE SET price_per_night = ?2, updated_at = datetime('now')").bind(roomType, price).run();
-    await writeAudit(c.env.DB, 'price_base_set', `${roomType}: ${price}`, 'admin');
-    return c.json({ ok: true });
+    return c.json({ base: base.results, periods: periods.results as RatePeriod[], discounts: discounts.results as DiscountRule[] });
 });
 
 admin.post('/pricing/periods', async (c) => {
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const fields = periodFields(body);
+    const fields = await periodFields(c.env.DB, body);
     if ('error' in fields) return c.json({ error: fields.error }, 400);
     if (await periodOverlaps(c.env.DB, fields)) return c.json({ error: 'period_overlap' }, 409);
     const result = await c.env.DB.prepare('INSERT INTO rate_periods (room_type, date_from, date_to, price_per_night, label) VALUES (?1, ?2, ?3, ?4, ?5)').bind(fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
@@ -379,7 +412,7 @@ admin.patch('/pricing/periods/:id', async (c) => {
     if (existing === null) return c.json({ error: 'not_found' }, 404);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const fields = periodFields({ room_type: existing.room_type, date_from: existing.date_from, date_to: existing.date_to, price_per_night: existing.price_per_night, label: existing.label ?? '', ...body });
+    const fields = await periodFields(c.env.DB, { room_type: existing.room_type, date_from: existing.date_from, date_to: existing.date_to, price_per_night: existing.price_per_night, label: existing.label ?? '', ...body });
     if ('error' in fields) return c.json({ error: fields.error }, 400);
     if (await periodOverlaps(c.env.DB, fields, existing.id)) return c.json({ error: 'period_overlap' }, 409);
     await c.env.DB.prepare('UPDATE rate_periods SET room_type = ?2, date_from = ?3, date_to = ?4, price_per_night = ?5, label = ?6 WHERE id = ?1').bind(existing.id, fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();

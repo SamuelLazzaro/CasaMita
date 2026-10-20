@@ -18,7 +18,7 @@ const demoType = TYPES.includes(savedType) ? savedType : 'hotel';
 
 const NAMES = { hotel: 'Hotel Demo', restaurant: 'Trattoria Demo', facility: 'Palazzetto Demo' };
 
-/** @type {{name: string, max_guests: number, quantity: number}[]} the sample rooms.csv */
+/** @type {{name: string, max_guests: number, quantity: number}[]} sample room types (the real ones live in the room_types table) */
 const ROOMS = [{ name: 'Camera singola', max_guests: 1, quantity: 4 }, { name: 'Camera doppia', max_guests: 2, quantity: 10 }, { name: 'Camera tripla', max_guests: 3, quantity: 3 }, { name: 'Suite familiare', max_guests: 4, quantity: 2 }];
 
 const CONFIG = { type: demoType, name: NAMES[demoType], defaultLang: 'it', facility: { open: '08:00', close: '24:00', slotMinutes: 30 }, restaurant: { lunch: { open: '12:00', close: '14:30' }, dinner: { open: '19:00', close: '22:30' }, stepMinutes: 15 } };

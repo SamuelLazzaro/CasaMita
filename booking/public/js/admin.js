@@ -1,11 +1,11 @@
 /*
  * admin.js — entry point of the manager dashboard: login, section
  * navigation, calendar (week / month, plus the day view on the time grid
- * for restaurant and facility), pending requests, direct bookings, rooms
- * (hotel) and organisations (facility).
+ * for restaurant and facility), pending requests, direct bookings, room
+ * types with their base price (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, deleteDiscount, deletePeriod, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, saveBasePrice, updateRequester } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, updateRequester, updateRoomType } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
@@ -399,51 +399,151 @@ byId('new-booking').addEventListener('click', () => openDirectBooking());
 
 /* ---------------------------------------------------------------- rooms */
 
-async function loadRooms() {
-    const tableBody = byId('rooms-body');
-    const checkIn = byId('rooms-check-in');
-    const checkOut = byId('rooms-check-out');
+const roomsStatus = byId('rooms-status');
+const roomsCheckIn = byId('rooms-check-in');
+const roomsCheckOut = byId('rooms-check-out');
+const roomDialog = byId('dialog-room');
+const roomForm = byId('room-form');
+
+/** @type {{id: number, name: string, max_guests: number, quantity: number, price_per_night: number|null}[]} room types of the hotel */
+let g_rooms = [];
+
+/** @type {Map<string, number>} rooms left per type name for the dates picked in the section */
+let g_roomsAvailable = new Map();
+
+// The availability dates start at tonight's stay.
+{
     const today = todayInRome();
-    checkIn.min = today;
-    checkIn.value = today;
-    checkOut.min = addDays(today, 1);
-    checkOut.value = addDays(today, 1);
-    let rooms;
+    roomsCheckIn.min = today;
+    roomsCheckIn.value = today;
+    roomsCheckOut.min = addDays(today, 1);
+    roomsCheckOut.value = addDays(today, 1);
+}
+roomsCheckIn.addEventListener('change', () => {
+    roomsCheckOut.min = addDays(roomsCheckIn.value, 1);
+    if (roomsCheckOut.value <= roomsCheckIn.value) roomsCheckOut.value = roomsCheckOut.min;
+    loadRoomsAvailability();
+});
+roomsCheckOut.addEventListener('change', loadRoomsAvailability);
+bindPriceInput(byId('room-price'));
+
+async function loadRooms() {
     try {
-        rooms = (await fetchRooms()).rooms;
+        g_rooms = (await fetchRooms()).rooms;
     } catch (error) {
-        showStatus(byId('rooms-status'), errorMessage(error), 'error');
+        showStatus(roomsStatus, errorMessage(error), 'error');
         return;
     }
-    async function draw() {
-        hideStatus(byId('rooms-status'));
-        let available = new Map();
-        if (checkIn.value !== '' && checkOut.value > checkIn.value) {
-            try {
-                const answer = await fetchAvailability(checkIn.value, checkOut.value);
-                available = new Map(answer.rooms.map((room) => [room.name, room.available]));
-            } catch (error) {
-                showStatus(byId('rooms-status'), errorMessage(error), 'error');
-            }
-        }
-        tableBody.replaceChildren(...rooms.map((room) => {
-            const row = document.createElement('tr');
-            for (const value of [room.name, room.max_guests, room.quantity, available.get(room.name) ?? '—']) {
-                const cell = document.createElement('td');
-                cell.textContent = String(value);
-                row.append(cell);
-            }
-            return row;
-        }));
-    }
-    checkIn.addEventListener('change', () => {
-        checkOut.min = addDays(checkIn.value, 1);
-        if (checkOut.value <= checkIn.value) checkOut.value = checkOut.min;
-        draw();
-    });
-    checkOut.addEventListener('change', draw);
-    await draw();
+    await loadRoomsAvailability();
 }
+
+/** Rooms left for the dates of the section, then the table. */
+async function loadRoomsAvailability() {
+    g_roomsAvailable = new Map();
+    if (roomsCheckIn.value !== '' && roomsCheckOut.value > roomsCheckIn.value) {
+        try {
+            const answer = await fetchAvailability(roomsCheckIn.value, roomsCheckOut.value);
+            g_roomsAvailable = new Map(answer.rooms.map((room) => [room.name, room.available]));
+        } catch (error) {
+            showStatus(roomsStatus, errorMessage(error), 'error');
+        }
+    }
+    drawRooms();
+}
+
+function drawRooms() {
+    const lang = currentLanguage();
+    byId('rooms-empty').hidden = g_rooms.length > 0;
+    byId('rooms-body').replaceChildren(...g_rooms.map((room) => {
+        const row = document.createElement('tr');
+        const price = room.price_per_night === null ? translate('rooms.notSet') : formatEuro(room.price_per_night, lang);
+        for (const value of [room.name, room.max_guests, room.quantity, price, g_roomsAvailable.get(room.name) ?? '—']) {
+            const cell = document.createElement('td');
+            cell.textContent = String(value);
+            row.append(cell);
+        }
+        const actionsCell = document.createElement('td');
+        const actions = document.createElement('div');
+        actions.className = 'table-actions';
+        actions.append(button(translate('actions.edit'), 'btn btn-small', () => openRoomDialog(room)));
+        actions.append(button(translate('actions.delete'), 'btn btn-danger btn-small', () => {
+            if (window.confirm(translate('rooms.confirmDelete'))) runRoomAction(() => deleteRoomType(room.id), 'done.roomDeleted');
+        }));
+        actionsCell.append(actions);
+        row.append(actionsCell);
+        return row;
+    }));
+}
+
+/**
+ * Everything that lists the room types: the Rooms table, the Prices section
+ * (period form and price calendar) and the calendar.
+ * @returns {Promise<void>}
+ */
+async function refreshAfterRoomChange() {
+    await Promise.all([loadRooms(), loadPricing(), calendarView.refresh()]);
+}
+
+/**
+ * Runs a change to the room types from the table, reports the outcome and refreshes.
+ * @param {() => Promise<unknown>} action
+ * @param {string} doneKey
+ * @returns {Promise<void>}
+ */
+async function runRoomAction(action, doneKey) {
+    hideStatus(roomsStatus);
+    try {
+        await action();
+        showStatus(roomsStatus, translate(doneKey), 'ok');
+        await refreshAfterRoomChange();
+    } catch (error) {
+        showStatus(roomsStatus, errorMessage(error), 'error');
+    }
+}
+
+/**
+ * @param {object|null} room - null for a new type
+ * @returns {void}
+ */
+function openRoomDialog(room) {
+    byId('room-dialog-title').textContent = translate(room === null ? 'rooms.new' : 'rooms.edit');
+    roomForm.reset();
+    byId('room-id').value = room === null ? '' : String(room.id);
+    if (room !== null) {
+        byId('room-name').value = room.name;
+        byId('room-max-guests').value = String(room.max_guests);
+        byId('room-quantity').value = String(room.quantity);
+        byId('room-price').value = priceInputValue(room.price_per_night);
+    }
+    hideStatus(byId('room-status'));
+    openDialog(roomDialog);
+}
+
+byId('new-room').addEventListener('click', () => openRoomDialog(null));
+
+roomForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = byId('room-status');
+    hideStatus(status);
+    if (!roomForm.checkValidity()) {
+        showStatus(status, translate('validation.required'), 'error');
+        return;
+    }
+    const fields = new FormData(roomForm);
+    const payload = { name: fields.get('name'), max_guests: Number(fields.get('max_guests')), quantity: Number(fields.get('quantity')), price_per_night: Number(fields.get('price_per_night')) };
+    const id = fields.get('id');
+    try {
+        const result = id === '' ? await createRoomType(payload) : await updateRoomType(Number(id), payload);
+        roomDialog.close();
+        // Fewer rooms than the confirmed stays need is allowed, but said out loud.
+        const overbooked = result.overbooked ?? 0;
+        if (overbooked > 0) showStatus(roomsStatus, translate('done.roomOverbooked', { count: overbooked }), 'error');
+        else showStatus(roomsStatus, translate(id === '' ? 'done.roomCreated' : 'done.roomSaved'), 'ok');
+        await refreshAfterRoomChange();
+    } catch (error) {
+        showStatus(status, errorMessage(error), 'error');
+    }
+});
 
 /* -------------------------------------------------------------- pricing */
 
@@ -488,30 +588,7 @@ function drawPricing() {
     if (g_pricing === null) return;
     const lang = currentLanguage();
 
-    // Base prices: one row per room type with an input and a save button.
-    const baseGrid = byId('pricing-base');
-    baseGrid.replaceChildren(...g_pricing.base.flatMap((row) => {
-        const name = document.createElement('span');
-        name.textContent = row.room_type;
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.min = '0';
-        bindPriceInput(input);
-        input.value = priceInputValue(row.price_per_night);
-        input.placeholder = translate('pricing.notSet');
-        input.setAttribute('aria-label', `${row.room_type} ${translate('pricing.pricePerNight')}`);
-        const save = button(translate('pricing.save'), 'btn btn-small', () => {
-            const price = Number(input.value);
-            if (input.value === '' || !Number.isFinite(price)) {
-                showStatus(pricingStatus, translate('error.invalid_price'), 'error');
-                return;
-            }
-            runPricingAction(() => saveBasePrice(row.room_type, price), 'done.priceSaved');
-        });
-        return [name, input, save];
-    }));
-
-    // Period form: room select from the CSV types.
+    // Period form: one option per room type (the base prices come along, for the price calendar).
     const roomSelect = byId('period-room');
     const options = g_pricing.base.map((row) => ({ value: row.room_type, label: row.room_type }));
     roomSelect.replaceChildren(...options.map((option) => Object.assign(document.createElement('option'), { value: option.value, textContent: option.label })));
@@ -743,6 +820,7 @@ byId('logout').addEventListener('click', async () => {
 onLanguageChange(() => {
     drawCalendar();
     drawPending();
+    drawRooms();
     drawPricing();
     drawPriceCalendar();
     if (g_config?.type === 'facility') drawRequesters();

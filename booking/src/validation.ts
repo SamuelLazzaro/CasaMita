@@ -56,13 +56,13 @@ export function notesField(value: unknown): string | null | undefined {
 
 export type HotelFields = { checkIn: string; checkOut: string; adults: number; children: number; roomType: string };
 
-export function hotelFields(body: Record<string, unknown>, today: string): HotelFields | { error: string } {
+export async function hotelFields(db: D1Database, body: Record<string, unknown>, today: string): Promise<HotelFields | { error: string }> {
     const checkIn = typeof body.check_in === 'string' ? body.check_in.trim() : '';
     const checkOut = typeof body.check_out === 'string' ? body.check_out.trim() : '';
     const stayError = validateStay(checkIn, checkOut, today);
     if (stayError) return { error: stayError };
-    const roomType = typeof body.room_type === 'string' ? roomTypeByName(body.room_type.trim()) : undefined;
-    if (roomType === undefined) return { error: 'unknown_room' };
+    const roomType = typeof body.room_type === 'string' ? await roomTypeByName(db, body.room_type.trim()) : null;
+    if (roomType === null) return { error: 'unknown_room' };
     const adults = integerBetween(body.adults, 1, roomType.max_guests);
     const children = integerBetween(body.children ?? 0, 0, MAX_CHILDREN);
     if (adults === null || children === null) return { error: 'invalid_guests' };

@@ -44,7 +44,7 @@ CREATE TABLE requests (
   check_out     TEXT,
   adults        INTEGER,
   children      INTEGER,
-  room_type     TEXT,   -- "name" column of rooms.csv
+  room_type     TEXT,   -- name of the room type (room_types.name since migration 0004)
   -- facility and restaurant: one date; facility has a time range, restaurant a seating time
   date          TEXT,
   start_time    TEXT,

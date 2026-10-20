@@ -12,7 +12,7 @@ Configurazione specifica di questa istanza:
 | `wrangler.jsonc` → `name` | `booking-casamita` (parte dell'indirizzo `workers.dev`) |
 | `wrangler.jsonc` → `vars` | `VENUE_NAME` Casa Mita, `EMAIL_SENDER` `prenotazioni@ristorantealbergocasamita.it`, `EMAIL_ADMIN` `info@ristorantealbergocasamita.it`, `EMBED_ORIGIN` `https://www.ristorantealbergocasamita.it`, `RETENTION_DAYS` 90 |
 | `wrangler.jsonc` → `database_id` | DA COMPILARE con l'id stampato da `npx wrangler d1 create booking-casamita` |
-| `rooms.csv` | le cinque tipologie del sito; **quantità provvisorie (1 per tipologia), da confermare con il gestore** |
+| `migrations/0004_room_types.sql` | importa le cinque tipologie del sito nella tabella `room_types`; **quantità provvisorie (1 per tipologia), da confermare con il gestore**, che poi le gestisce dalla sezione Camere |
 | `public/css/base.css` | palette teal del sito nel blocco `[data-booking-type="hotel"]` |
 | `public/privacy.html` | informativa del servizio: ragione sociale, P.IVA e data da completare (stessi dati del footer del sito) |
 
@@ -31,7 +31,7 @@ Sistema di prenotazione riusabile, configurabile per tipologia di struttura:
 
 | `BOOKING_TYPE` | Chi prenota | Cosa chiede |
 |---|---|---|
-| `hotel` | cliente anonimo, form pubblico | nome, cognome, email, telefono, check-in, check-out, adulti, bambini, tipologia di camera (da `rooms.csv`), note |
+| `hotel` | cliente anonimo, form pubblico | nome, cognome, email, telefono, check-in, check-out, adulti, bambini, tipologia di camera (dalla sezione Camere), note |
 | `restaurant` | cliente anonimo, form pubblico | nome, cognome, email, telefono, data, servizio pranzo/cena, orario a passi di 15 minuti, numero persone, note |
 | `facility` | società registrata dall'admin, area riservata con link personale | data, orario dalle/alle a slot di 30 minuti, note |
 
@@ -49,7 +49,7 @@ su D1 reale. Pensato per il piano gratuito di Workers.
 ## Stato di avanzamento
 
 - [x] Iterazione 1: scaffolding, schema D1, configurazione per tipologia,
-      camere da `rooms.csv` con disponibilità, API pubbliche, form hotel e
+      camere con disponibilità, API pubbliche, form hotel e
       ristorante, link personale del cliente, notifiche di invio/annullamento,
       job di anonimizzazione (GDPR), i18n it/en.
 - [x] Iterazione 2: dashboard del gestore (`/admin`): login, calendario
@@ -66,7 +66,6 @@ su D1 reale. Pensato per il piano gratuito di Workers.
 ```
 booking/
 ├── wrangler.jsonc        # vars per istanza, binding D1, regola Text per il CSV, cron
-├── rooms.csv             # hotel: tipologie di camera (name;max_guests;quantity)
 ├── migrations/           # migrazioni SQL
 ├── src/
 │   ├── index.ts          # entry Hono (security header, rotte, cron handler)
@@ -120,14 +119,23 @@ Per provare un'altra tipologia in locale: `npx wrangler dev --var BOOKING_TYPE:r
 Secret (mai nel file, `wrangler secret put`): `ADMIN_SECRET`, `ADMIN_PASSWORD`,
 `BREVO_API_KEY`.
 
-### Camere (`rooms.csv`)
+### Camere (tabella `room_types`, migrazione 0004)
 
-File con separatore `;`, intestazione obbligatoria `name;max_guests;quantity`,
-una riga per tipologia. Viene incorporato nel Worker al deploy: dopo una
-modifica serve un nuovo `npm run deploy`. Una tipologia risulta occupata
-**solo** dalle prenotazioni approvate che si sovrappongono al soggiorno
-(check-out escluso). Il form pubblico mostra le camere rimaste per le date
-scelte; il server rifiuta con 409 una richiesta su una tipologia esaurita.
+Le tipologie di camera (nome, ospiti massimi, numero di camere, prezzo base a
+notte) le gestisce il gestore dalla sezione **Camere** della dashboard, senza
+deploy. Prenotazioni e periodi di prezzo referenziano la tipologia per nome:
+rinominarla aggiorna entrambi nello stesso batch; eliminarla è rifiutato (409
+`room_in_use`) finché esiste anche una sola prenotazione futura, in attesa o
+confermata, di quella tipologia (va prima annullata), e cancella con sé i suoi
+periodi di prezzo. Ridurre il numero di camere sotto le prenotazioni confermate
+è permesso: la risposta riporta in `overbooked` le camere mancanti nella notte
+più piena e la dashboard lo segnala. La migrazione 0004 importa le tipologie
+del vecchio `rooms.csv` dell'istanza con i prezzi base già impostati.
+
+Una tipologia risulta occupata **solo** dalle prenotazioni approvate che si
+sovrappongono al soggiorno (check-out escluso). Il form pubblico mostra le
+camere rimaste per le date scelte; il server rifiuta con 409 una richiesta su
+una tipologia esaurita.
 
 ## API pubbliche
 
@@ -195,8 +203,9 @@ minuti). Sezioni:
   in orizzontale, col dito sul touch e trascinando col mouse sul desktop
   (`drag-scroll.js`).
 - **Notifiche**: richieste in attesa con approvazione e rifiuto immediati.
-- **Camere** (solo hotel): tipologie di `rooms.csv` e camere libere per le
-  date scelte.
+- **Camere** (solo hotel): tipologie di camera con prezzo base, create,
+  modificate ed eliminate da un popup, più le camere libere per le date
+  scelte.
 - **Società** (solo impianto): creazione, modifica, sospensione (annulla le
   prenotazioni future e libera gli slot), rigenerazione e reinvio del link
   personale. La prenotazione diretta richiede una società già registrata.
@@ -215,7 +224,7 @@ se una fascia è già occupata.
 | `POST /api/admin/requests/:id/approve\|reject\|cancel` | decisioni (il rifiuto accetta `reason`) |
 | `POST /api/admin/requests/:id/deposit\|paid` | hotel: pagamenti (l'acconto accetta `amount`) |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
-| `GET /api/admin/rooms` | hotel: tipologie del CSV |
+| `GET/POST /api/admin/rooms`, `PATCH/DELETE /api/admin/rooms/:id` | hotel: tipologie di camera con prezzo base (`PATCH` risponde con `overbooked`, `DELETE` 409 `room_in_use` con prenotazioni future) |
 | `GET/POST /api/admin/requesters`, `PATCH /api/admin/requesters/:id` | impianto: società |
 | `POST /api/admin/requesters/:id/suspend\|reactivate\|regenerate-link\|send-link` | impianto: azioni sulla società |
 
@@ -253,7 +262,9 @@ Prezzi per camera a notte, in euro, tasse incluse (tassa di soggiorno esclusa,
 dicitura mostrata al cliente e nelle email):
 
 - **Prezzo base** per tipologia: vale per ogni notte non coperta da un
-  periodo.
+  periodo. Si imposta nel popup della tipologia, sezione Camere (campo
+  obbligatorio); una tipologia importata dalla migrazione 0004 senza prezzo
+  resta "non impostato" finché il gestore non la modifica.
 - **Periodi**: intervallo di date (estremi inclusi) e tipologia con un prezzo
   a notte che sostituisce il base. Niente sovrapposizioni sulla stessa
   tipologia (409 `period_overlap`); un periodo di un giorno copre le eccezioni.
@@ -280,8 +291,7 @@ concordato" è precompilato con il calcolo e il gestore può sovrascriverlo.
 | Metodo e percorso | Descrizione |
 |---|---|
 | `GET /api/quote?room_type&check_in&check_out` | pubblico: preventivo del soggiorno (`priced: false` se una notte non ha prezzo) |
-| `GET /api/admin/pricing` | prezzi base, periodi e sconti |
-| `PUT /api/admin/pricing/base` | imposta il prezzo base di una tipologia |
+| `GET /api/admin/pricing` | prezzi base (letti dalle tipologie), periodi e sconti |
 | `POST /api/admin/pricing/periods`, `PATCH/DELETE .../:id` | periodi |
 | `POST /api/admin/pricing/discounts`, `DELETE .../:id` | sconti |
 

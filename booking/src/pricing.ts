@@ -1,21 +1,24 @@
 import { addDays, isValidDate } from './dates';
 import { roomTypeByName } from './rooms';
+import { priceValue, roundCents } from './util';
 
 /**
  * Hotel pricing (migration 0002).
  *
  * A stay [checkIn, checkOut) is priced night by night: every night costs the
  * price of the rate period covering it, or the base price of the room type
- * when no period does. The subtotal is the sum of the nights; the discount is
- * the rule with the highest `min_nights` not above the number of nights; the
- * total is rounded to the cent only at the end, so the public form, the
- * dashboard and the email all show the same figure.
+ * (room_types.price_per_night, migration 0004) when no period does. The
+ * subtotal is the sum of the nights; the discount is the rule with the
+ * highest `min_nights` not above the number of nights; the total is rounded
+ * to the cent only at the end, so the public form, the dashboard and the
+ * email all show the same figure.
  *
- * A night without any price (no period covering it and no base price for the
- * room type) makes the whole quote impossible (null): the public form then
- * works as before, without prices (owner's decision). Periods alone are
- * enough when they cover every night of the stay, so a venue that prices
- * only some dates still gets the quote on those dates.
+ * A night without any price (no period covering it and a room type seeded
+ * without base price, see migration 0004) makes the whole quote impossible
+ * (null): the public form then works as before, without prices (owner's
+ * decision). Periods alone are enough when they cover every night of the
+ * stay, so a venue that prices only some dates still gets the quote on those
+ * dates.
  */
 
 export type NightPrice = { date: string; price: number };
@@ -31,12 +34,7 @@ export type Quote = {
 export type RatePeriod = { id: number; room_type: string; date_from: string; date_to: string; price_per_night: number; label: string | null };
 export type DiscountRule = { id: number; min_nights: number; percent: number };
 
-export const MAX_PRICE = 100_000;
 export const MAX_LABEL = 60;
-
-function roundCents(value: number): number {
-    return Math.round(value * 100) / 100;
-}
 
 /** Pure computation, exported for the tests; null when a night has no price. */
 export function computeQuote(checkIn: string, checkOut: string, basePrice: number | null, periods: Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules: Pick<DiscountRule, 'min_nights' | 'percent'>[]): Quote | null {
@@ -57,28 +55,20 @@ export function computeQuote(checkIn: string, checkOut: string, basePrice: numbe
 /** Quote of a stay from the database, or null when some night of the stay has no price. */
 export async function quoteStay(db: D1Database, roomType: string, checkIn: string, checkOut: string): Promise<Quote | null> {
     const [base, periods, rules] = await db.batch([
-        db.prepare('SELECT price_per_night FROM room_prices WHERE room_type = ?1').bind(roomType),
+        db.prepare('SELECT price_per_night FROM room_types WHERE name = ?1').bind(roomType),
         db.prepare('SELECT date_from, date_to, price_per_night FROM rate_periods WHERE room_type = ?1 AND date_from < ?3 AND date_to >= ?2').bind(roomType, checkIn, checkOut),
         db.prepare('SELECT min_nights, percent FROM discount_rules'),
     ]);
-    const basePrice = (base.results[0] as { price_per_night: number } | undefined)?.price_per_night ?? null;
+    const basePrice = (base.results[0] as { price_per_night: number | null } | undefined)?.price_per_night ?? null;
     return computeQuote(checkIn, checkOut, basePrice, periods.results as Pick<RatePeriod, 'date_from' | 'date_to' | 'price_per_night'>[], rules.results as Pick<DiscountRule, 'min_nights' | 'percent'>[]);
-}
-
-/** A price in euro: finite, non-negative, at most MAX_PRICE, with at most two decimals; null when invalid. */
-export function priceValue(value: unknown): number | null {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_PRICE) return null;
-    // A third decimal is refused rather than rounded: the cents the venue typed are the cents stored.
-    if (roundCents(value) !== value) return null;
-    return value;
 }
 
 export type PeriodFields = { roomType: string; dateFrom: string; dateTo: string; price: number; label: string | null };
 
 /** Validates the fields of a rate period; returns an error code or the cleaned fields. */
-export function periodFields(body: Record<string, unknown>): PeriodFields | { error: string } {
+export async function periodFields(db: D1Database, body: Record<string, unknown>): Promise<PeriodFields | { error: string }> {
     const roomType = typeof body.room_type === 'string' ? body.room_type.trim() : '';
-    if (roomTypeByName(roomType) === undefined) return { error: 'unknown_room' };
+    if ((await roomTypeByName(db, roomType)) === null) return { error: 'unknown_room' };
     const dateFrom = typeof body.date_from === 'string' ? body.date_from.trim() : '';
     const dateTo = typeof body.date_to === 'string' ? body.date_to.trim() : '';
     if (!isValidDate(dateFrom) || !isValidDate(dateTo)) return { error: 'invalid_date' };

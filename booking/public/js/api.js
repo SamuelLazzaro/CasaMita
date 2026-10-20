@@ -165,9 +165,44 @@ export function createBooking(payload) {
     return postJson('/api/admin/bookings', payload);
 }
 
-/** @returns {Promise<{rooms: {name: string, max_guests: number, quantity: number}[]}>} */
+/* ------------------------------------------------------------- rooms API */
+
+/**
+ * @typedef {object} RoomPayload
+ * @property {string} name
+ * @property {number} max_guests
+ * @property {number} quantity
+ * @property {number} price_per_night - base price, mandatory
+ */
+
+/** @returns {Promise<{rooms: {id: number, name: string, max_guests: number, quantity: number, price_per_night: number|null}[]}>} */
 export function fetchRooms() {
     return requestJson('/api/admin/rooms');
+}
+
+/**
+ * @param {RoomPayload} payload
+ * @returns {Promise<{id: number}>}
+ */
+export function createRoomType(payload) {
+    return postJson('/api/admin/rooms', payload);
+}
+
+/**
+ * @param {number} id
+ * @param {Partial<RoomPayload>} payload - the fields to change
+ * @returns {Promise<{ok: boolean, overbooked: number}>} overbooked = rooms short at the busiest future night
+ */
+export function updateRoomType(id, payload) {
+    return requestJson(`/api/admin/rooms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+/**
+ * @param {number} id
+ * @returns {Promise<{ok: boolean}>} 409 room_in_use while a future booking names the type
+ */
+export function deleteRoomType(id) {
+    return requestJson(`/api/admin/rooms/${id}`, { method: 'DELETE' });
 }
 
 /** @returns {Promise<{items: object[]}>} */
@@ -258,15 +293,6 @@ export function fetchQuote(roomType, checkIn, checkOut) {
 /** @returns {Promise<{base: {room_type: string, price_per_night: number|null}[], periods: object[], discounts: object[]}>} */
 export function fetchPricing() {
     return requestJson('/api/admin/pricing');
-}
-
-/**
- * @param {string} roomType
- * @param {number} pricePerNight
- * @returns {Promise<{ok: boolean}>}
- */
-export function saveBasePrice(roomType, pricePerNight) {
-    return requestJson('/api/admin/pricing/base', { method: 'PUT', body: JSON.stringify({ room_type: roomType, price_per_night: pricePerNight }) });
 }
 
 /**

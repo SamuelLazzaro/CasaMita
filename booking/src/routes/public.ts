@@ -6,7 +6,7 @@ import { romeNow } from '../dates';
 import { notifyCancelledByGuest, notifyRequestSubmitted } from '../notifications';
 import { attemptAllowed } from '../ratelimit';
 import { quoteStay } from '../pricing';
-import { roomAvailability, roomTypeByName, roomTypes } from '../rooms';
+import { roomAvailability, roomTypeByName } from '../rooms';
 import { clientIp, langOf, randomToken, readJson, TOKEN_RE, writeAudit } from '../util';
 import { guestFields, hotelFields, restaurantFields, validateStay } from '../validation';
 
@@ -57,7 +57,7 @@ publicRoutes.get('/api/quote', async (c) => {
     const stayError = validateStay(checkIn, checkOut, romeNow(new Date()).date);
     if (stayError) return c.json({ error: stayError }, 400);
     const roomType = c.req.query('room_type') ?? '';
-    if (roomTypeByName(roomType) === undefined) return c.json({ error: 'unknown_room' }, 400);
+    if ((await roomTypeByName(c.env.DB, roomType)) === null) return c.json({ error: 'unknown_room' }, 400);
     const quote = await quoteStay(c.env.DB, roomType, checkIn, checkOut);
     if (quote === null) return c.json({ priced: false });
     return c.json({ priced: true, ...quote });
@@ -90,7 +90,7 @@ publicRoutes.post('/api/requests', async (c) => {
 
     let id: number;
     if (venue.type === 'hotel') {
-        const stay = hotelFields(body, now.date);
+        const stay = await hotelFields(c.env.DB, body, now.date);
         if ('error' in stay) return c.json({ error: stay.error }, 400);
         const availability = await roomAvailability(c.env.DB, stay.checkIn, stay.checkOut);
         const room = availability.find((candidate) => candidate.name === stay.roomType);
@@ -196,8 +196,3 @@ publicRoutes.post('/api/booking/:token/cancel', async (c) => {
     notifyCancelledByGuest(c, { ...request, status: 'cancelled' });
     return c.json({ ok: true, status: 'cancelled' });
 });
-
-/** Exposed for the admin "Rooms" section and the tests. */
-export function configuredRooms() {
-    return roomTypes();
-}

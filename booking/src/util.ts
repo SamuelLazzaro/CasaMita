@@ -45,6 +45,20 @@ export function integerBetween(value: unknown, min: number, max: number): number
     return value;
 }
 
+export const MAX_PRICE = 100_000;
+
+export function roundCents(value: number): number {
+    return Math.round(value * 100) / 100;
+}
+
+/** A price in euro: finite, non-negative, at most MAX_PRICE, with at most two decimals; null when invalid. */
+export function priceValue(value: unknown): number | null {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_PRICE) return null;
+    // A third decimal is refused rather than rounded: the cents the venue typed are the cents stored.
+    if (roundCents(value) !== value) return null;
+    return value;
+}
+
 /** Language of the requester: 'it' or 'en', defaulting to the given one. */
 export function langOf(value: unknown, fallback: Lang): Lang {
     return value === 'en' || value === 'it' ? value : fallback;

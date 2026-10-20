@@ -42,7 +42,7 @@ Rifacimento completo di https://www.ristorantealbergocasamita.it/ mantenendone l
   solo da `EMBED_ORIGIN` (`wrangler.jsonc`): se cambia il dominio del sito va aggiornato.
   L'indirizzo del Worker compare in tre punti da tenere allineati: `index.html` (script
   e link di fallback) e `admin.html` (meta refresh e link).
-  Tipologie e quantità di camere in `booking/rooms.csv`, prezzi dalla dashboard.
+  Tipologie, quantità e prezzi delle camere dalla dashboard (sezioni Camere e Prezzi).
 - **Bilingue IT/EN** con i18n runtime stile CardanoSkating (attributi `data-i18n`).
 - **Hosting non ancora deciso**: solo file statici, nessuna dipendenza dall'hosting.
 - Font self-hosted (niente CDN esterne) in ottica GDPR.

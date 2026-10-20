@@ -149,8 +149,11 @@
                 </section>
 
                 <section id="section-rooms" class="panel" data-section hidden>
-                    <h2 data-i18n="rooms.title">Camere</h2>
-                    <p class="hint" data-i18n="rooms.intro">Tipologie definite in rooms.csv. Scegli le date per vedere le camere libere.</p>
+                    <div class="panel-header">
+                        <h2 data-i18n="rooms.title">Camere</h2>
+                        <button type="button" class="btn btn-primary" id="new-room" data-i18n="rooms.new">Nuova tipologia</button>
+                    </div>
+                    <p class="hint" data-i18n="rooms.intro">Tipologie di camera della struttura, con il prezzo base a notte. Scegli le date per vedere le camere libere.</p>
                     <div class="field-row">
                         <div class="field">
                             <label for="rooms-check-in" data-i18n="field.checkIn">Check-in</label>
@@ -169,21 +172,21 @@
                                     <th scope="col" data-i18n="rooms.name">Tipologia</th>
                                     <th scope="col" data-i18n="rooms.maxGuests">Ospiti max</th>
                                     <th scope="col" data-i18n="rooms.quantity">Camere</th>
+                                    <th scope="col" data-i18n="rooms.basePrice">Prezzo base</th>
                                     <th scope="col" data-i18n="rooms.available">Libere</th>
+                                    <th scope="col" data-i18n="rooms.actions">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody id="rooms-body"></tbody>
                         </table>
                     </div>
+                    <p id="rooms-empty" class="hint" data-i18n="rooms.empty" hidden>Nessuna tipologia: creane una per aprire le prenotazioni.</p>
                 </section>
 
                 <section id="section-pricing" class="panel" data-section hidden>
                     <h2 data-i18n="pricing.title">Prezzi</h2>
-                    <p class="hint" data-i18n="pricing.intro">Prezzi per camera a notte, in euro, tasse incluse. Il prezzo base vale per tutte le date non coperte da un periodo.</p>
+                    <p class="hint" data-i18n="pricing.intro">Prezzi per camera a notte, in euro, tasse incluse. Il prezzo base di ogni tipologia si imposta nella sezione Camere e vale per tutte le date non coperte da un periodo.</p>
                     <p id="pricing-status" class="status" role="status" hidden></p>
-
-                    <h3 data-i18n="pricing.baseTitle">Prezzo base per tipologia</h3>
-                    <div id="pricing-base" class="pricing-grid"></div>
 
                     <h3 data-i18n="pricing.periodsTitle">Periodi (stagioni ed eccezioni)</h3>
                     <form id="period-form" class="form" novalidate>
@@ -335,6 +338,30 @@
                         <div><button type="button" class="btn btn-primary" id="deposit-confirm" data-i18n="deposit.confirm">Conferma acconto</button></div>
                     </div>
                     <p id="details-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <dialog id="dialog-room" class="dialog" aria-labelledby="room-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="room-dialog-title">Nuova tipologia</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <form id="room-form" class="form" novalidate>
+                        <input type="hidden" id="room-id" name="id">
+                        <div class="field"><label for="room-name" data-i18n="rooms.name">Tipologia</label><input type="text" id="room-name" name="name" maxlength="60" required></div>
+                        <div class="field-row">
+                            <div class="field"><label for="room-max-guests" data-i18n="rooms.maxGuests">Ospiti max</label><input type="number" id="room-max-guests" name="max_guests" min="1" max="20" value="2" required></div>
+                            <div class="field"><label for="room-quantity" data-i18n="rooms.quantity">Camere</label><input type="number" id="room-quantity" name="quantity" min="1" max="999" value="1" required></div>
+                        </div>
+                        <div class="field">
+                            <label for="room-price" data-i18n="pricing.pricePerNight">Prezzo a notte (€)</label>
+                            <input type="number" id="room-price" name="price_per_night" min="0" step="0.01" required>
+                            <p class="hint" data-i18n="rooms.priceHint">Prezzo base: vale per ogni notte non coperta da un periodo della sezione Prezzi.</p>
+                        </div>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button></div>
+                    </form>
+                    <p id="room-status" class="status" role="status" hidden></p>
                 </div>
             </dialog>
 

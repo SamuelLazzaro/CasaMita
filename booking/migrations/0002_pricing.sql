@@ -6,6 +6,8 @@
 -- night, in euro, taxes included (owner's decision). room_type references
 -- the "name" column of rooms.csv by value: the CSV stays the source of truth
 -- of the room types, the database only prices them.
+-- (Superseded by migration 0004: room types and base prices now live in
+-- room_types, and room_prices is dropped there.)
 
 -- Base price per room type: mandatory before the public form shows prices.
 CREATE TABLE room_prices (
