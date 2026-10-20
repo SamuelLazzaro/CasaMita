@@ -23,6 +23,7 @@
     justify-content: space-between;
     gap: var(--space-3);
     flex-wrap: wrap;
+    margin-bottom: var(--space-2);
 }
 
 .panel-header h2 {
