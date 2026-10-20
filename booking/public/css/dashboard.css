@@ -277,6 +277,37 @@ body:has(.nav-sections:not([hidden])) {
     font-weight: 400;
 }
 
+/* A figure of a day not yet passed is a button opening the day-price
+   dialog; it keeps the look of the plain figure and only gains a
+   background on hover (desktop) or tap (touch, .is-tapped). */
+.price-edit {
+    --price-edit-active-bg: var(--border);
+    font-family: inherit;
+    line-height: inherit;
+    padding: 0.1rem 0.35rem;
+    border: none;
+    border-radius: var(--radius);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+@media (pointer: fine) {
+    .price-edit:hover {
+        background: var(--price-edit-active-bg);
+    }
+}
+
+.price-edit.is-tapped {
+    background: var(--price-edit-active-bg);
+}
+
+/* the summary line of the day-price dialog: room type and date */
+.price-day-summary {
+    margin: 0 0 var(--space-2);
+    font-weight: 600;
+}
+
 .swatch.is-price-base {
     background: var(--accent-tint);
     border-left-color: var(--accent-text);

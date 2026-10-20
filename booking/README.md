@@ -207,8 +207,14 @@ minuti). Sezioni:
   stessa regola del preventivo (periodo che copre la notte, altrimenti prezzo
   base, altrimenti nessun prezzo). Vista settimana (tabella tipologie ×
   giorni) e mese (griglia con una riga per tipologia in ogni cella); niente
-  vista giorno. Solo lettura: i prezzi si modificano nella sezione Prezzi e il
-  calendario si aggiorna da solo.
+  vista giorno. Premendo il prezzo di un giorno non ancora passato si apre
+  il popup **Prezzo del giorno** (tipologia, data, provenienza del prezzo
+  attuale): il nuovo prezzo vale solo per quel giorno, salvato come periodo
+  di un giorno; se il giorno sta dentro un periodo più lungo, il server lo
+  spezza attorno al giorno (le parti prima e dopo conservano prezzo ed
+  etichetta). "Torna al prezzo base" rimuove l'eccezione, lasciando un buco
+  nel periodo se ce n'era uno. Periodi e sconti restano nella sezione Prezzi;
+  i due calendari si aggiornano da soli.
   Le viste settimana e mese mostrano i sette giorni per intero (la dashboard
   è più larga delle pagine pubbliche); se lo schermo è più stretto si scorre
   in orizzontale, col dito sul touch e trascinando col mouse sul desktop
@@ -237,6 +243,8 @@ se una fascia è già occupata.
 | `PATCH /api/admin/requests/:id` | modifica di una prenotazione in attesa o confermata: stessi campi della prenotazione diretta più `notify` (false per non avvisare il cliente); risponde con `changed` (colonne cambiate) e `item`; 409 `cannot_edit`, `in_past`, `room_unavailable`, `slots_taken` |
 | `GET /api/admin/availability?check_in=&check_out=&exclude=` | hotel: camere libere escludendo una prenotazione dal conteggio (quella in modifica) |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
+| `GET /api/admin/pricing`, `POST /api/admin/pricing/periods`, `PATCH/DELETE /api/admin/pricing/periods/:id`, `POST/DELETE /api/admin/pricing/discounts[/:id]` | hotel: prezzi base, periodi (409 `period_overlap`) e sconti |
+| `PUT /api/admin/pricing/days/:date` | hotel: prezzo di una tipologia (`room_type`) in un giorno, come periodo di un giorno che spezza quello che lo copre; `price_per_night: null` riporta il giorno al prezzo base; 409 `day_past` |
 | `GET/POST /api/admin/rooms`, `PATCH/DELETE /api/admin/rooms/:id` | hotel: tipologie di camera con prezzo base (`PATCH` risponde con `overbooked`, `DELETE` 409 `room_in_use` con prenotazioni future) |
 | `GET/POST /api/admin/requesters`, `PATCH /api/admin/requesters/:id` | impianto: società |
 | `POST /api/admin/requesters/:id/suspend\|reactivate\|regenerate-link\|send-link` | impianto: azioni sulla società |
@@ -280,7 +288,9 @@ dicitura mostrata al cliente e nelle email):
   resta "non impostato" finché il gestore non la modifica.
 - **Periodi**: intervallo di date (estremi inclusi) e tipologia con un prezzo
   a notte che sostituisce il base. Niente sovrapposizioni sulla stessa
-  tipologia (409 `period_overlap`); un periodo di un giorno copre le eccezioni.
+  tipologia (409 `period_overlap`); un periodo di un giorno copre le
+  eccezioni, ed è quello che crea il calendario Prezzi quando si cambia il
+  prezzo di un giorno (spezzando il periodo che lo copre).
 - Il preventivo esiste solo se **ogni notte** del soggiorno ha un prezzo, dal
   periodo che la copre o dal base: bastano i soli periodi se coprono tutte le
   notti. Se una notte resta senza prezzo, il form pubblico non mostra il

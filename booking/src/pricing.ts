@@ -80,6 +80,41 @@ export async function periodFields(db: D1Database, body: Record<string, unknown>
     return { roomType, dateFrom, dateTo, price, label: labelValue === '' ? null : labelValue };
 }
 
+/**
+ * Prices one day of one room type from the price calendar, leaving every
+ * other day as it is. The day's own price is a one-day rate period:
+ *
+ *   - no period covers the day: a one-day period is inserted (a reset has
+ *     nothing to do)
+ *   - a one-day period covers it: it is replaced, keeping its label (a reset
+ *     deletes it, the day falls back to the base price)
+ *   - a longer period covers it: it is split around the day, the parts before
+ *     and after keep its price and label, and the day gets its own unlabelled
+ *     one-day period (none on a reset, which leaves a hole in the period)
+ *
+ * The covering period is always deleted and re-inserted in parts, so the
+ * three cases share one path. Every statement runs in one batch (atomic in
+ * D1): a failure leaves the periods as they were. The caller validates room
+ * type, date and price.
+ * @param price - euro per night, null to bring the day back to the base price
+ */
+export async function setDayPrice(db: D1Database, roomType: string, day: string, price: number | null): Promise<void> {
+    const covering = await db.prepare('SELECT * FROM rate_periods WHERE room_type = ?1 AND date_from <= ?2 AND date_to >= ?2').bind(roomType, day).first<RatePeriod>();
+    const insertPeriod = (dateFrom: string, dateTo: string, nightly: number, label: string | null): D1PreparedStatement => db.prepare('INSERT INTO rate_periods (room_type, date_from, date_to, price_per_night, label) VALUES (?1, ?2, ?3, ?4, ?5)').bind(roomType, dateFrom, dateTo, nightly, label);
+    const statements: D1PreparedStatement[] = [];
+    if (covering !== null) {
+        statements.push(db.prepare('DELETE FROM rate_periods WHERE id = ?1').bind(covering.id));
+        // The parts of the period on either side of the day, when any.
+        if (covering.date_from < day) statements.push(insertPeriod(covering.date_from, addDays(day, -1), covering.price_per_night, covering.label));
+        if (covering.date_to > day) statements.push(insertPeriod(addDays(day, 1), covering.date_to, covering.price_per_night, covering.label));
+    }
+    if (price !== null) {
+        const wasOneDayPeriod = covering !== null && covering.date_from === covering.date_to;
+        statements.push(insertPeriod(day, day, price, wasOneDayPeriod ? covering.label : null));
+    }
+    if (statements.length > 0) await db.batch(statements);
+}
+
 /** True when another period of the same room type overlaps the range (excluding `excludeId`). */
 export async function periodOverlaps(db: D1Database, fields: PeriodFields, excludeId = 0): Promise<boolean> {
     const row = await db.prepare('SELECT COUNT(*) AS n FROM rate_periods WHERE room_type = ?1 AND id != ?4 AND date_from <= ?3 AND date_to >= ?2').bind(fields.roomType, fields.dateFrom, fields.dateTo, excludeId).first<{ n: number }>();

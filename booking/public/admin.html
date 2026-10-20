@@ -110,7 +110,7 @@
                         </div>
                     </div>
 
-                    <!-- Price calendar (hotel): week and month only, read-only figures. -->
+                    <!-- Price calendar (hotel): week and month only; a figure of a future day opens #dialog-price. -->
                     <div id="price-calendar-block" hidden>
                         <div class="view-switch" role="group">
                             <button type="button" class="btn btn-small" id="price-cal-view-week" aria-pressed="true" data-i18n="calendar.week">Settimana</button>
@@ -134,7 +134,7 @@
                             <span class="chip"><span class="swatch is-price-period"></span> <span data-i18n="calendar.priceLegendPeriod">Periodo</span></span>
                             <span class="chip"><span class="swatch is-price-none"></span> <span data-i18n="calendar.priceNone">Senza prezzo</span></span>
                         </div>
-                        <p class="hint" data-i18n="calendar.priceHint">Prezzi a notte per tipologia, tasse incluse. Si modificano nella sezione Prezzi.</p>
+                        <p class="hint" data-i18n="calendar.priceHint">Prezzi a notte per tipologia, tasse incluse. Premi un prezzo per cambiarlo in quel giorno; periodi e sconti si gestiscono nella sezione Prezzi.</p>
                         <div class="calendar-scroll">
                             <div id="price-calendar" class="calendar"></div>
                         </div>
@@ -375,6 +375,30 @@
                         <div><button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button></div>
                     </form>
                     <p id="room-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <!-- Hotel: the price of one room type on one day, opened from the price calendar. -->
+            <dialog id="dialog-price" class="dialog" aria-labelledby="price-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="price-dialog-title" data-i18n="priceDay.title">Prezzo del giorno</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <p id="price-day-summary" class="price-day-summary"></p>
+                    <p id="price-day-current" class="hint"></p>
+                    <form id="price-day-form" class="form" novalidate>
+                        <div class="field">
+                            <label for="price-day-price" data-i18n="pricing.pricePerNight">Prezzo a notte (€)</label>
+                            <input type="number" id="price-day-price" name="price_per_night" min="0" step="0.01" required>
+                            <p class="hint" data-i18n="priceDay.hint">Vale solo per questo giorno: se il giorno fa parte di un periodo, gli altri giorni del periodo non cambiano.</p>
+                        </div>
+                        <div class="actions">
+                            <button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button>
+                            <button type="button" class="btn" id="price-day-reset" data-i18n="priceDay.useBase">Torna al prezzo base</button>
+                        </div>
+                    </form>
+                    <p id="price-day-status" class="status" role="status" hidden></p>
                 </div>
             </dialog>
 

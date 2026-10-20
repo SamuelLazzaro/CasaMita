@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 import { computeQuote, quoteStay } from '../src/pricing';
 import { requestDetails } from '../src/texts';
-import { adminCall, adminCookie, daysAhead, get, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, setBasePrice } from './helpers';
+import { addDays } from '../src/dates';
+import { adminCall, adminCookie, daysAhead, get, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, setBasePrice, today, UNKNOWN_ROOM } from './helpers';
 
 /** Query string of GET /api/quote for a stay in a room type. */
 function quoteQuery(room: string, checkIn: string, checkOut: string): string {
@@ -123,6 +124,58 @@ describe('pricing administration and public quote', () => {
 
         const invalid = await adminCall('POST', '/api/admin/bookings', cookie, { ...hotelBody({ room_type: ROOM_B.name, check_in: daysAhead(236), check_out: daysAhead(238) }), total: 'molto' });
         expect(invalid.status).toBe(400);
+    });
+
+    it('prices one day from the calendar as a one-day period, splitting the period that covers it', async () => {
+        const cookie = await adminCookie();
+        /** The periods of ROOM_C, in calendar order, reduced to what matters. */
+        async function periodsOfRoomC(): Promise<{ from: string; to: string; price: number; label: string | null }[]> {
+            const pricing = await json<{ periods: { room_type: string; date_from: string; date_to: string; price_per_night: number; label: string | null }[] }>(await adminCall('GET', '/api/admin/pricing', cookie));
+            return pricing.periods.filter((period) => period.room_type === ROOM_C.name).map((period) => ({ from: period.date_from, to: period.date_to, price: period.price_per_night, label: period.label }));
+        }
+        const setDay = (day: string, price: unknown) => adminCall('PUT', `/api/admin/pricing/days/${day}`, cookie, { room_type: ROOM_C.name, price_per_night: price });
+        const lone = daysAhead(300);
+
+        // No period covers the day: a one-day period appears; pricing it again replaces it; a reset removes it.
+        expect((await setDay(lone, 70)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([{ from: lone, to: lone, price: 70, label: null }]);
+        expect((await setDay(lone, 75)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([{ from: lone, to: lone, price: 75, label: null }]);
+        expect((await setDay(lone, null)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([]);
+        // Resetting a day no period covers is a no-op.
+        expect((await setDay(lone, null)).status).toBe(200);
+
+        // A day inside a longer period: the period is split around it, both parts keep price and label.
+        const from = daysAhead(310);
+        const to = daysAhead(316);
+        const middle = daysAhead(313);
+        expect((await adminCall('POST', '/api/admin/pricing/periods', cookie, { room_type: ROOM_C.name, date_from: from, date_to: to, price_per_night: 100, label: 'Festa' })).status).toBe(201);
+        expect((await setDay(middle, 130)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([{ from, to: daysAhead(312), price: 100, label: 'Festa' }, { from: middle, to: middle, price: 130, label: null }, { from: daysAhead(314), to, price: 100, label: 'Festa' }]);
+        // Resetting the day leaves a hole in the period.
+        expect((await setDay(middle, null)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([{ from, to: daysAhead(312), price: 100, label: 'Festa' }, { from: daysAhead(314), to, price: 100, label: 'Festa' }]);
+        // The first day of a period: only the part after it remains.
+        expect((await setDay(from, 90)).status).toBe(200);
+        expect(await periodsOfRoomC()).toEqual([{ from, to: from, price: 90, label: null }, { from: daysAhead(311), to: daysAhead(312), price: 100, label: 'Festa' }, { from: daysAhead(314), to, price: 100, label: 'Festa' }]);
+        // The quote follows: no base price, every night covered.
+        expect((await quoteStay(env.DB, ROOM_C.name, from, daysAhead(313)))!.subtotal).toBe(90 + 100 + 100);
+    });
+
+    it('refuses day prices in the past, on unknown rooms or with bad values', async () => {
+        const cookie = await adminCookie();
+        const setDay = (day: string, body: unknown) => adminCall('PUT', `/api/admin/pricing/days/${day}`, cookie, body);
+        const yesterday = addDays(today(), -1);
+        expect((await setDay(yesterday, { room_type: ROOM_C.name, price_per_night: 50 })).status).toBe(409);
+        expect((await json<{ error: string }>(await setDay(yesterday, { room_type: ROOM_C.name, price_per_night: 50 }))).error).toBe('day_past');
+        // Today is still a bookable night.
+        expect((await setDay(today(), { room_type: ROOM_C.name, price_per_night: 50 })).status).toBe(200);
+        expect((await setDay('2027-02-30', { room_type: ROOM_C.name, price_per_night: 50 })).status).toBe(400);
+        expect((await setDay(daysAhead(320), { room_type: UNKNOWN_ROOM, price_per_night: 50 })).status).toBe(400);
+        expect((await setDay(daysAhead(320), { room_type: ROOM_C.name, price_per_night: -1 })).status).toBe(400);
+        expect((await setDay(daysAhead(320), { room_type: ROOM_C.name, price_per_night: 'molto' })).status).toBe(400);
+        expect((await setDay(daysAhead(320), { room_type: ROOM_C.name })).status).toBe(400);
     });
 
     it('writes the total, the discount and the tax wording in the email details', () => {

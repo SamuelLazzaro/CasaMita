@@ -9,8 +9,10 @@
  *   week  → table: one row per room type, one column per day
  *   month → grid of whole weeks, every cell lists the room types with price
  *
- * Nothing here is clickable: the figures are read-only, prices are edited in
- * the Prices section.
+ * The figure of a day not yet passed is a button (class PRICE_EDIT_CLASS,
+ * data-day and data-room attributes) opening the day-price dialog of the
+ * dashboard; one delegated listener per calendar (attachPriceEdit) handles
+ * every figure, whatever view is drawn. Past days keep a plain figure.
  */
 import { currentLanguage, translate } from './i18n.js';
 import { addDays, formatDayHeader, formatEuro, monthGridDays, mondayOf, todayInRome, weekDays } from './utils.js';
@@ -44,15 +46,42 @@ export function pricesOfDay(pricing, day) {
     });
 }
 
+/** Class of the figures that open the day-price dialog. */
+const PRICE_EDIT_CLASS = 'price-edit';
+
 /**
- * The price figure of one room on one day, styled by its source.
+ * Runs `onEdit` when a figure of a future day is clicked, with one listener
+ * for the whole calendar (the figures are redrawn at every navigation).
+ * @param {HTMLElement} container - the calendar element renderPriceWeek / renderPriceMonth draw into
+ * @param {(day: string, roomType: string) => void} onEdit
+ * @returns {void}
+ */
+export function attachPriceEdit(container, onEdit) {
+    container.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target.closest(`.${PRICE_EDIT_CLASS}`) : null;
+        if (target === null || !container.contains(target)) return;
+        onEdit(target.dataset.day, target.dataset.room);
+    });
+}
+
+/**
+ * The price figure of one room on one day, styled by its source: a button
+ * when the day can still be priced, a plain span for a past day.
  * @param {DayPrice} dayPrice
  * @param {string} lang
+ * @param {string} day - 'YYYY-MM-DD'
+ * @param {boolean} editable
  * @returns {HTMLElement}
  */
-function priceElement(dayPrice, lang) {
-    const element = document.createElement('span');
+function priceElement(dayPrice, lang, day, editable) {
+    const element = document.createElement(editable ? 'button' : 'span');
     element.className = 'price-value';
+    if (editable) {
+        element.type = 'button';
+        element.classList.add(PRICE_EDIT_CLASS);
+        element.dataset.day = day;
+        element.dataset.room = dayPrice.roomType;
+    }
     if (dayPrice.price === null) {
         element.classList.add('is-unpriced');
         element.textContent = '—';
@@ -109,7 +138,7 @@ export function renderPriceWeek(container, date, pricing) {
             const cell = document.createElement('td');
             if (day === today) cell.classList.add('is-today');
             if (day < today) cell.classList.add('is-past');
-            cell.append(priceElement(pricesByDay[dayIndex][roomIndex], lang));
+            cell.append(priceElement(pricesByDay[dayIndex][roomIndex], lang, day, day >= today));
             row.append(cell);
         });
         body.append(row);
@@ -158,7 +187,7 @@ export function renderPriceMonth(container, date, pricing) {
             name.className = 'price-line-room';
             name.textContent = dayPrice.roomType;
             name.title = dayPrice.roomType;
-            line.append(name, priceElement(dayPrice, lang));
+            line.append(name, priceElement(dayPrice, lang, day, day >= today));
             lines.append(line);
         }
         cell.append(header, lines);

@@ -5,7 +5,7 @@ import { venueConfig, type VenueConfig } from '../config';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
 import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyChangedByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
 import { attemptAllowed } from '../ratelimit';
-import { periodFields, periodOverlaps, quoteStay, type DiscountRule, type RatePeriod } from '../pricing';
+import { periodFields, periodOverlaps, quoteStay, setDayPrice, type DiscountRule, type RatePeriod } from '../pricing';
 import { createRoomType, deleteRoomType, futureBookingsOf, overbookedRooms, roomAvailability, roomFields, roomNameTaken, roomTypeById, roomTypeByName, roomTypes, updateRoomType } from '../rooms';
 import { isSlotConflict, keysOf, occupiedSlots, slotInserts } from '../slots';
 import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, priceValue, randomToken, readJson, text, writeAudit } from '../util';
@@ -573,6 +573,29 @@ admin.delete('/pricing/periods/:id', async (c) => {
     const result = id === null ? null : await c.env.DB.prepare('DELETE FROM rate_periods WHERE id = ?1').bind(id).run();
     if (result === null || result.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
     await writeAudit(c.env.DB, 'price_period_deleted', `period #${id}`, 'admin');
+    return c.json({ ok: true });
+});
+
+/**
+ * Price calendar: the nightly price of one room type on one day, stored as a
+ * one-day period (the period covering the day, if longer, is split around
+ * it). A null price brings the day back to the base price. Past days are
+ * read-only: no quote will ever use them.
+ */
+admin.put('/pricing/days/:date', async (c) => {
+    const day = c.req.param('date');
+    if (!isValidDate(day)) return c.json({ error: 'invalid_date' }, 400);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const roomType = typeof body.room_type === 'string' ? body.room_type.trim() : '';
+    if ((await roomTypeByName(c.env.DB, roomType)) === null) return c.json({ error: 'unknown_room' }, 400);
+    // An explicit null resets the day; anything else must be a valid price.
+    const resetRequested = body.price_per_night === null;
+    const price = resetRequested ? null : priceValue(body.price_per_night);
+    if (!resetRequested && price === null) return c.json({ error: 'invalid_price' }, 400);
+    if (day < romeNow(new Date()).date) return c.json({ error: 'day_past' }, 409);
+    await setDayPrice(c.env.DB, roomType, day, price);
+    await writeAudit(c.env.DB, price === null ? 'price_day_reset' : 'price_day_set', `${roomType} ${day}${price === null ? '' : `: ${price}`}`, 'admin');
     return c.json({ ok: true });
 });
 

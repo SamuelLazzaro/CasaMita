@@ -5,11 +5,11 @@
  * types with their base price (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, updateBooking, updateRequester, updateRoomType } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, setDayPrice, updateBooking, updateRequester, updateRoomType } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
-import { renderPriceMonth, renderPriceWeek } from './price-calendar.js';
+import { attachPriceEdit, pricesOfDay, renderPriceMonth, renderPriceWeek } from './price-calendar.js';
 import { initFacilityForm } from './form-facility.js';
 import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
@@ -122,6 +122,94 @@ function setCalendarMode(mode) {
 
 byId('cal-mode-bookings').addEventListener('click', () => setCalendarMode('bookings'));
 byId('cal-mode-prices').addEventListener('click', () => setCalendarMode('prices'));
+
+/* ----------------------------------------------- day price (hotel) */
+
+/*
+ * Clicking a figure of the price calendar opens a dialog for that room type
+ * on that day. Saving writes a one-day period through the API (the server
+ * splits a longer period around the day); "back to the base price" removes
+ * it. Both redraw the Prices section and the calendar from fresh data.
+ */
+const priceDayDialog = byId('dialog-price');
+const priceDayForm = byId('price-day-form');
+const priceDayStatus = byId('price-day-status');
+const priceDayInput = byId('price-day-price');
+const priceDayReset = byId('price-day-reset');
+bindPriceInput(priceDayInput);
+
+/** @type {{day: string, roomType: string}|null} the figure the dialog is editing */
+let g_priceDayTarget = null;
+
+/**
+ * Sentence describing where the current price of the day comes from.
+ * @param {import('./price-calendar.js').DayPrice} dayPrice
+ * @param {string} lang
+ * @returns {string}
+ */
+function currentPriceText(dayPrice, lang) {
+    if (dayPrice.price === null) return translate('priceDay.currentNone');
+    const price = formatEuro(dayPrice.price, lang);
+    if (dayPrice.source === 'base') return translate('priceDay.currentBase', { price });
+    if (dayPrice.label === null) return translate('priceDay.currentPeriodNoLabel', { price });
+    return translate('priceDay.currentPeriod', { price, label: dayPrice.label });
+}
+
+/**
+ * @param {string} day - 'YYYY-MM-DD'
+ * @param {string} roomType
+ * @returns {void}
+ */
+function openPriceDayDialog(day, roomType) {
+    if (g_pricing === null) return;
+    const dayPrice = pricesOfDay(g_pricing, day).find((entry) => entry.roomType === roomType);
+    if (dayPrice === undefined) return;
+    const lang = currentLanguage();
+    g_priceDayTarget = { day, roomType };
+    byId('price-day-summary').textContent = `${roomType} · ${formatLongDate(day, lang)}`;
+    byId('price-day-current').textContent = currentPriceText(dayPrice, lang);
+    priceDayForm.reset();
+    priceDayInput.value = priceInputValue(dayPrice.price);
+    // Only a day priced by a period has something to go back from.
+    priceDayReset.hidden = dayPrice.source !== 'period';
+    hideStatus(priceDayStatus);
+    openDialog(priceDayDialog);
+    priceDayInput.focus();
+    priceDayInput.select();
+}
+
+/**
+ * Writes the day price (or its reset), closes the dialog and refreshes.
+ * @param {number|null} price
+ * @param {string} doneKey
+ * @returns {Promise<void>}
+ */
+async function runPriceDayAction(price, doneKey) {
+    if (g_priceDayTarget === null) return;
+    hideStatus(priceDayStatus);
+    try {
+        await setDayPrice(g_priceDayTarget.day, g_priceDayTarget.roomType, price);
+        priceDayDialog.close();
+        // loadPricing redraws the calendar and clears its status first.
+        await loadPricing();
+        showStatus(priceCalendarStatus, translate(doneKey), 'ok');
+    } catch (error) {
+        showStatus(priceDayStatus, errorMessage(error), 'error');
+    }
+}
+
+priceDayForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!priceDayForm.checkValidity()) {
+        showStatus(priceDayStatus, translate('validation.required'), 'error');
+        return;
+    }
+    runPriceDayAction(Number(priceDayInput.value), 'done.dayPriceSaved');
+});
+
+priceDayReset.addEventListener('click', () => runPriceDayAction(null, 'done.dayPriceReset'));
+
+attachPriceEdit(priceCalendarContainer, openPriceDayDialog);
 
 /* -------------------------------------------------------------- details */
 

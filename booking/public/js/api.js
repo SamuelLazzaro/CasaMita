@@ -327,6 +327,17 @@ export function deletePeriod(id) {
 }
 
 /**
+ * Price calendar: the nightly price of one room type on one day.
+ * @param {string} day - 'YYYY-MM-DD'
+ * @param {string} roomType
+ * @param {number|null} price - null brings the day back to the base price
+ * @returns {Promise<{ok: boolean}>}
+ */
+export function setDayPrice(day, roomType, price) {
+    return requestJson(`/api/admin/pricing/days/${encodeURIComponent(day)}`, { method: 'PUT', body: JSON.stringify({ room_type: roomType, price_per_night: price }) });
+}
+
+/**
  * @param {number} minNights
  * @param {number} percent
  * @returns {Promise<{id: number}>}
