@@ -1021,6 +1021,22 @@ button.cal-cell-header:focus-visible {
     display: none;
 }
 
+/* Edit recap: every changed field with the value it had struck through and
+   the new one beside it, in the same two-column list as the details. */
+.edit-diff .diff-before {
+    text-decoration: line-through;
+    color: var(--text-muted);
+    margin-right: var(--space-2);
+}
+
+.edit-diff .diff-after {
+    font-weight: 600;
+}
+
+.edit-notify {
+    margin-top: var(--space-3);
+}
+
 /* ---------------------------------------------- read-only calendar entries */
 
 /* Other organisations' bookings in the requester area: visible, not clickable. */

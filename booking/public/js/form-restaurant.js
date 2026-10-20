@@ -12,9 +12,9 @@ import { addDays, minutesFromTime, seatingTimes, todayInRome } from './utils.js'
 /**
  * Wires a restaurant form.
  * @param {{restaurant: {lunch: {open: string, close: string}, dinner: {open: string, close: string}, stepMinutes: number}}} config
- * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
+ * @param {(payload: Record<string, unknown>) => Promise<void|boolean>} onSubmit - sends the payload; throws on failure; resolves false to keep the form as it is (nothing was sent)
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => void, prefill: (values: {date: string, time: string|null}) => void}} prefill sets date, service and time from a calendar cell
+ * @returns {{reset: () => void, prefill: (values: {date: string, time: string|null}) => void, startEdit: (item: object) => void}} prefill sets date, service and time from a calendar cell; startEdit fills the form with a booking (admin)
  */
 export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -25,6 +25,9 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
     const submitButton = byId('submit');
     const privacy = byId('privacy');
     const langSelect = byId('lang');
+
+    /** @type {boolean} true while the form edits an existing booking (admin): the submit button reads "Save" */
+    let editing = false;
 
     const today = todayInRome();
     date.min = today;
@@ -43,6 +46,8 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
     }
 
     function reset() {
+        editing = false;
+        submitButton.textContent = translate('common.submit');
         form.reset();
         date.value = today;
         renderTimes();
@@ -74,6 +79,25 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
         timeSelect.value = values.time;
     }
 
+    /**
+     * Fills the form with an existing booking (admin dialog in edit mode).
+     * @param {object} item - a restaurant request as the admin API returns it
+     * @returns {void}
+     */
+    function startEdit(item) {
+        form.reset();
+        editing = true;
+        byId('first-name').value = item.first_name ?? '';
+        byId('last-name').value = item.last_name ?? '';
+        byId('email').value = item.email ?? '';
+        byId('phone').value = item.phone ?? '';
+        byId('party-size').value = String(item.party_size);
+        byId('notes').value = item.notes ?? '';
+        if (langSelect !== null) langSelect.value = item.lang;
+        prefill({ date: item.date, time: item.start_time });
+        submitButton.textContent = translate('common.save');
+    }
+
     for (const radio of form.querySelectorAll('input[name="service"]')) radio.addEventListener('change', renderTimes);
     renderTimes();
 
@@ -102,15 +126,15 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
         submitButton.disabled = true;
         submitButton.textContent = translate('common.sending');
         try {
-            await onSubmit(payload);
-            reset();
+            const done = await onSubmit(payload);
+            if (done !== false) reset();
         } catch (error) {
             showStatus(status, errorMessage(error), 'error');
         } finally {
             submitButton.disabled = false;
-            submitButton.textContent = translate('common.submit');
+            submitButton.textContent = translate(editing ? 'common.save' : 'common.submit');
         }
     });
 
-    return { reset, prefill };
+    return { reset, prefill, startEdit };
 }

@@ -12,11 +12,15 @@ export function keysOf(booking: { date: string; start_time: string; end_time: st
     return slotKeys(booking.date, booking.start_time, booking.end_time, slotMinutes);
 }
 
-/** Which of the given keys are already taken, in order (empty when all free). */
-export async function occupiedSlots(db: D1Database, keys: string[]): Promise<string[]> {
+/**
+ * Which of the given keys are already taken, in order (empty when all free).
+ * `excludeRequestId` leaves the slots of one booking out (the one being
+ * moved: its own slots are free for its new range).
+ */
+export async function occupiedSlots(db: D1Database, keys: string[], excludeRequestId = 0): Promise<string[]> {
     if (keys.length === 0) return [];
-    const placeholders = keys.map((_, index) => `?${index + 1}`).join(', ');
-    const { results } = await db.prepare(`SELECT slot_key FROM slots WHERE slot_key IN (${placeholders}) ORDER BY slot_key`).bind(...keys).all<{ slot_key: string }>();
+    const placeholders = keys.map((_, index) => `?${index + 2}`).join(', ');
+    const { results } = await db.prepare(`SELECT slot_key FROM slots WHERE request_id != ?1 AND slot_key IN (${placeholders}) ORDER BY slot_key`).bind(excludeRequestId, ...keys).all<{ slot_key: string }>();
     return results.map((row) => row.slot_key);
 }
 

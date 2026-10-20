@@ -28,9 +28,9 @@ function timeOptions(facility, forEnd) {
 /**
  * Wires a facility form.
  * @param {{facility: {open: string, close: string, slotMinutes: number}}} config
- * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
+ * @param {(payload: Record<string, unknown>) => Promise<void|boolean>} onSubmit - sends the payload; throws on failure; resolves false to keep the form as it is (nothing was sent)
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => void, setRequesters: (requesters: {id: number, name: string, status: string}[]) => void, prefill: (values: {date: string, startTime: string|null}) => void}} prefill sets date and time range from a calendar cell
+ * @returns {{reset: () => void, setRequesters: (requesters: {id: number, name: string, status: string}[]) => void, prefill: (values: {date: string, startTime: string|null}) => void, startEdit: (item: object) => void}} prefill sets date and time range from a calendar cell; startEdit fills the form with a booking (admin)
  */
 export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -41,6 +41,9 @@ export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
     const endSelect = byId('end-time');
     const status = byId('status');
     const submitButton = byId('submit');
+
+    /** @type {boolean} true while the form edits an existing booking (admin): the submit button reads "Save" */
+    let editing = false;
 
     const today = todayInRome();
     date.min = today;
@@ -56,10 +59,28 @@ export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
     startSelect.addEventListener('change', alignEnd);
 
     function reset() {
+        editing = false;
+        submitButton.textContent = translate('common.submit');
         form.reset();
         date.value = today;
         startSelect.selectedIndex = 0;
         alignEnd();
+    }
+
+    /**
+     * Fills the form with an existing booking (admin dialog in edit mode).
+     * @param {object} item - a facility request as the admin API returns it
+     * @returns {void}
+     */
+    function startEdit(item) {
+        form.reset();
+        editing = true;
+        if (requesterSelect !== null) requesterSelect.value = String(item.requester_id);
+        date.value = item.date;
+        startSelect.value = item.start_time;
+        endSelect.value = item.end_time;
+        byId('notes').value = item.notes ?? '';
+        submitButton.textContent = translate('common.save');
     }
 
     /**
@@ -102,17 +123,17 @@ export function initFacilityForm(config, onSubmit, prefix = 'direct-facility') {
         submitButton.disabled = true;
         submitButton.textContent = translate('common.sending');
         try {
-            await onSubmit(payload);
-            reset();
+            const done = await onSubmit(payload);
+            if (done !== false) reset();
         } catch (error) {
             const slots = error.slots ? ` (${error.slots.map((key) => key.slice(11, 13) + ':' + key.slice(13)).join(', ')})` : '';
             showStatus(status, errorMessage(error) + slots, 'error');
         } finally {
             submitButton.disabled = false;
-            submitButton.textContent = translate('common.submit');
+            submitButton.textContent = translate(editing ? 'common.save' : 'common.submit');
         }
     });
 
     alignEnd();
-    return { reset, setRequesters, prefill };
+    return { reset, setRequesters, prefill, startEdit };
 }

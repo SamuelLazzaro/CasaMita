@@ -30,9 +30,9 @@ function roomLabel(room) {
 
 /**
  * Wires a hotel form.
- * @param {(payload: Record<string, unknown>) => Promise<void>} onSubmit - sends the payload; throws on failure
+ * @param {(payload: Record<string, unknown>) => Promise<void|boolean>} onSubmit - sends the payload; throws on failure; resolves false to keep the form as it is (nothing was sent)
  * @param {string} [prefix] - id prefix of the form and its fields
- * @returns {{reset: () => Promise<void>, prefill: (values: {checkIn: string}) => Promise<void>}} reset clears the fields and the availability list; prefill sets the dates from a calendar cell
+ * @returns {{reset: () => Promise<void>, prefill: (values: {checkIn: string}) => Promise<void>, startEdit: (item: object) => Promise<void>}} reset clears the fields and the availability list; prefill sets the dates from a calendar cell; startEdit fills the form with a booking (admin)
  */
 export function initHotelForm(onSubmit, prefix = 'hotel') {
     const byId = (suffix) => document.getElementById(`${prefix}-${suffix}`);
@@ -50,6 +50,9 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
 
     /** @type {RoomOption[]} last availability answer, re-labelled on language change */
     let rooms = [];
+
+    /** @type {object|null} the booking the form is editing (admin), null while it describes a new one */
+    let editing = null;
 
     const today = todayInRome();
     checkIn.min = today;
@@ -164,10 +167,22 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     }
 
     /**
+     * The total the "total" field starts from: the computed one, or, while
+     * editing a booking whose stay (dates and room) is untouched, the total
+     * that booking already has, so a price list changed meanwhile does not
+     * silently rewrite an agreed price.
+     * @returns {number|null}
+     */
+    function defaultTotal() {
+        const stayKept = editing !== null && editing.check_in === checkIn.value && editing.check_out === checkOut.value && editing.room_type === roomSelect.value;
+        if (stayKept && editing.quoted_total !== null && editing.quoted_total !== undefined) return editing.quoted_total;
+        return quote === null || quote.priced === false ? null : quote.total;
+    }
+
+    /**
      * Loads the quote of the selected room and dates. In the admin dialog the
-     * editable "total" field is prefilled with the computed total here, and
-     * only here: a language change redraws the box without touching what the
-     * venue typed.
+     * editable "total" field is prefilled here, and only here: a language
+     * change redraws the box without touching what the venue typed.
      * @returns {Promise<void>}
      */
     async function refreshQuote() {
@@ -181,7 +196,7 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
                 quote = null;
             }
         }
-        if (totalInput !== null) totalInput.value = quote === null || quote.priced === false ? '' : priceInputValue(quote.total);
+        if (totalInput !== null) totalInput.value = priceInputValue(defaultTotal());
         renderQuote();
     }
 
@@ -197,7 +212,8 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         }
         hint.textContent = translate('hotel.checking');
         try {
-            const answer = await fetchAvailability(checkIn.value, checkOut.value);
+            // The booking being edited is left out of the count: its own room is free for it.
+            const answer = await fetchAvailability(checkIn.value, checkOut.value, editing === null ? 0 : editing.id);
             rooms = answer.rooms;
             renderRooms();
         } catch (error) {
@@ -209,7 +225,36 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     }
 
     async function reset() {
+        editing = null;
+        checkIn.min = today;
+        submitButton.textContent = translate('common.submit');
         form.reset();
+        await refreshAvailability();
+    }
+
+    /**
+     * Fills the form with an existing booking (admin dialog in edit mode).
+     * The room is set before the availability is loaded, so the list keeps
+     * it selected; a stay already begun keeps its past check-in.
+     * @param {object} item - a hotel request as the admin API returns it
+     * @returns {Promise<void>}
+     */
+    async function startEdit(item) {
+        form.reset();
+        editing = item;
+        byId('first-name').value = item.first_name ?? '';
+        byId('last-name').value = item.last_name ?? '';
+        byId('email').value = item.email ?? '';
+        byId('phone').value = item.phone ?? '';
+        byId('adults').value = String(item.adults);
+        byId('children').value = String(item.children);
+        byId('notes').value = item.notes ?? '';
+        if (langSelect !== null) langSelect.value = item.lang;
+        checkIn.min = item.check_in < today ? item.check_in : today;
+        checkIn.value = item.check_in;
+        checkOut.value = item.check_out;
+        fillSelect(roomSelect, [{ value: item.room_type, label: item.room_type }], item.room_type);
+        submitButton.textContent = translate('common.save');
         await refreshAvailability();
     }
 
@@ -267,17 +312,17 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         submitButton.disabled = true;
         submitButton.textContent = translate('common.sending');
         try {
-            await onSubmit(payload);
-            await reset();
+            const done = await onSubmit(payload);
+            if (done !== false) await reset();
         } catch (error) {
             showStatus(status, errorMessage(error), 'error');
             // A sold-out answer means somebody else got the room meanwhile: refresh the list.
             if (error.message === 'room_unavailable') await refreshAvailability();
         } finally {
             submitButton.disabled = false;
-            submitButton.textContent = translate('common.submit');
+            submitButton.textContent = translate(editing === null ? 'common.submit' : 'common.save');
         }
     });
 
-    return { reset, prefill };
+    return { reset, prefill, startEdit };
 }

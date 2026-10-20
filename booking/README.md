@@ -177,8 +177,19 @@ minuti). Sezioni:
   l'impianto). Nell'impianto una prenotazione occupa le sue fasce, colorate
   con il colore della società (richieste in attesa a righe); nel ristorante
   ogni fascia elenca i tavoli seduti a quell'ora. Ogni voce apre il popup con
-  i dettagli e le azioni (approva, rifiuta con messaggio facoltativo, annulla;
-  per l'hotel anche i pagamenti, vedi sotto).
+  i dettagli e le azioni (approva, rifiuta con messaggio facoltativo, modifica,
+  annulla; per l'hotel anche i pagamenti, vedi sotto).
+  "Modifica" riapre la prenotazione (in attesa o confermata, non ancora
+  conclusa) nella stessa finestra della prenotazione diretta, con tutti i
+  campi precompilati; al salvataggio la finestra mostra il riepilogo dei soli
+  campi cambiati (prima → dopo) con la spunta "Avvisa il cliente via email", e
+  scrive solo dopo la conferma. Valgono le regole di una nuova prenotazione
+  (per una prenotazione confermata anche la disponibilità di camere o fasce,
+  escludendo se stessa dal conteggio); un soggiorno già iniziato conserva il
+  suo check-in. Il prezzo resta quello registrato finché date, camera e totale
+  non cambiano; altrimenti viene ricalcolato, con l'eventuale cifra concordata.
+  I pagamenti già registrati non vengono toccati: il popup mostra il nuovo
+  saldo.
   "Nuova prenotazione" registra una prenotazione già confermata con le stesse
   regole e gli stessi campi del cliente; il cliente riceve l'email di
   conferma con il link personale, il gestore nessuna email. La stessa
@@ -223,6 +234,8 @@ se una fascia è già occupata.
 | `GET /api/admin/requests?status=` | richieste per stato |
 | `POST /api/admin/requests/:id/approve\|reject\|cancel` | decisioni (il rifiuto accetta `reason`) |
 | `POST /api/admin/requests/:id/deposit\|paid` | hotel: pagamenti (l'acconto accetta `amount`) |
+| `PATCH /api/admin/requests/:id` | modifica di una prenotazione in attesa o confermata: stessi campi della prenotazione diretta più `notify` (false per non avvisare il cliente); risponde con `changed` (colonne cambiate) e `item`; 409 `cannot_edit`, `in_past`, `room_unavailable`, `slots_taken` |
+| `GET /api/admin/availability?check_in=&check_out=&exclude=` | hotel: camere libere escludendo una prenotazione dal conteggio (quella in modifica) |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
 | `GET/POST /api/admin/rooms`, `PATCH/DELETE /api/admin/rooms/:id` | hotel: tipologie di camera con prezzo base (`PATCH` risponde con `overbooked`, `DELETE` 409 `room_in_use` con prenotazioni future) |
 | `GET/POST /api/admin/requesters`, `PATCH /api/admin/requesters/:id` | impianto: società |

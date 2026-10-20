@@ -3,13 +3,13 @@ import type { Bindings, RequesterRow, RequestRow } from '../types';
 import { ADMIN_SESSION_S, clearSessionCookie, constantTimeEqual, COOKIE_ADMIN, createSession, requireAdmin, writeSessionCookie } from '../auth';
 import { venueConfig, type VenueConfig } from '../config';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
-import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
+import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyChangedByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
 import { attemptAllowed } from '../ratelimit';
 import { periodFields, periodOverlaps, quoteStay, type DiscountRule, type RatePeriod } from '../pricing';
-import { createRoomType, deleteRoomType, futureBookingsOf, overbookedRooms, roomFields, roomNameTaken, roomTypeById, roomTypeByName, roomTypes, updateRoomType } from '../rooms';
+import { createRoomType, deleteRoomType, futureBookingsOf, overbookedRooms, roomAvailability, roomFields, roomNameTaken, roomTypeById, roomTypeByName, roomTypes, updateRoomType } from '../rooms';
 import { isSlotConflict, keysOf, occupiedSlots, slotInserts } from '../slots';
 import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, priceValue, randomToken, readJson, text, writeAudit } from '../util';
-import { facilityFields, guestFields, hotelFields, restaurantFields } from '../validation';
+import { facilityFields, guestFields, hotelFields, restaurantFields, validateStay, type HotelFields } from '../validation';
 
 /*
  * Admin dashboard routes: login, calendar, decisions on the requests, direct
@@ -42,6 +42,12 @@ function requesterRecipient(row: AdminRequestRow): Recipient | null {
 /** Start date of a booking, whatever its type. */
 function startDate(row: RequestRow): string {
     return row.check_in ?? row.date ?? '';
+}
+
+/** True once the booking is behind us: a stay after its check-out day, the other types after their day. */
+function isOver(row: RequestRow, today: string): boolean {
+    if (row.type === 'hotel') return (row.check_out ?? '') <= today;
+    return (row.date ?? '') < today;
 }
 
 async function loadRequest(db: D1Database, id: number): Promise<AdminRequestRow | null> {
@@ -101,6 +107,24 @@ admin.get('/calendar', async (c) => {
     const condition = venue.type === 'hotel' ? `r.type = ?3 AND r.check_in <= ?2 AND r.check_out > ?1` : `r.type = ?3 AND r.date >= ?1 AND r.date <= ?2`;
     const { results } = await c.env.DB.prepare(`${SELECT_REQUEST} WHERE r.status IN ('pending', 'approved') AND ${condition} ORDER BY COALESCE(r.check_in, r.date), r.start_time`).bind(from, to, venue.type).all<AdminRequestRow>();
     return c.json({ view, date, from, to, items: results.map(adminView) });
+});
+
+/**
+ * Hotel: rooms left for a stay as the edit form needs them, with the booking
+ * being edited (`exclude`) left out of the count so its own room shows as
+ * free. A stay already begun keeps its past check-in, so the horizon of the
+ * validation starts there instead of today.
+ */
+admin.get('/availability', async (c) => {
+    if (venueConfig(c.env).type !== 'hotel') return c.json({ error: 'not_found' }, 404);
+    const checkIn = c.req.query('check_in') ?? '';
+    const checkOut = c.req.query('check_out') ?? '';
+    const exclude = positiveInt(c.req.query('exclude')) ?? 0;
+    const today = romeNow(new Date()).date;
+    const horizon = exclude > 0 && checkIn < today ? checkIn : today;
+    const stayError = validateStay(checkIn, checkOut, horizon);
+    if (stayError) return c.json({ error: stayError }, 400);
+    return c.json({ check_in: checkIn, check_out: checkOut, rooms: await roomAvailability(c.env.DB, checkIn, checkOut, exclude) });
 });
 
 /** Requests by status (pending by default), newest first for the inbox. */
@@ -255,28 +279,33 @@ admin.post('/bookings', async (c) => {
 
 type DirectOutcome = { id: number } | { error: string; status: 400 | 404 | 409; slots?: string[] };
 
+/** The price columns of a hotel booking. */
+type StayPrice = { subtotal: number | null; discountPercent: number | null; total: number | null };
+
+/**
+ * Price of a stay registered or edited by the venue: the computed quote,
+ * unless the venue typed an agreed total (owner's decision, e.g. a price
+ * settled by phone); then the subtotal is that total and no discount is
+ * recorded.
+ */
+async function stayPrice(db: D1Database, body: Record<string, unknown>, stay: HotelFields): Promise<StayPrice | { error: string }> {
+    const quote = await quoteStay(db, stay.roomType, stay.checkIn, stay.checkOut);
+    const computed: StayPrice = { subtotal: quote?.subtotal ?? null, discountPercent: quote?.discount_percent ?? null, total: quote?.total ?? null };
+    if (body.total === undefined || body.total === null || body.total === '') return computed;
+    const agreed = priceValue(body.total);
+    if (agreed === null) return { error: 'invalid_price' };
+    if (agreed === computed.total) return computed;
+    return { subtotal: agreed, discountPercent: 0, total: agreed };
+}
+
 async function directHotel(db: D1Database, body: Record<string, unknown>, lang: string, today: string): Promise<DirectOutcome> {
     const guest = guestFields(body);
     if ('error' in guest) return { error: guest.error, status: 400 };
     const stay = await hotelFields(db, body, today);
     if ('error' in stay) return { error: stay.error, status: 400 };
     const quantity = (await roomTypeByName(db, stay.roomType))?.quantity ?? 0;
-    // Price: the computed quote, unless the venue typed an agreed total
-    // (owner's decision, e.g. a price settled by phone); then the subtotal
-    // is that total and no discount is recorded.
-    const quote = await quoteStay(db, stay.roomType, stay.checkIn, stay.checkOut);
-    let subtotal = quote?.subtotal ?? null;
-    let discountPercent = quote?.discount_percent ?? null;
-    let total = quote?.total ?? null;
-    if (body.total !== undefined && body.total !== null && body.total !== '') {
-        const agreed = priceValue(body.total);
-        if (agreed === null) return { error: 'invalid_price', status: 400 };
-        if (agreed !== total) {
-            subtotal = agreed;
-            discountPercent = 0;
-            total = agreed;
-        }
-    }
+    const price = await stayPrice(db, body, stay);
+    if ('error' in price) return { error: price.error, status: 400 };
     // INSERT ... SELECT ... WHERE: the row is written only if a room is still free, atomically.
     const overlapping = overlappingSql('?11', '?7', '?8', '0');
     const result = await db
@@ -285,7 +314,7 @@ async function directHotel(db: D1Database, body: Record<string, unknown>, lang: 
              SELECT 'hotel', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'approved', datetime('now'), ?14, ?15, ?16
              WHERE ${overlapping} < ?13`,
         )
-        .bind(guest.firstName, guest.lastName, guest.email, guest.phone, lang, guest.notes, stay.checkIn, stay.checkOut, stay.adults, stay.children, stay.roomType, randomToken(), quantity, subtotal, discountPercent, total)
+        .bind(guest.firstName, guest.lastName, guest.email, guest.phone, lang, guest.notes, stay.checkIn, stay.checkOut, stay.adults, stay.children, stay.roomType, randomToken(), quantity, price.subtotal, price.discountPercent, price.total)
         .run();
     if (result.meta.changes === 0) return { error: 'room_unavailable', status: 409 };
     return { id: result.meta.last_row_id };
@@ -328,6 +357,125 @@ async function directFacility(db: D1Database, body: Record<string, unknown>, ven
         throw error;
     }
     return { id };
+}
+
+/*
+ * Editing a booking (owner's decision): every field of the direct booking
+ * form can change while the booking is pending or approved and not yet
+ * over. The rules are those of a new booking, with one allowance: a stay
+ * already begun keeps its past check-in. Room and slot availability are
+ * re-checked for approved bookings only (a pending one is checked when it
+ * gets approved), with the booking itself left out of the count. Payments
+ * recorded on a hotel stay are left as they are: the dashboard shows the
+ * new balance. The guest is told by email unless the venue opts out
+ * (`notify: false`). Nothing is written, logged or sent when no field
+ * actually changes.
+ */
+admin.patch('/requests/:id', async (c) => {
+    const id = positiveInt(c.req.param('id'));
+    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    if (request === null) return c.json({ error: 'not_found' }, 404);
+    if (request.status !== 'pending' && request.status !== 'approved') return c.json({ error: 'cannot_edit' }, 409);
+    const now = romeNow(new Date());
+    if (isOver(request, now.date)) return c.json({ error: 'in_past' }, 409);
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const venue = venueConfig(c.env);
+
+    const outcome = request.type === 'hotel' ? await editHotel(c.env.DB, request, body, now.date) : request.type === 'restaurant' ? await editRestaurant(c.env.DB, request, body, venue, now) : await editFacility(c.env.DB, request, body, venue, now);
+    if ('error' in outcome) return c.json({ error: outcome.error, ...(outcome.slots ? { slots: outcome.slots } : {}) }, outcome.status);
+
+    if (outcome.changed.length > 0) {
+        await writeAudit(c.env.DB, 'booking_edited', `request #${request.id}: ${outcome.changed.join(', ')}`, 'admin');
+        const updated = await loadRequest(c.env.DB, request.id);
+        if (updated && body.notify !== false) notifyChangedByAdmin(c, updated, requesterRecipient(updated));
+    }
+    return c.json({ ok: true, changed: outcome.changed, item: await updatedView(c.env.DB, request.id) });
+});
+
+type EditOutcome = { changed: string[] } | { error: string; status: 400 | 404 | 409; slots?: string[] };
+
+/** Names of the columns whose new value differs from the stored one. */
+function changedColumns(request: RequestRow, next: Record<string, unknown>): string[] {
+    const current = request as unknown as Record<string, unknown>;
+    return Object.keys(next).filter((column) => next[column] !== current[column]);
+}
+
+async function editHotel(db: D1Database, request: AdminRequestRow, body: Record<string, unknown>, today: string): Promise<EditOutcome> {
+    const guest = guestFields(body);
+    if ('error' in guest) return { error: guest.error, status: 400 };
+    // A stay already begun keeps its check-in: the horizon of the validation starts there.
+    const requestedCheckIn = typeof body.check_in === 'string' ? body.check_in.trim() : '';
+    const checkInKept = requestedCheckIn === request.check_in;
+    const horizon = checkInKept && request.check_in !== null && request.check_in < today ? request.check_in : today;
+    const stay = await hotelFields(db, body, horizon);
+    if ('error' in stay) return { error: stay.error, status: 400 };
+    // Price: untouched while the stay (dates and room) and the total stay the
+    // same, so a price list changed meanwhile does not rewrite the quote;
+    // otherwise computed again, with the agreed total when the venue typed one.
+    const stayKept = checkInKept && stay.checkOut === request.check_out && stay.roomType === request.room_type;
+    const totalKept = body.total === undefined || body.total === null || body.total === '' ? request.quoted_total === null : priceValue(body.total) === request.quoted_total;
+    const price: StayPrice | { error: string } = stayKept && totalKept ? { subtotal: request.quoted_subtotal, discountPercent: request.quoted_discount_percent, total: request.quoted_total } : await stayPrice(db, body, stay);
+    if ('error' in price) return { error: price.error, status: 400 };
+    const lang = langOf(body.lang, request.lang);
+    const next = { first_name: guest.firstName, last_name: guest.lastName, email: guest.email, phone: guest.phone, lang, notes: guest.notes, check_in: stay.checkIn, check_out: stay.checkOut, adults: stay.adults, children: stay.children, room_type: stay.roomType, quoted_subtotal: price.subtotal, quoted_discount_percent: price.discountPercent, quoted_total: price.total };
+    const changed = changedColumns(request, next);
+    if (changed.length === 0) return { changed };
+    const quantity = (await roomTypeByName(db, stay.roomType))?.quantity ?? 0;
+    // An approved stay must still fit the rooms of its type, itself left out of the count (same atomic guard as the approval).
+    const overlapping = overlappingSql('?12', '?8', '?9', '?1');
+    const result = await db.prepare(`UPDATE requests SET first_name = ?2, last_name = ?3, email = ?4, phone = ?5, lang = ?6, notes = ?7, check_in = ?8, check_out = ?9, adults = ?10, children = ?11, room_type = ?12, quoted_subtotal = ?13, quoted_discount_percent = ?14, quoted_total = ?15 WHERE id = ?1 AND status IN ('pending', 'approved') AND (status = 'pending' OR ${overlapping} < ?16)`).bind(request.id, next.first_name, next.last_name, next.email, next.phone, next.lang, next.notes, next.check_in, next.check_out, next.adults, next.children, next.room_type, next.quoted_subtotal, next.quoted_discount_percent, next.quoted_total, quantity).run();
+    if (result.meta.changes === 0) return { error: 'room_unavailable', status: 409 };
+    return { changed };
+}
+
+async function editRestaurant(db: D1Database, request: AdminRequestRow, body: Record<string, unknown>, venue: VenueConfig, now: { date: string; time: string }): Promise<EditOutcome> {
+    const guest = guestFields(body);
+    if ('error' in guest) return { error: guest.error, status: 400 };
+    const seating = restaurantFields(body, venue, now);
+    if ('error' in seating) return { error: seating.error, status: 400 };
+    const lang = langOf(body.lang, request.lang);
+    const next = { first_name: guest.firstName, last_name: guest.lastName, email: guest.email, phone: guest.phone, lang, notes: guest.notes, date: seating.date, start_time: seating.time, party_size: seating.partySize };
+    const changed = changedColumns(request, next);
+    if (changed.length === 0) return { changed };
+    await db.prepare("UPDATE requests SET first_name = ?2, last_name = ?3, email = ?4, phone = ?5, lang = ?6, notes = ?7, date = ?8, start_time = ?9, party_size = ?10 WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id, next.first_name, next.last_name, next.email, next.phone, next.lang, next.notes, next.date, next.start_time, next.party_size).run();
+    return { changed };
+}
+
+async function editFacility(db: D1Database, request: AdminRequestRow, body: Record<string, unknown>, venue: VenueConfig, now: { date: string; time: string }): Promise<EditOutcome> {
+    // The requester may change (a booking registered under the wrong organisation); when the body leaves it out, it stays.
+    let requesterId = request.requester_id;
+    if (body.requester_id !== undefined) {
+        const candidate = typeof body.requester_id === 'number' ? positiveInt(String(body.requester_id)) : null;
+        const requester = candidate === null ? null : await db.prepare("SELECT id FROM requesters WHERE id = ?1 AND status = 'active'").bind(candidate).first<{ id: number }>();
+        if (requester === null) return { error: 'unknown_requester', status: 404 };
+        requesterId = requester.id;
+    }
+    const fields = facilityFields(body, venue, now);
+    if ('error' in fields) return { error: fields.error, status: 400 };
+    const lang = langOf(body.lang, request.lang);
+    const next = { requester_id: requesterId, lang, notes: fields.notes, date: fields.date, start_time: fields.startTime, end_time: fields.endTime };
+    const changed = changedColumns(request, next);
+    if (changed.length === 0) return { changed };
+    const update = db.prepare("UPDATE requests SET requester_id = ?2, lang = ?3, notes = ?4, date = ?5, start_time = ?6, end_time = ?7 WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id, next.requester_id, next.lang, next.notes, next.date, next.start_time, next.end_time);
+    const rangeChanged = changed.includes('date') || changed.includes('start_time') || changed.includes('end_time');
+    if (request.status !== 'approved' || !rangeChanged) {
+        await update.run();
+        return { changed };
+    }
+    // An approved booking moves its slots: the old ones are released and the
+    // new ones taken in one batch, so a slot taken meanwhile fails the whole
+    // move and the booking keeps its old range.
+    const keys = keysOf({ date: fields.date, start_time: fields.startTime, end_time: fields.endTime }, venue.facility.slotMinutes);
+    const taken = await occupiedSlots(db, keys, request.id);
+    if (taken.length > 0) return { error: 'slots_taken', status: 409, slots: taken };
+    try {
+        await db.batch([db.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id), ...slotInserts(db, request.id, keys), update]);
+    } catch (error) {
+        if (isSlotConflict(error)) return { error: 'slots_taken', status: 409, slots: await occupiedSlots(db, keys, request.id) };
+        throw error;
+    }
+    return { changed };
 }
 
 // ---------------------------------------------------------------------------

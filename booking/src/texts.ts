@@ -27,6 +27,8 @@ type EmailTexts = {
     cancelledByVenueMessage: string;
     registeredSubject: string;
     registeredMessage: string;
+    changedSubject: string;
+    changedMessage: string;
     accessLinkSubject: (reason: string) => string;
     accessLinkMessage: (reason: string, venue: string) => string;
     accessLinkWarning: string;
@@ -61,6 +63,8 @@ const TEXTS: Record<Lang, EmailTexts> = {
         cancelledByVenueMessage: 'la prenotazione è stata annullata dalla struttura. Per chiarimenti è possibile rispondere a questa email.',
         registeredSubject: 'Prenotazione registrata',
         registeredMessage: 'la struttura ha registrato a tuo nome la prenotazione riportata sotto, già confermata.',
+        changedSubject: 'Prenotazione modificata',
+        changedMessage: 'la struttura ha modificato la prenotazione: i dati aggiornati sono riportati sotto. Per chiarimenti è possibile rispondere a questa email.',
         accessLinkSubject: (reason) => (reason === 'regeneration' ? 'Nuovo link personale per le prenotazioni' : 'Link personale per le prenotazioni'),
         accessLinkMessage: (reason, venue) => {
             if (reason === 'regeneration') return 'il gestore ha rigenerato il link personale: il link precedente non funziona più. Da ora l\'area riservata si raggiunge con il link riportato sotto.';
@@ -97,6 +101,8 @@ const TEXTS: Record<Lang, EmailTexts> = {
         cancelledByVenueMessage: 'your booking has been cancelled by the venue. You can reply to this email for any clarification.',
         registeredSubject: 'Booking registered',
         registeredMessage: 'the venue registered the booking below in your name; it is already confirmed.',
+        changedSubject: 'Booking changed',
+        changedMessage: 'the venue changed your booking: the updated details are below. You can reply to this email for any clarification.',
         accessLinkSubject: (reason) => (reason === 'regeneration' ? 'New personal link for bookings' : 'Personal link for bookings'),
         accessLinkMessage: (reason, venue) => {
             if (reason === 'regeneration') return 'the venue manager regenerated your personal link: the previous one no longer works. From now on the reserved area is reached with the link below.';

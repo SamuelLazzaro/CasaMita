@@ -45,10 +45,14 @@ export function fetchConfig() {
 /**
  * @param {string} checkIn - 'YYYY-MM-DD'
  * @param {string} checkOut - 'YYYY-MM-DD'
+ * @param {number} [excludeRequestId] - booking left out of the count (the one being edited), 0 for none
  * @returns {Promise<{rooms: {name: string, max_guests: number, quantity: number, available: number}[]}>}
  */
-export function fetchAvailability(checkIn, checkOut) {
-    return requestJson(`/api/availability?check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`);
+export function fetchAvailability(checkIn, checkOut, excludeRequestId = 0) {
+    const stay = `check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`;
+    // Editing a booking (admin): its own room must count as free, which only the admin endpoint can do.
+    if (excludeRequestId > 0) return requestJson(`/api/admin/availability?${stay}&exclude=${excludeRequestId}`);
+    return requestJson(`/api/availability?${stay}`);
 }
 
 /**
@@ -163,6 +167,17 @@ export function markPaid(id) {
  */
 export function createBooking(payload) {
     return postJson('/api/admin/bookings', payload);
+}
+
+/**
+ * Edits a pending or approved booking: same fields as createBooking, plus
+ * `notify` (false to skip the email to the guest).
+ * @param {number} id
+ * @param {Record<string, unknown>} payload
+ * @returns {Promise<{ok: boolean, changed: string[], item: object}>} the columns that changed and the booking as it is now
+ */
+export function updateBooking(id, payload) {
+    return requestJson(`/api/admin/requests/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
 /* ------------------------------------------------------------- rooms API */

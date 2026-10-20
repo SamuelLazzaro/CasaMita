@@ -230,10 +230,11 @@
             <dialog id="dialog-booking" class="dialog" aria-labelledby="booking-dialog-title">
                 <div class="dialog-content">
                     <div class="dialog-header">
-                        <h2 id="booking-dialog-title" data-i18n="booking.newTitle">Nuova prenotazione</h2>
+                        <!-- Title and hint follow the mode (new / edit): admin.js writes them. -->
+                        <h2 id="booking-dialog-title">Nuova prenotazione</h2>
                         <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
                     </div>
-                    <p class="hint" data-i18n="booking.newHint">La prenotazione nasce già confermata. Il cliente riceve l'email di conferma.</p>
+                    <p class="hint" id="booking-hint">La prenotazione nasce già confermata. Il cliente riceve l'email di conferma.</p>
 
                     <form id="direct-hotel-form" class="form" novalidate hidden>
                         <div class="field-row">
@@ -313,6 +314,18 @@
                         <div><button type="submit" class="btn btn-primary" id="direct-facility-submit" data-i18n="common.submit">Invia richiesta</button></div>
                     </form>
                     <p id="direct-facility-status" class="status" role="status" hidden></p>
+
+                    <!-- Edit mode: the form gives way to the recap of the changed fields
+                         (before and after), which wait for the venue's confirmation. -->
+                    <div id="edit-confirm-block" hidden>
+                        <p class="hint" data-i18n="edit.recapHint">Riepilogo delle modifiche (prima → dopo). Conferma per salvarle.</p>
+                        <dl class="details edit-diff" id="edit-diff"></dl>
+                        <label class="check-label edit-notify"><input type="checkbox" id="edit-notify" checked><span data-i18n="edit.notify">Avvisa il cliente via email</span></label>
+                        <div class="actions">
+                            <button type="button" class="btn" id="edit-back" data-i18n="edit.back">Torna alle modifiche</button>
+                            <button type="button" class="btn btn-primary" id="edit-confirm" data-i18n="edit.confirm">Conferma modifiche</button>
+                        </div>
+                    </div>
                 </div>
             </dialog>
 

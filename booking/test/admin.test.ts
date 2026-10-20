@@ -19,6 +19,10 @@ async function adminGet(path: string, cookie: string, bindings: Bindings = env):
     return await app.request(path, { headers: { Cookie: cookie } }, bindings);
 }
 
+async function adminPatch(path: string, cookie: string, body: unknown, bindings: Bindings = env): Promise<Response> {
+    return await app.request(path, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, bindings);
+}
+
 async function json<T>(response: Response): Promise<T> {
     return (await response.json()) as T;
 }
@@ -179,6 +183,88 @@ describe('direct bookings', () => {
         expect((await adminPost(`/api/admin/requests/${id}/cancel`, cookie, {}, facility)).status).toBe(200);
         const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM slots WHERE request_id = ?1').bind(id).first<{ n: number }>();
         expect(left!.n).toBe(0);
+    });
+});
+
+describe('editing bookings', () => {
+    it('hotel: changes the fields, reports what changed, keeps the room guard and refuses once over', async () => {
+        const cookie = await adminCookie();
+        const body = hotelBody({ check_in: daysAhead(130), check_out: daysAhead(131) });
+        const id = (await json<{ id: number }>(await adminPost('/api/admin/bookings', cookie, body))).id;
+
+        const edited = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, check_out: daysAhead(133), notes: 'Arrivo prestissimo', total: 123.45 });
+        expect(edited.status).toBe(200);
+        const answer = await json<{ changed: string[]; item: { check_out: string; notes: string; quoted_total: number; quoted_discount_percent: number } }>(edited);
+        // The seeded types have no base price: the agreed total also turns the null discount into 0.
+        expect(answer.changed.sort()).toEqual(['check_out', 'notes', 'quoted_discount_percent', 'quoted_subtotal', 'quoted_total']);
+        expect(answer.item.check_out).toBe(daysAhead(133));
+        expect(answer.item.notes).toBe('Arrivo prestissimo');
+        expect(answer.item.quoted_total).toBe(123.45);
+        expect(answer.item.quoted_discount_percent).toBe(0);
+
+        // The same values again: nothing changes, nothing is written.
+        const same = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, check_out: daysAhead(133), notes: 'Arrivo prestissimo', total: 123.45 });
+        expect((await json<{ changed: string[] }>(same)).changed).toEqual([]);
+        // The validation of a new booking applies.
+        const badEmail = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, email: 'nope' });
+        expect(badEmail.status).toBe(400);
+        expect((await json<{ error: string }>(badEmail)).error).toBe('invalid_email');
+
+        // Its own room counts as free (the stay can be shortened on the same dates), but the rooms of a full range cannot.
+        const fullIn = daysAhead(140);
+        const fullOut = daysAhead(141);
+        for (let i = 0; i < ROOM_A.quantity; i++) expect((await adminPost('/api/admin/bookings', cookie, hotelBody({ check_in: fullIn, check_out: fullOut }))).status).toBe(201);
+        const moved = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, check_in: fullIn, check_out: fullOut });
+        expect(moved.status).toBe(409);
+        expect((await json<{ error: string }>(moved)).error).toBe('room_unavailable');
+        const shortened = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, check_out: daysAhead(132) });
+        expect(shortened.status).toBe(200);
+        const available = await json<{ rooms: { name: string; available: number }[] }>(await adminGet(`/api/admin/availability?check_in=${fullIn}&check_out=${fullOut}&exclude=${id}`, cookie));
+        expect(available.rooms.find((room) => room.name === ROOM_A.name)!.available).toBe(0);
+
+        expect((await adminPost(`/api/admin/requests/${id}/cancel`, cookie)).status).toBe(200);
+        const cancelled = await adminPatch(`/api/admin/requests/${id}`, cookie, body);
+        expect(cancelled.status).toBe(409);
+        expect((await json<{ error: string }>(cancelled)).error).toBe('cannot_edit');
+    });
+
+    it('restaurant: moves the seating inside the service windows', async () => {
+        const cookie = await adminCookie(restaurant);
+        const body = restaurantBody({ date: daysAhead(5), time: '13:00' });
+        const id = (await json<{ id: number }>(await adminPost('/api/admin/bookings', cookie, body, restaurant))).id;
+        const edited = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, time: '13:30', party_size: 6 }, restaurant);
+        expect(edited.status).toBe(200);
+        const answer = await json<{ changed: string[]; item: { start_time: string; party_size: number } }>(edited);
+        expect(answer.changed.sort()).toEqual(['party_size', 'start_time']);
+        expect(answer.item.start_time).toBe('13:30');
+        expect(answer.item.party_size).toBe(6);
+        const outside = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...body, time: '17:00' }, restaurant);
+        expect(outside.status).toBe(400);
+    });
+
+    it('facility: moves the slots of an approved booking and refuses a taken range', async () => {
+        const cookie = await adminCookie(facility);
+        const requesterId = (await json<{ id: number }>(await adminPost('/api/admin/requesters', cookie, { name: 'Pattinaggio Test', contact_name: 'Sara', email: 'patt@example.com', phone: '0331 654321' }, facility))).id;
+        const date = daysAhead(16);
+        const booking = { requester_id: requesterId, date, start_time: '18:00', end_time: '19:30', notes: 'Allenamento' };
+        const id = (await json<{ id: number }>(await adminPost('/api/admin/bookings', cookie, booking, facility))).id;
+
+        const moved = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...booking, start_time: '19:00', end_time: '20:30' }, facility);
+        expect(moved.status).toBe(200);
+        expect((await json<{ changed: string[] }>(moved)).changed.sort()).toEqual(['end_time', 'start_time']);
+        const slots = await env.DB.prepare('SELECT slot_key FROM slots WHERE request_id = ?1 ORDER BY slot_key').bind(id).all<{ slot_key: string }>();
+        expect(slots.results.map((row) => row.slot_key)).toEqual([`${date}_1900`, `${date}_1930`, `${date}_2000`]);
+
+        const other = { ...booking, start_time: '10:00', end_time: '11:00' };
+        expect((await adminPost('/api/admin/bookings', cookie, other, facility)).status).toBe(201);
+        const clash = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...booking, start_time: '10:30', end_time: '11:30' }, facility);
+        expect(clash.status).toBe(409);
+        const conflict = await json<{ error: string; slots: string[] }>(clash);
+        expect(conflict.error).toBe('slots_taken');
+        expect(conflict.slots).toEqual([`${date}_1030`]);
+        // The failed move left the booking where it was.
+        const kept = await env.DB.prepare('SELECT start_time, end_time FROM requests WHERE id = ?1').bind(id).first<{ start_time: string; end_time: string }>();
+        expect(kept).toEqual({ start_time: '19:00', end_time: '20:30' });
     });
 });
 

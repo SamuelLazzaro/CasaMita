@@ -173,6 +173,14 @@ export function notifyRegisteredByAdmin(c: NotificationContext, request: Request
     send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.registeredSubject, message, details: [...requestDetails(request, request.lang, false), ...linkRows] });
 }
 
+/** Admin: pending or approved booking changed by the venue; the email carries the data as they are now. Guests get their personal link to review it. */
+export function notifyChangedByAdmin(c: NotificationContext, request: RequestRow, requester: Recipient | null = null): void {
+    const texts = emailTexts(request.lang);
+    const origin = new URL(c.req.url).origin;
+    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(origin, request.guest_token)}`] : [];
+    send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.changedSubject, message: texts.changedMessage, details: [...requestDetails(request, request.lang, false), ...linkRows] });
+}
+
 /** Why the access link of a facility requester is being delivered. */
 export type AccessLinkReason = 'creation' | 'regeneration' | 'resend';
 

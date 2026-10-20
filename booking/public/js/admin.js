@@ -5,7 +5,7 @@
  * types with their base price (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, updateRequester, updateRoomType } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, updateBooking, updateRequester, updateRoomType } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
@@ -32,7 +32,7 @@ let g_calendarItems = [];
 /** @type {object[]} registered organisations (facility) */
 let g_requesters = [];
 
-/** @type {{reset: () => void|Promise<void>, prefill: (values: object) => void|Promise<void>, setRequesters?: (requesters: object[]) => void}|null} the direct booking form of this venue */
+/** @type {{reset: () => void|Promise<void>, prefill: (values: object) => void|Promise<void>, startEdit: (item: object) => void|Promise<void>, setRequesters?: (requesters: object[]) => void}|null} the direct booking form of this venue */
 let g_directForm = null;
 
 /* ------------------------------------------------------------- calendar */
@@ -274,6 +274,7 @@ function openDetails(item, doneMessage = '') {
         detailsActions.append(rejectButton);
     }
     if (item.status === 'pending' || item.status === 'approved') {
+        detailsActions.append(button(translate('actions.edit'), 'btn', () => openEditBooking(item)));
         detailsActions.append(button(translate('actions.cancel'), 'btn', async () => {
             if (!window.confirm(translate('confirm.cancel'))) return;
             if (await runDecision(() => cancelRequestAdmin(item.id), 'done.cancelled', detailsStatus) !== null) detailsActions.replaceChildren();
@@ -366,13 +367,182 @@ function drawPending() {
 /* -------------------------------------------------------- direct booking */
 
 const bookingDialog = byId('dialog-booking');
+const bookingTitle = byId('booking-dialog-title');
+const bookingHint = byId('booking-hint');
+const editBlock = byId('edit-confirm-block');
+const editDiff = byId('edit-diff');
+const editNotify = byId('edit-notify');
+
+/** @type {object|null} the booking the dialog is editing; null while it registers a new one */
+let g_editing = null;
+
+/** Title and hint of the dialog follow its mode (new / edit) and the language. */
+function drawBookingHeader() {
+    bookingTitle.textContent = translate(g_editing === null ? 'booking.newTitle' : 'booking.editTitle');
+    bookingHint.textContent = translate(g_editing === null ? 'booking.newHint' : 'booking.editHint');
+}
+
+onLanguageChange(drawBookingHeader);
+
+/** @returns {HTMLFormElement} the direct booking form of this venue */
+function directForm() {
+    return byId(`direct-${g_config.type}-form`);
+}
+
+/**
+ * Switches the dialog between the form and the recap of the changes.
+ * @param {boolean} visible - true to show the recap in place of the form
+ * @returns {void}
+ */
+function showRecap(visible) {
+    directForm().hidden = visible;
+    editBlock.hidden = !visible;
+}
 
 async function submitDirectBooking(payload) {
+    if (g_editing !== null) return await submitEdit(payload);
     await createBooking(payload);
     bookingDialog.close();
     showStatus(calendarStatus, translate('done.created'), 'ok');
     await calendarView.refresh();
 }
+
+/*
+ * Edit flow (owner's decision): nothing is written until the venue has seen
+ * the list of the fields that change (before and after) and confirmed it.
+ * The recap takes the place of the form inside the same dialog; "back"
+ * returns to the form with its values intact, which is why submitEdit
+ * resolves false in that case (the form then skips its reset).
+ */
+
+/**
+ * The fields of the form whose value differs from the booking, as rows for
+ * the recap. Values are normalised before the comparison (empty strings and
+ * missing values are the same thing, numbers are compared as numbers) and
+ * formatted for the reader after it.
+ * @param {object} item - the booking being edited
+ * @param {Record<string, unknown>} payload - what the form is about to send
+ * @returns {{label: string, before: string, after: string}[]}
+ */
+function changedRows(item, payload) {
+    const lang = currentLanguage();
+    const none = translate('edit.none');
+    const asText = (value) => (value === null || value === undefined || value === '' ? none : String(value));
+    const asDate = (value) => (value ? formatLongDate(value, lang) : none);
+    const asPrice = (value) => (value === null || value === undefined || value === '' ? none : formatEuro(Number(value), lang));
+    const asLang = (value) => translate(`lang.${value}`);
+    const asRequester = (value) => g_requesters.find((requester) => requester.id === Number(value))?.name ?? none;
+    const guestSpecs = [['first_name', 'first_name', 'field.firstName', asText], ['last_name', 'last_name', 'field.lastName', asText], ['email', 'email', 'field.email', asText], ['phone', 'phone', 'field.phone', asText]];
+    const trailingSpecs = [['notes', 'notes', 'field.notes', asText], ['lang', 'lang', 'field.lang', asLang]];
+    /** @type {[string, string, string, (value: unknown) => string][]} payload key, item key, label key, formatter */
+    let specs;
+    if (item.type === 'hotel') specs = [...guestSpecs, ['check_in', 'check_in', 'field.checkIn', asDate], ['check_out', 'check_out', 'field.checkOut', asDate], ['adults', 'adults', 'field.adults', asText], ['children', 'children', 'field.children', asText], ['room_type', 'room_type', 'field.roomType', asText], ['total', 'quoted_total', 'price.total', asPrice], ...trailingSpecs];
+    else if (item.type === 'restaurant') specs = [...guestSpecs, ['date', 'date', 'field.date', asDate], ['time', 'start_time', 'field.time', asText], ['party_size', 'party_size', 'field.partySize', asText], ...trailingSpecs];
+    else specs = [['requester_id', 'requester_id', 'field.requester', asRequester], ['date', 'date', 'field.date', asDate], ['start_time', 'start_time', 'field.startTime', asText], ['end_time', 'end_time', 'field.endTime', asText], ['notes', 'notes', 'field.notes', asText]];
+
+    const normalise = (value) => {
+        if (value === null || value === undefined || value === '') return null;
+        return typeof value === 'number' ? value : String(value);
+    };
+    const rows = [];
+    for (const [payloadKey, itemKey, labelKey, format] of specs) {
+        const before = normalise(item[itemKey]);
+        const after = normalise(payload[payloadKey]);
+        // Numbers may arrive as strings from one side (e.g. a price typed in the field): compare them as numbers.
+        const same = before === after || (typeof before === 'number' && after !== null && Number(after) === before) || (typeof after === 'number' && before !== null && Number(before) === after);
+        if (!same) rows.push({ label: translate(labelKey), before: format(before), after: format(after) });
+    }
+    return rows;
+}
+
+/**
+ * Appends a recap row: the label, the old value struck through, the new one.
+ * @param {{label: string, before: string, after: string}} row
+ * @returns {void}
+ */
+function appendDiffRow(row) {
+    const term = document.createElement('dt');
+    term.textContent = row.label;
+    const definition = document.createElement('dd');
+    const before = document.createElement('span');
+    before.className = 'diff-before';
+    before.textContent = row.before;
+    const after = document.createElement('span');
+    after.className = 'diff-after';
+    after.textContent = row.after;
+    definition.append(before, after);
+    editDiff.append(term, definition);
+}
+
+/**
+ * Waits for the venue's decision on the recap: the confirm button, the back
+ * button, or the dialog being closed (which counts as "back").
+ * @returns {Promise<boolean>} true to save
+ */
+function waitForDecision() {
+    return new Promise((resolve) => {
+        const onClose = () => decide(false);
+        const decide = (confirmed) => {
+            bookingDialog.removeEventListener('close', onClose);
+            resolve(confirmed);
+        };
+        byId('edit-confirm').onclick = () => decide(true);
+        byId('edit-back').onclick = () => decide(false);
+        bookingDialog.addEventListener('close', onClose);
+    });
+}
+
+/**
+ * @param {Record<string, unknown>} payload - what the form built
+ * @returns {Promise<boolean|void>} false when nothing was saved and the form must keep its values
+ */
+async function submitEdit(payload) {
+    const rows = changedRows(g_editing, payload);
+    if (rows.length === 0) {
+        showStatus(byId(`direct-${g_config.type}-status`), translate('edit.noChanges'), 'error');
+        return false;
+    }
+    editDiff.replaceChildren();
+    for (const row of rows) appendDiffRow(row);
+    editNotify.checked = true;
+    showRecap(true);
+    const confirmed = await waitForDecision();
+    showRecap(false);
+    if (!confirmed) return false;
+    const item = g_editing;
+    await updateBooking(item.id, { ...payload, notify: editNotify.checked });
+    // Mode back to "new" before closing, so the close handler leaves the form to its own reset.
+    g_editing = null;
+    drawBookingHeader();
+    bookingDialog.close();
+    showStatus(calendarStatus, translate('done.edited'), 'ok');
+    await Promise.all([calendarView.refresh(), loadPending()]);
+}
+
+/**
+ * Opens the booking dialog on an existing booking, from the details dialog.
+ * @param {object} item - a pending or approved request
+ * @returns {Promise<void>}
+ */
+async function openEditBooking(item) {
+    detailsDialog.close();
+    hideStatus(byId(`direct-${g_config.type}-status`));
+    if (g_directForm.setRequesters) g_directForm.setRequesters(g_requesters);
+    g_editing = item;
+    drawBookingHeader();
+    showRecap(false);
+    await g_directForm.startEdit(item);
+    openDialog(bookingDialog);
+}
+
+// Closing the dialog halfway through an edit (✕, Esc) drops the edit: the form goes back to "new".
+bookingDialog.addEventListener('close', () => {
+    if (g_editing === null) return;
+    g_editing = null;
+    drawBookingHeader();
+    showRecap(false);
+    g_directForm.reset();
+});
 
 function initDirectForm() {
     for (const type of ['hotel', 'restaurant', 'facility']) byId(`direct-${type}-form`).hidden = type !== g_config.type;
@@ -391,6 +561,7 @@ function initDirectForm() {
 function openDirectBooking(prefill = null) {
     hideStatus(byId(`direct-${g_config.type}-status`));
     if (g_directForm.setRequesters) g_directForm.setRequesters(g_requesters);
+    drawBookingHeader();
     if (prefill !== null) g_directForm.prefill(prefill);
     openDialog(bookingDialog);
 }
