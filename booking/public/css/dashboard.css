@@ -405,12 +405,19 @@ body:has(.nav-sections:not([hidden])) {
  * the grid instead of scrolling in .calendar-scroll: the minimum width is
  * set on the grid itself (7 columns, 6 gaps, 2 borders), and the columns
  * share the width equally above it.
+ *
+ * The booking calendars (js/calendar-render.js) stack week rows (.cal-row)
+ * under the weekday headings; the price calendar (js/price-calendar.js) is
+ * one flat grid of cells. Both show the 1px lines through the gaps over the
+ * border-colored background.
  */
 .calendar-week,
 .calendar-month {
     --day-min-width: 120px;
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    /* height of .cal-cell-header (padding + one line of 0.8rem × 1.25): the stay bars start below it */
+    --cal-header-height: 1.7rem;
+    display: flex;
+    flex-direction: column;
     min-width: calc(7 * var(--day-min-width) + 8px);
     gap: 1px;
     background: var(--border);
@@ -421,6 +428,33 @@ body:has(.nav-sections:not([hidden])) {
 
 .calendar-month {
     --day-min-width: 96px;
+}
+
+.price-month {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 1px;
+}
+
+/*
+ * A week row is a grid of 14 half-day columns: each day cell spans two (the
+ * renderer sets the columns inline), the stay layer spans them all on the
+ * same grid row, so the row is as tall as the taller of the two and a bar
+ * can start or end at the middle of a day.
+ */
+.cal-row {
+    display: grid;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    column-gap: 1px;
+}
+
+.cal-row > .cal-cell {
+    grid-row: 1;
 }
 
 .cal-weekday {
@@ -462,6 +496,8 @@ body:has(.nav-sections:not([hidden])) {
     --header-active-color: var(--accent-text);
     padding: 0.35rem 0.5rem;
     font-size: 0.8rem;
+    line-height: 1.25;
+    white-space: nowrap;
     font-weight: 600;
     text-transform: capitalize;
     color: var(--text-muted);
@@ -553,6 +589,102 @@ button.cal-cell-header:focus-visible {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
+}
+
+/* ------------------------------------------------------ stay bars (hotel) */
+
+/*
+ * The layer of stay bars of a week row: the same 14 half-day columns as the
+ * row (same 1px gaps, so the tracks line up), one grid row per lane, starting
+ * below the cell headers. The layer itself lets pointer events through to the
+ * cells (hover and the "+" shortcut keep working); the bars catch their own.
+ * Bars share the colors of the entries (--entry-color, status classes).
+ */
+.cal-stays {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    /* the cells are positioned (their "+" corner), so they would paint over a layer that is not positioned */
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    grid-auto-rows: min-content;
+    column-gap: 1px;
+    row-gap: 2px;
+    align-content: start;
+    padding: var(--cal-header-height) 0 0.3rem;
+    pointer-events: none;
+}
+
+.cal-stay {
+    --entry-color: var(--ok);
+    --entry-active-bg: var(--accent-tint);
+    --stay-radius: 6px;
+    min-width: 0;
+    margin: 0 1px;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-left: 3px solid var(--entry-color);
+    border-radius: var(--stay-radius);
+    background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    color: var(--text);
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background-color var(--transition-fast);
+}
+
+.calendar-month .cal-stay {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.4rem;
+}
+
+.cal-stay.is-pending {
+    --entry-color: var(--pending);
+    border-left-style: dashed;
+}
+
+.cal-stay.is-deposit {
+    --entry-color: var(--deposit);
+}
+
+.cal-stay.is-paid {
+    --entry-color: var(--paid);
+}
+
+/*
+ * A stay that goes on beyond the row is cut flat at the edge: it has no
+ * start (or no end) here. After the status rules, so the pending dashed
+ * border does not bring the left border back.
+ */
+.cal-stay.is-continued-left {
+    margin-left: 0;
+    border-left-width: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.cal-stay.is-continued-right {
+    margin-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+@media (pointer: fine) {
+    .cal-stay:hover {
+        background: var(--entry-active-bg);
+    }
+}
+
+.cal-stay.is-tapped,
+.cal-stay:focus-visible {
+    background: var(--entry-active-bg);
 }
 
 /* ------------------------------------------- time grid (restaurant, facility) */
@@ -892,12 +1024,14 @@ button.cal-cell-header:focus-visible {
 /* ---------------------------------------------- read-only calendar entries */
 
 /* Other organisations' bookings in the requester area: visible, not clickable. */
-.cal-entry.is-readonly {
+.cal-entry.is-readonly,
+.cal-stay.is-readonly {
     cursor: default;
 }
 
 @media (pointer: fine) {
-    .cal-entry.is-readonly:hover {
+    .cal-entry.is-readonly:hover,
+    .cal-stay.is-readonly:hover {
         background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
     }
 }

@@ -201,7 +201,7 @@ export function renderSlotGrid(container, days, items, setup, options) {
                 }
             } else {
                 for (const item of items) {
-                    if (item.date === day && item.start_time === time) cell.append(entryElement(item, day, options));
+                    if (item.date === day && item.start_time === time) cell.append(entryElement(item, options));
                 }
             }
             cell.title = `${formatDayHeader(day, lang)} · ${time}–${timeFromMinutes(row.minutes + setup.stepMinutes)}${description}`;
