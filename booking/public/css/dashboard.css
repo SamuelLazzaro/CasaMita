@@ -309,17 +309,17 @@ body:has(.nav-sections:not([hidden])) {
 
 .swatch.is-price-base {
     background: var(--accent-tint);
-    border-left-color: var(--accent-text);
+    border-color: var(--accent-text);
 }
 
 .swatch.is-price-period {
     background: var(--pending-tint);
-    border-left-color: var(--pending);
+    border-color: var(--pending);
 }
 
 .swatch.is-price-none {
     background: var(--page);
-    border-left-color: var(--text-muted);
+    border-color: var(--text-muted);
 }
 
 /* week: rooms × days table */
@@ -565,8 +565,7 @@ button.cal-cell-header:focus-visible {
     gap: 0.05rem;
     width: 100%;
     padding: 0.25rem 0.45rem;
-    border: none;
-    border-left: 3px solid var(--entry-color);
+    border: 2px solid var(--entry-color);
     border-radius: 4px;
     background: color-mix(in srgb, var(--entry-color) var(--entry-wash), var(--surface));
     font: inherit;
@@ -580,7 +579,7 @@ button.cal-cell-header:focus-visible {
 
 .cal-entry.is-pending {
     --entry-color: var(--pending);
-    border-left-style: dashed;
+    border-style: dashed;
 }
 
 .cal-entry.is-deposit {
@@ -670,7 +669,7 @@ button.cal-cell-header:focus-visible {
 
 .cal-stay.is-pending {
     --entry-color: var(--pending);
-    border-left-style: dashed;
+    border-style: dashed;
 }
 
 .cal-stay.is-deposit {
@@ -684,7 +683,7 @@ button.cal-cell-header:focus-visible {
 /*
  * A stay that goes on beyond the row is cut flat at the edge: it has no
  * start (or no end) here. After the status rules, so the pending dashed
- * border does not bring the left border back.
+ * border does not bring the cut edge back.
  */
 .cal-stay.is-continued-left {
     margin-left: 0;
@@ -695,6 +694,7 @@ button.cal-cell-header:focus-visible {
 
 .cal-stay.is-continued-right {
     margin-right: 0;
+    border-right-width: 0;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
 }
