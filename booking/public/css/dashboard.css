@@ -558,7 +558,8 @@ button.cal-cell-header:focus-visible {
 
 .cal-entry {
     --entry-color: var(--confirmed);
-    --entry-active-bg: var(--accent-tint);
+    /* a stronger wash of the own color: an accent tint would vanish on an entry of the accent hue */
+    --entry-active-bg: color-mix(in srgb, var(--entry-color) 28%, var(--surface));
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -641,7 +642,8 @@ button.cal-cell-header:focus-visible {
 
 .cal-stay {
     --entry-color: var(--confirmed);
-    --entry-active-bg: var(--accent-tint);
+    /* a stronger wash of the own color: an accent tint would vanish on an entry of the accent hue */
+    --entry-active-bg: color-mix(in srgb, var(--entry-color) 28%, var(--surface));
     --stay-radius: 6px;
     min-width: 0;
     margin: 0 1px;

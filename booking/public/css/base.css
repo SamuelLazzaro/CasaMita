@@ -55,11 +55,12 @@
        green marks a stay paid in full */
     --confirmed: var(--ok);
     --confirmed-tint: var(--ok-tint);
-    /* hotel payments: deposit received, paid in full */
+    /* hotel payments: deposit received, paid in full. A grass green, far
+       from the hotel confirmed blue (--ok leans to teal). */
     --deposit: #6d28d9;
     --deposit-tint: #f1ebfd;
-    --paid: var(--ok);
-    --paid-tint: var(--ok-tint);
+    --paid: #15803d;
+    --paid-tint: #dcfce7;
 
     /* layout */
     --page-width: 760px;
@@ -82,9 +83,8 @@
     --accent-text: #1b5f6a;
     --accent-text-dark: #24333a;
     --accent-tint: #e4f0f2;
-    /* sky blue, not the accent blue: the hover wash of a stay bar is the accent tint */
-    --confirmed: #0369a1;
-    --confirmed-tint: #e0f2fe;
+    --confirmed: #1d4ed8;
+    --confirmed-tint: #dbeafe;
 }
 
 :root[data-booking-type="facility"] {
