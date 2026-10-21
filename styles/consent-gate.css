@@ -96,7 +96,10 @@
     background: var(--cg-btn-bg-active);
 }
 
-.consent-gate-btn:focus-visible {
+/* Keyboard focus only: the host site keeps html.is-keyboard-input
+   while the keyboard is in use (tap-feedback pattern), so a tap
+   never leaves the ring on. */
+html.is-keyboard-input .consent-gate-btn:focus-visible {
     outline: var(--cg-focus-width) solid currentColor;
     outline-offset: 2px;
 }

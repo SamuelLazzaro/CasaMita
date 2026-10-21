@@ -248,6 +248,21 @@ section[id] {
 }
 
 /* ==========================================================================
+   Focus styles only for the keyboard
+   js/tap-feedback.js keeps .is-keyboard-input on <html> from the first key
+   press to the next pointer press, and every focus rule of an actionable
+   element is scoped to it (html.is-keyboard-input .component:focus-visible).
+   The browsers' own :focus-visible heuristic is not enough: WebKit matches
+   it on programmatic focus too (the hamburger gets focus() back when the
+   menu closes) and Chrome keeps it on an element reached with Tab even after
+   it is clicked, so a tap could leave the focus ring on for good. Form
+   fields are left alone: typing into them is keyboard use by definition.
+   ========================================================================== */
+html:not(.is-keyboard-input) :is(a, button, [role="button"]):focus-visible {
+    outline: none;
+}
+
+/* ==========================================================================
    Reduced motion: no smooth scroll, no reveal sliding — content is
    simply visible.
    ========================================================================== */

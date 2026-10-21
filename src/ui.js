@@ -105,11 +105,12 @@ function updateHamburgerState(isOpen) {
  * Deliberately does NOT move focus, unlike the usual dialog pattern:
  * the hamburger is itself the close button, it stays visible above the
  * panel and comes before it in DOM order, so whoever opened the menu is
- * already on the right control and Tab leads into it anyway. Calling
- * focus() here would only add a spurious focus ring on iOS, where
- * WebKit — alone among the engines — matches :focus-visible on
- * programmatic focus. Focus is still restored on close, where the panel
- * turning visibility:hidden would otherwise drop it onto <body>.
+ * already on the right control and Tab leads into it anyway. Focus is
+ * still restored on close, where the panel turning visibility:hidden
+ * would otherwise drop it onto <body>. That programmatic focus() makes
+ * WebKit match :focus-visible on the hamburger even after a tap; the ring
+ * stays off because tap-feedback.js keeps the focus styles scoped to the
+ * keyboard (html.is-keyboard-input, see main.css).
  *
  * Overlay and panel are shown/hidden by the .is-open class alone: their
  * fade/slide AND their end-state hiding (visibility + transition-delay)

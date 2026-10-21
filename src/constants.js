@@ -40,6 +40,13 @@ export const TAP_FEEDBACK_CLASS = "is-tapped";
  */
 export const TAP_FEEDBACK_SELECTOR = 'a[href], button, [role="button"]';
 
+/**
+ * @type {string} class on <html> while the user drives the page with the
+ * keyboard; the CSS focus rules of the actionable elements are scoped to it
+ * (see main.css)
+ */
+export const KEYBOARD_INPUT_CLASS = "is-keyboard-input";
+
 /* ----- cookie consent (see cookie-banner.js and where-map.js) ----- */
 
 /** @type {string} localStorage key recording the visitor's banner choice */
