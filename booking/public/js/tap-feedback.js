@@ -1,105 +1,144 @@
 /*
  * tap-feedback.js — visual feedback for taps on touch devices.
  *
- * Touch screens have no :hover, and the native highlight is switched off
- * (-webkit-tap-highlight-color: transparent), so a tap would give no
- * confirmation that the intended element was hit. This module inserts a
- * short feedback window in front of every touch activation:
+ * Touch screens have no :hover and base.css switches the native highlight
+ * off (-webkit-tap-highlight-color: transparent), so a tap gives no
+ * confirmation that the intended element was hit: the action just happens,
+ * or on a slow navigation seems not to happen at all. This module inserts
+ * a short feedback window in front of every touch activation:
  *
  *   1. a capture-phase click listener on document intercepts the event
  *      before anything else sees it and cancels it: preventDefault() holds
- *      back the default action, stopImmediatePropagation() the page handlers
+ *      back the default action (following a link, submitting a form) and
+ *      stopImmediatePropagation() holds back the page's own handlers
  *   2. TAP_FEEDBACK_CLASS is added to the tapped element, which the CSS
  *      styles like the desktop :hover state of that component
  *   3. after TAP_FEEDBACK_MS the class is removed and the click is replayed
- *      with element.click(), which runs everything as if step 1 never happened
+ *      with element.click(), which performs the default action and runs
+ *      every handler exactly as if step 1 had never happened
  *
  * Only real finger taps take this path: mouse and keyboard activations keep
- * their native, immediate timing. Hooking click (not touchstart) is
- * deliberate: a touch that turns into a scroll never produces a click.
+ * their native, immediate timing. The decision is made per event rather
+ * than once per device, so a hybrid laptop (touchscreen plus mouse) behaves
+ * correctly with either input.
+ *
+ * Hooking click (not touchstart) is deliberate: a touch that turns into a
+ * scroll never produces a click, so scrolling fingers get no stray feedback
+ * for free.
  *
  * The module also tells the CSS which input is in use: KEYBOARD_INPUT_CLASS
- * sits on <html> from the first key press until the next pointer press. The
- * focus styles of the actionable elements are scoped to that class, so
- * they show up only when the focus was reached with the keyboard. The
- * browsers' own :focus-visible heuristic is not enough: WebKit matches it
- * on any programmatic focus, including the focus a <dialog> takes when it
- * opens and gives back when it closes, so a tap could leave a button
- * looking hovered for good.
+ * sits on <html> from the first key press until the next pointer press, and
+ * the focus styles of the actionable elements are scoped to it, so they show
+ * up only when the focus was reached with the keyboard. The browsers' own
+ * :focus-visible heuristic is not enough: WebKit matches it on any
+ * programmatic focus (including the focus a <dialog> takes when it opens and
+ * hands back when it closes) and Chrome keeps it on an element reached with
+ * Tab even after it is clicked, so a tap could leave a button looking
+ * focused for good.
  */
 import { KEYBOARD_INPUT_CLASS, TAP_FEEDBACK_CLASS, TAP_FEEDBACK_MS, TAP_FEEDBACK_SELECTOR } from './constants.js';
 
 /** @type {boolean} true when the last pointer pressed down was a finger */
-let g_lastInputWasTouch = false;
+let g_lastPointerWasTouch = false;
 
 /**
- * The click event's own pointerType is not reliable (some engines label a
- * tap-born click "mouse"), so the pointerdown that opened the click is
- * recorded instead. Keyboard activations synthesise a click with detail 0
- * and must not be delayed.
- * @param {MouseEvent} clickEvent
+ * Tell whether a click event was produced by a finger on a touch screen.
+ *
+ * The click event's own `pointerType` is deliberately not the signal used
+ * here: click belongs to the legacy mouse-compatibility sequence, and some
+ * engines still label it "mouse" even when a tap started it. The
+ * pointerdown (or touchstart) that opened this very click is reliable
+ * everywhere, so its pointer type is recorded and read back here.
+ *
+ * Keyboard activations (Enter or Space on a link or button) synthesise a
+ * click with no pointer behind it and must not be delayed: they are spotted
+ * by `detail === 0`, since a pointer-driven click always carries a click
+ * count of at least 1.
+ * @param {MouseEvent} clickEvent - the intercepted click event
  * @returns {boolean} true when the click comes from a tap
  */
-function isClickFromTap(clickEvent) {
-    const keyboardActivation = clickEvent.detail === 0;
-    return g_lastInputWasTouch && !keyboardActivation;
+function isTapClick(clickEvent) {
+    const isKeyboardActivation = clickEvent.detail === 0;
+    return g_lastPointerWasTouch && !isKeyboardActivation;
 }
 
 /**
- * @param {Element} tappedElement
+ * Show the feedback on the tapped element, then let its action run.
+ * @param {Element} tappedElement - element the tap landed on
  * @returns {void}
  */
-function showFeedbackThenReplay(tappedElement) {
+function showFeedbackThenReplayClick(tappedElement) {
     tappedElement.classList.add(TAP_FEEDBACK_CLASS);
+
     setTimeout(() => {
         tappedElement.classList.remove(TAP_FEEDBACK_CLASS);
-        // The replayed click has isTrusted === false: that is what stops
-        // interceptClick from intercepting it again and looping forever.
+        /*
+         * The replayed click is synthetic, hence isTrusted === false: that
+         * is also what stops onClickCapture from intercepting it again and
+         * looping forever.
+         */
         tappedElement.click();
     }, TAP_FEEDBACK_MS);
 }
 
 /**
- * @param {MouseEvent} clickEvent - click captured on document
+ * Capture-phase click handler: hold a touch activation back for the length
+ * of the feedback, and leave every other kind of click untouched.
+ * @param {MouseEvent} clickEvent - click event captured on document
  * @returns {void}
  */
-function interceptClick(clickEvent) {
-    if (!clickEvent.isTrusted || !isClickFromTap(clickEvent)) return;
+function onClickCapture(clickEvent) {
+    if (!clickEvent.isTrusted || !isTapClick(clickEvent)) {
+        return; // replayed click, mouse or keyboard: nothing to delay
+    }
+
     const tappedElement = clickEvent.target.closest(TAP_FEEDBACK_SELECTOR);
-    if (tappedElement === null) return;
+    if (tappedElement === null) {
+        return; // tap on plain content, or on a dialog backdrop
+    }
+
     clickEvent.preventDefault();
     clickEvent.stopImmediatePropagation();
-    // A second tap during the feedback would queue a second replay: swallow it.
-    if (!tappedElement.classList.contains(TAP_FEEDBACK_CLASS)) showFeedbackThenReplay(tappedElement);
+
+    // a second tap arriving while the feedback is still on screen would
+    // queue a second replay of the same action: swallow it
+    if (!tappedElement.classList.contains(TAP_FEEDBACK_CLASS)) {
+        showFeedbackThenReplayClick(tappedElement);
+    }
 }
 
 /**
- * Lets other modules adapt to the input in use (e.g. a hover affordance
- * that a touch screen has to reveal with a tap instead).
+ * Let other modules adapt to the input in use (e.g. a hover affordance
+ * that a touch screen has to reveal with a tap instead, see add-shortcut.js).
  * @returns {boolean} true when the last pointer pressed down was a finger
  */
 export function lastInputWasTouch() {
-    return g_lastInputWasTouch;
+    return g_lastPointerWasTouch;
 }
 
 /**
- * Starts giving taps a visual feedback before their action runs. Call it
- * before any other click handler is registered.
+ * Start giving taps a visual feedback before their action runs.
+ * Must be called before any other click handler is registered, so that its
+ * capture-phase listener is the first one document sees.
  * @returns {void}
  */
 export function startTapFeedback() {
     document.addEventListener('pointerdown', (pointerEvent) => {
-        g_lastInputWasTouch = pointerEvent.pointerType === 'touch';
+        g_lastPointerWasTouch = pointerEvent.pointerType === 'touch';
         document.documentElement.classList.remove(KEYBOARD_INPUT_CLASS);
     }, { capture: true, passive: true });
+
     // engines without PointerEvent support only fire the touch events
     document.addEventListener('touchstart', () => {
-        g_lastInputWasTouch = true;
+        g_lastPointerWasTouch = true;
         document.documentElement.classList.remove(KEYBOARD_INPUT_CLASS);
     }, { capture: true, passive: true });
-    // keydown fires before Tab moves the focus, so the newly focused element already gets the keyboard styles
+
+    // keydown fires before Tab moves the focus, so the newly focused
+    // element already gets the keyboard styles
     document.addEventListener('keydown', () => {
         document.documentElement.classList.add(KEYBOARD_INPUT_CLASS);
     }, { capture: true, passive: true });
-    document.addEventListener('click', interceptClick, true);
+
+    document.addEventListener('click', onClickCapture, true);
 }
