@@ -5,7 +5,7 @@
  * types with their base price (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, setDayPrice, updateBooking, updateRequester, updateRoomType } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchExport, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, setDayPrice, updateBooking, updateRequester, updateRoomType } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
@@ -16,8 +16,8 @@ import { initRestaurantForm } from './form-restaurant.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { appendDetail, applyVenue, bindPriceInput, button, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
-import { addDays, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, priceInputValue, todayInRome, weekDays } from './utils.js';
+import { appendDetail, applyVenue, bindPriceInput, button, downloadTextFile, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
+import { addDays, addMonths, csvAmount, csvDocument, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, priceInputValue, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
 
@@ -697,6 +697,72 @@ function openDirectBooking(prefill = null) {
 
 byId('new-booking').addEventListener('click', () => openDirectBooking());
 
+/* --------------------------------------------------------------- export */
+
+/*
+ * Hotel: CSV of the stays touching a date range, one line per stay. The
+ * server gives the rows (GET /api/admin/export); the file is built here so
+ * the header and the statuses follow the language of the dashboard. The
+ * dialog opens on the month the calendar is showing.
+ */
+const exportDialog = byId('dialog-export');
+const exportForm = byId('export-form');
+const exportStatus = byId('export-status');
+const exportFrom = byId('export-from');
+const exportTo = byId('export-to');
+
+/** Translation keys of the header, in column order. */
+const EXPORT_HEADER_KEYS = ['field.checkIn', 'field.checkOut', 'field.firstName', 'field.lastName', 'field.email', 'field.phone', 'field.roomType', 'field.adults', 'field.children', 'export.agreedTotal', 'export.paidAmount', 'export.paymentStatus', 'export.bookingStatus'];
+
+/**
+ * @param {object} item - a row of the export answer
+ * @param {string} lang
+ * @returns {(string|number|null)[]} the cells of its line, same order as the header
+ */
+function exportLine(item, lang) {
+    const paymentKey = item.payment_status === 'none' ? 'export.paymentNone' : `status.${item.payment_status}`;
+    return [formatShortDate(item.check_in, lang), formatShortDate(item.check_out, lang), item.first_name, item.last_name, item.email, item.phone, item.room_type, item.adults, item.children, csvAmount(item.quoted_total), csvAmount(item.paid_amount), translate(paymentKey), translate(`status.${item.status}`)];
+}
+
+function openExportDialog() {
+    const monthStart = `${calendarView.interval().date.slice(0, 7)}-01`;
+    exportForm.reset();
+    exportFrom.value = monthStart;
+    exportTo.value = addDays(addMonths(monthStart, 1), -1);
+    hideStatus(exportStatus);
+    openDialog(exportDialog);
+}
+
+exportForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    hideStatus(exportStatus);
+    if (!exportForm.checkValidity()) {
+        showStatus(exportStatus, translate('validation.required'), 'error');
+        return;
+    }
+    if (exportTo.value < exportFrom.value) {
+        showStatus(exportStatus, translate('error.period_reversed'), 'error');
+        return;
+    }
+    try {
+        const answer = await fetchExport(exportFrom.value, exportTo.value);
+        if (answer.items.length === 0) {
+            showStatus(exportStatus, translate('export.empty'), 'info');
+            return;
+        }
+        const lang = currentLanguage();
+        const header = EXPORT_HEADER_KEYS.map((key) => translate(key));
+        const lines = answer.items.map((item) => exportLine(item, lang));
+        downloadTextFile(translate('export.fileName', { from: answer.from, to: answer.to }), csvDocument([header, ...lines]), 'text/csv');
+        exportDialog.close();
+        showStatus(calendarStatus, translate('done.exported', { count: answer.items.length }), 'ok');
+    } catch (error) {
+        showStatus(exportStatus, errorMessage(error), 'error');
+    }
+});
+
+byId('export-csv').addEventListener('click', openExportDialog);
+
 /* ---------------------------------------------------------------- rooms */
 
 const roomsStatus = byId('rooms-status');
@@ -1089,6 +1155,7 @@ async function enterDashboard() {
     byId('nav-pricing').hidden = g_config.type !== 'hotel';
     byId('nav-requesters').hidden = g_config.type !== 'facility';
     byId('cal-mode').hidden = g_config.type !== 'hotel';
+    byId('export-csv').hidden = g_config.type !== 'hotel';
     // A stay has no time of day: the hotel has no day view.
     byId('cal-view-day').hidden = g_config.type === 'hotel';
     initDirectForm();

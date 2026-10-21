@@ -127,6 +127,23 @@ admin.get('/availability', async (c) => {
     return c.json({ check_in: checkIn, check_out: checkOut, rooms: await roomAvailability(c.env.DB, checkIn, checkOut, exclude) });
 });
 
+/**
+ * Hotel: the rows of the CSV export, for the stays touching a date range
+ * (both ends included, check-out excluded as in the calendar). Confirmed,
+ * rejected and cancelled stays; pending ones are left out (owner's
+ * decision). Only the exported columns: the browser builds the file, so the
+ * header follows the language of the dashboard.
+ */
+admin.get('/export', async (c) => {
+    if (venueConfig(c.env).type !== 'hotel') return c.json({ error: 'not_found' }, 404);
+    const from = c.req.query('from') ?? '';
+    const to = c.req.query('to') ?? '';
+    if (!isValidDate(from) || !isValidDate(to)) return c.json({ error: 'invalid_date' }, 400);
+    if (to < from) return c.json({ error: 'period_reversed' }, 400);
+    const { results } = await c.env.DB.prepare(`SELECT check_in, check_out, first_name, last_name, email, phone, room_type, adults, children, quoted_total, paid_amount, payment_status, status FROM requests WHERE type = 'hotel' AND status IN ('approved', 'rejected', 'cancelled') AND check_in <= ?2 AND check_out > ?1 ORDER BY check_in, check_out, last_name, first_name, id`).bind(from, to).all();
+    return c.json({ from, to, items: results });
+});
+
 /** Requests by status (pending by default), newest first for the inbox. */
 admin.get('/requests', async (c) => {
     const status = c.req.query('status') ?? 'pending';

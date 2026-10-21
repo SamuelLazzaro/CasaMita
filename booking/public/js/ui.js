@@ -127,6 +127,25 @@ export function bindPriceInput(input) {
 }
 
 /**
+ * Hands a text file to the browser as a download, through a temporary
+ * object URL released right after the click.
+ * @param {string} fileName
+ * @param {string} content
+ * @param {string} mimeType - e.g. 'text/csv'
+ * @returns {void}
+ */
+export function downloadTextFile(fileName, content, mimeType) {
+    const url = URL.createObjectURL(new Blob([content], { type: `${mimeType};charset=utf-8` }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+/**
  * Creates a button.
  * @param {string} label - already translated text
  * @param {string} className - CSS classes

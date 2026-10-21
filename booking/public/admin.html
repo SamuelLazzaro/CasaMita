@@ -70,7 +70,11 @@
                 <section id="section-calendar" class="panel" data-section>
                     <div class="panel-header">
                         <h2 data-i18n="calendar.title">Calendario</h2>
-                        <button type="button" class="btn btn-primary" id="new-booking" data-i18n="calendar.new">Nuova prenotazione</button>
+                        <div class="panel-header-actions">
+                            <button type="button" class="btn btn-primary" id="new-booking" data-i18n="calendar.new">Nuova prenotazione</button>
+                            <!-- Hotel only: CSV of the stays in a date range. -->
+                            <button type="button" class="btn" id="export-csv" data-i18n="calendar.export" hidden>Esporta CSV</button>
+                        </div>
                     </div>
                     <!-- Hotel only: the same section holds two calendars, bookings and
                          nightly prices per room type; this switch picks the one on screen. -->
@@ -399,6 +403,25 @@
                         </div>
                     </form>
                     <p id="price-day-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <!-- Hotel: CSV export of the stays touching a date range. -->
+            <dialog id="dialog-export" class="dialog" aria-labelledby="export-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="export-dialog-title" data-i18n="export.title">Esporta prenotazioni in CSV</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <form id="export-form" class="form" novalidate>
+                        <div class="field-row">
+                            <div class="field"><label for="export-from" data-i18n="export.from">Dal giorno</label><input type="date" id="export-from" name="from" required></div>
+                            <div class="field"><label for="export-to" data-i18n="export.to">Al giorno</label><input type="date" id="export-to" name="to" required></div>
+                        </div>
+                        <p class="hint" data-i18n="export.hint">Soggiorni che toccano il periodo: confermati, rifiutati e annullati (non quelli in attesa). File per Excel, separatore punto e virgola.</p>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="export.download">Esporta</button></div>
+                    </form>
+                    <p id="export-status" class="status" role="status" hidden></p>
                 </div>
             </dialog>
 

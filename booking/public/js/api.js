@@ -161,6 +161,16 @@ export function markPaid(id) {
 }
 
 /**
+ * Hotel: the rows of the CSV export, stays touching the range (pending ones excluded).
+ * @param {string} from - 'YYYY-MM-DD'
+ * @param {string} to - 'YYYY-MM-DD', not before `from`
+ * @returns {Promise<{from: string, to: string, items: object[]}>}
+ */
+export function fetchExport(from, to) {
+    return requestJson(`/api/admin/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+}
+
+/**
  * Direct booking by the venue, born approved.
  * @param {Record<string, unknown>} payload - fields of the hotel, restaurant or facility form
  * @returns {Promise<{id: number, status: string}>}

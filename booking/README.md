@@ -219,6 +219,17 @@ minuti). Sezioni:
   etichetta). "Torna al prezzo base" rimuove l'eccezione, lasciando un buco
   nel periodo se ce n'era uno. Periodi e sconti restano nella sezione Prezzi;
   i due calendari si aggiornano da soli.
+  Per l'hotel, sotto "Nuova prenotazione", **Esporta CSV** scarica i
+  soggiorni che toccano un intervallo di date (check-out escluso, come nel
+  calendario): confermati, rifiutati e annullati, non quelli in attesa. Una
+  riga per soggiorno: check-in, check-out, nome, cognome, email, telefono,
+  tipologia, adulti, bambini, prezzo totale concordato, cifra pagata, stato
+  pagamento, stato prenotazione. Il file è costruito nel browser
+  (`utils.js`, `csvDocument`) per Excel in italiano: separatore `;`, decimali
+  con la virgola, date `gg/mm/aaaa`, BOM UTF-8, intestazione e stati nella
+  lingua della dashboard. Le celle che iniziano con `=`, `+`, `-`, `@` sono
+  precedute da un apostrofo (CSV injection, OWASP): vale anche per i telefoni
+  con prefisso `+39`.
   Le viste settimana e mese mostrano i sette giorni per intero (la dashboard
   è più larga delle pagine pubbliche); se lo schermo è più stretto si scorre
   in orizzontale, col dito sul touch e trascinando col mouse sul desktop
@@ -246,6 +257,7 @@ se una fascia è già occupata.
 | `POST /api/admin/requests/:id/deposit\|paid` | hotel: pagamenti (l'acconto accetta `amount`) |
 | `PATCH /api/admin/requests/:id` | modifica di una prenotazione in attesa o confermata: stessi campi della prenotazione diretta più `notify` (false per non avvisare il cliente); risponde con `changed` (colonne cambiate, incluso `payment_status` quando il nuovo totale lo fa cambiare) e `item`; 409 `cannot_edit`, `in_past`, `room_unavailable`, `slots_taken` |
 | `GET /api/admin/availability?check_in=&check_out=&exclude=` | hotel: camere libere escludendo una prenotazione dal conteggio (quella in modifica) |
+| `GET /api/admin/export?from=&to=` | hotel: righe dell'export CSV, soggiorni che toccano l'intervallo (confermati, rifiutati, annullati), solo le colonne esportate; 400 `invalid_date`, `period_reversed` |
 | `POST /api/admin/bookings` | prenotazione diretta, campi per tipologia |
 | `GET /api/admin/pricing`, `POST /api/admin/pricing/periods`, `PATCH/DELETE /api/admin/pricing/periods/:id`, `POST/DELETE /api/admin/pricing/discounts[/:id]` | hotel: prezzi base, periodi (409 `period_overlap`) e sconti |
 | `PUT /api/admin/pricing/days/:date` | hotel: prezzo di una tipologia (`room_type`) in un giorno, come periodo di un giorno che spezza quello che lo copre; `price_per_night: null` riporta il giorno al prezzo base; 409 `day_past` |

@@ -30,6 +30,14 @@
     margin: 0;
 }
 
+/* The buttons of a panel header, stacked one under the other. */
+.panel-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+}
+
 .prose h2 {
     margin-top: var(--space-4);
     font-size: 1.05rem;

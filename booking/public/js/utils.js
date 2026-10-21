@@ -220,6 +220,49 @@ export function limitToCents(text) {
     return text.slice(0, decimalsStart + 3);
 }
 
+/*
+ * CSV for Excel in Italian locale: semicolon separator, CRLF line ends and a
+ * UTF-8 BOM so accented letters open correctly. A cell holding the
+ * separator, a quote or a line break is quoted (quotes doubled). A cell that
+ * starts with =, +, -, @, tab or CR would be run as a formula by a
+ * spreadsheet (CSV injection: names and emails come from the public form),
+ * so it gets a leading apostrophe, as the OWASP CSV Injection cheat sheet
+ * prescribes; the apostrophe stays visible in the sheet.
+ */
+const CSV_SEPARATOR = ';';
+const CSV_FORMULA_START = /^[=+\-@\t\r]/;
+const CSV_NEEDS_QUOTES = /["\r\n;]/;
+
+/**
+ * @param {string|number|null|undefined} value - null and undefined give an empty cell
+ * @returns {string} the cell as written in the file
+ */
+export function csvCell(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    const neutralised = CSV_FORMULA_START.test(text) ? `'${text}` : text;
+    if (CSV_NEEDS_QUOTES.test(neutralised)) return `"${neutralised.replace(/"/g, '""')}"`;
+    return neutralised;
+}
+
+/**
+ * @param {(string|number|null|undefined)[][]} rows - header first, one array per line
+ * @returns {string} the whole file, BOM included
+ */
+export function csvDocument(rows) {
+    const lines = rows.map((row) => row.map(csvCell).join(CSV_SEPARATOR));
+    return `﻿${lines.join('\r\n')}\r\n`;
+}
+
+/**
+ * Amount for a CSV cell: two decimals with a comma ("1234,50", Italian
+ * locale, no thousands separator), empty when there is no amount.
+ * @param {number|null|undefined} amount - euro
+ * @returns {string}
+ */
+export function csvAmount(amount) {
+    return priceInputValue(amount).replace('.', ',');
+}
+
 /**
  * The state a booking is shown with. A confirmed hotel stay with a payment
  * recorded shows the payment ('deposit', 'paid') in place of the plain
