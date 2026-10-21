@@ -61,6 +61,8 @@
     --deposit-tint: #f1ebfd;
     --paid: #15803d;
     --paid-tint: #dcfce7;
+    /* share of a status color in the wash of calendar entries and legend swatches */
+    --entry-wash: 14%;
 
     /* layout */
     --page-width: 760px;

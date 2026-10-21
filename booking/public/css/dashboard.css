@@ -226,23 +226,22 @@ body:has(.nav-sections:not([hidden])) {
     width: 0.8rem;
     height: 0.8rem;
     border-radius: 3px;
-    background: var(--confirmed-tint);
-    border-left: 3px solid var(--confirmed);
+    /* the same wash as the calendar entries, so a chip matches the bars it explains */
+    --entry-color: var(--confirmed);
+    background: color-mix(in srgb, var(--entry-color) var(--entry-wash), var(--surface));
+    border-left: 3px solid var(--entry-color);
 }
 
 .swatch.is-pending {
-    background: var(--pending-tint);
-    border-left-color: var(--pending);
+    --entry-color: var(--pending);
 }
 
 .swatch.is-deposit {
-    background: var(--deposit-tint);
-    border-left-color: var(--deposit);
+    --entry-color: var(--deposit);
 }
 
 .swatch.is-paid {
-    background: var(--paid-tint);
-    border-left-color: var(--paid);
+    --entry-color: var(--paid);
 }
 
 /* Payment states exist for hotel stays only: the other venues hide their legend chips. */
@@ -569,7 +568,7 @@ button.cal-cell-header:focus-visible {
     border: none;
     border-left: 3px solid var(--entry-color);
     border-radius: 4px;
-    background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+    background: color-mix(in srgb, var(--entry-color) var(--entry-wash), var(--surface));
     font: inherit;
     font-size: 0.78rem;
     line-height: 1.25;
@@ -651,7 +650,7 @@ button.cal-cell-header:focus-visible {
     border: none;
     border-left: 3px solid var(--entry-color);
     border-radius: var(--stay-radius);
-    background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+    background: color-mix(in srgb, var(--entry-color) var(--entry-wash), var(--surface));
     font: inherit;
     font-size: 0.78rem;
     line-height: 1.25;
@@ -1069,7 +1068,7 @@ button.cal-cell-header:focus-visible {
 @media (pointer: fine) {
     .cal-entry.is-readonly:hover,
     .cal-stay.is-readonly:hover {
-        background: color-mix(in srgb, var(--entry-color) 14%, var(--surface));
+        background: color-mix(in srgb, var(--entry-color) var(--entry-wash), var(--surface));
     }
 }
 
