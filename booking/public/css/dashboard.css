@@ -132,6 +132,19 @@ html.is-keyboard-input .nav-item:focus-visible {
     .layout .container {
         margin: 0;
     }
+
+    /*
+     * Before login the sidebar is hidden and leaves the grid, so the
+     * container would be placed in the 180px sidebar track: collapse to
+     * a single column and centre the login panel instead.
+     */
+    .layout:has(.nav-sections[hidden]) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .layout:has(.nav-sections[hidden]) .container {
+        margin: 0 auto;
+    }
 }
 
 /* --------------------------------------------------------- more buttons */
