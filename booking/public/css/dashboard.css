@@ -68,7 +68,7 @@ body:has(.nav-sections:not([hidden])) {
 }
 
 .nav-item.is-tapped,
-.nav-item:focus-visible {
+html.is-keyboard-input .nav-item:focus-visible {
     color: var(--nav-active-color);
 }
 
@@ -160,7 +160,7 @@ body:has(.nav-sections:not([hidden])) {
 }
 
 .btn-text.is-tapped,
-.btn-text:focus-visible {
+html.is-keyboard-input .btn-text:focus-visible {
     color: var(--btn-text-active-color);
 }
 
@@ -541,7 +541,7 @@ button.cal-cell-header {
 }
 
 button.cal-cell-header.is-tapped,
-button.cal-cell-header:focus-visible {
+html.is-keyboard-input button.cal-cell-header:focus-visible {
     color: var(--header-active-color);
     text-decoration: underline;
 }
@@ -597,7 +597,7 @@ button.cal-cell-header:focus-visible {
 }
 
 .cal-entry.is-tapped,
-.cal-entry:focus-visible {
+html.is-keyboard-input .cal-entry:focus-visible {
     background: var(--entry-active-bg);
 }
 
@@ -706,7 +706,7 @@ button.cal-cell-header:focus-visible {
 }
 
 .cal-stay.is-tapped,
-.cal-stay:focus-visible {
+html.is-keyboard-input .cal-stay:focus-visible {
     background: var(--entry-active-bg);
 }
 
@@ -839,7 +839,7 @@ button.cal-cell-header:focus-visible {
     pointer-events: none;
 }
 
-/* a booking that opens the details popup: thicker bar when hovered, tapped or focused */
+/* a booking that opens the details popup: thicker bar when hovered, tapped or focused by keyboard */
 .cal-slot.is-selectable {
     --slot-active-shadow: inset 6px 0 0 var(--entry-color);
     cursor: pointer;
@@ -853,11 +853,11 @@ button.cal-cell-header:focus-visible {
 }
 
 .cal-slot.is-selectable.is-tapped,
-.cal-slot.is-selectable:focus-visible {
+html.is-keyboard-input .cal-slot.is-selectable:focus-visible {
     box-shadow: var(--slot-active-shadow);
 }
 
-.cal-slot.is-selectable:focus-visible {
+html.is-keyboard-input .cal-slot.is-selectable:focus-visible {
     outline: 2px solid var(--accent-dark);
     outline-offset: -2px;
 }

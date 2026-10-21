@@ -166,7 +166,7 @@ fieldset.field legend {
 }
 
 .btn.is-tapped,
-.btn:focus-visible {
+html.is-keyboard-input .btn:focus-visible {
     background: var(--btn-active-bg);
     border-color: var(--btn-active-border);
 }

@@ -58,7 +58,7 @@
 }
 
 .site-header-nav button.is-tapped,
-.site-header-nav button:focus-visible {
+html.is-keyboard-input .site-header-nav button:focus-visible {
     background: var(--header-button-active-bg);
     color: var(--header-button-active-color);
 }

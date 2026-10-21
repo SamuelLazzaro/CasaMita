@@ -17,8 +17,17 @@
  * Only real finger taps take this path: mouse and keyboard activations keep
  * their native, immediate timing. Hooking click (not touchstart) is
  * deliberate: a touch that turns into a scroll never produces a click.
+ *
+ * The module also tells the CSS which input is in use: KEYBOARD_INPUT_CLASS
+ * sits on <html> from the first key press until the next pointer press. The
+ * focus styles of the actionable elements are scoped to that class, so
+ * they show up only when the focus was reached with the keyboard. The
+ * browsers' own :focus-visible heuristic is not enough: WebKit matches it
+ * on any programmatic focus, including the focus a <dialog> takes when it
+ * opens and gives back when it closes, so a tap could leave a button
+ * looking hovered for good.
  */
-import { TAP_FEEDBACK_CLASS, TAP_FEEDBACK_MS, TAP_FEEDBACK_SELECTOR } from './constants.js';
+import { KEYBOARD_INPUT_CLASS, TAP_FEEDBACK_CLASS, TAP_FEEDBACK_MS, TAP_FEEDBACK_SELECTOR } from './constants.js';
 
 /** @type {boolean} true when the last pointer pressed down was a finger */
 let g_lastInputWasTouch = false;
@@ -81,10 +90,16 @@ export function lastInputWasTouch() {
 export function startTapFeedback() {
     document.addEventListener('pointerdown', (pointerEvent) => {
         g_lastInputWasTouch = pointerEvent.pointerType === 'touch';
+        document.documentElement.classList.remove(KEYBOARD_INPUT_CLASS);
     }, { capture: true, passive: true });
     // engines without PointerEvent support only fire the touch events
     document.addEventListener('touchstart', () => {
         g_lastInputWasTouch = true;
+        document.documentElement.classList.remove(KEYBOARD_INPUT_CLASS);
+    }, { capture: true, passive: true });
+    // keydown fires before Tab moves the focus, so the newly focused element already gets the keyboard styles
+    document.addEventListener('keydown', () => {
+        document.documentElement.classList.add(KEYBOARD_INPUT_CLASS);
     }, { capture: true, passive: true });
     document.addEventListener('click', interceptClick, true);
 }

@@ -150,6 +150,21 @@ h3 {
     transition: all var(--transition-tap) !important;
 }
 
+/*
+ * Focus styles only for the keyboard: js/tap-feedback.js keeps
+ * .is-keyboard-input on <html> from the first key press to the next pointer
+ * press, and every focus rule of an actionable element is scoped to it (see
+ * the html.is-keyboard-input .component:focus-visible twins next to each
+ * hover). The browsers' :focus-visible heuristic alone is not enough: WebKit
+ * matches it on programmatic focus too, such as the focus a <dialog> takes
+ * when it opens and hands back when it closes, so a tap could leave a
+ * button with the focus look for good. Form fields are left alone: typing
+ * into them is keyboard use by definition.
+ */
+html:not(.is-keyboard-input) :is(a, button, [role="button"]):focus-visible {
+    outline: none;
+}
+
 .muted {
     color: var(--text-muted);
 }
