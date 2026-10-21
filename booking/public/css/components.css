@@ -238,8 +238,8 @@ fieldset.field legend {
 }
 
 .badge.is-approved {
-    background: var(--ok-tint);
-    color: var(--ok);
+    background: var(--confirmed-tint);
+    color: var(--confirmed);
 }
 
 .badge.is-deposit {

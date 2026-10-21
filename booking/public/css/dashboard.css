@@ -226,8 +226,8 @@ body:has(.nav-sections:not([hidden])) {
     width: 0.8rem;
     height: 0.8rem;
     border-radius: 3px;
-    background: var(--ok-tint);
-    border-left: 3px solid var(--ok);
+    background: var(--confirmed-tint);
+    border-left: 3px solid var(--confirmed);
 }
 
 .swatch.is-pending {
@@ -557,7 +557,7 @@ button.cal-cell-header:focus-visible {
 }
 
 .cal-entry {
-    --entry-color: var(--ok);
+    --entry-color: var(--confirmed);
     --entry-active-bg: var(--accent-tint);
     display: flex;
     flex-direction: column;
@@ -640,7 +640,7 @@ button.cal-cell-header:focus-visible {
 }
 
 .cal-stay {
-    --entry-color: var(--ok);
+    --entry-color: var(--confirmed);
     --entry-active-bg: var(--accent-tint);
     --stay-radius: 6px;
     min-width: 0;
@@ -809,7 +809,7 @@ button.cal-cell-header:focus-visible {
  * request is striped: "undecided" shows at a glance, whatever the color.
  */
 .cal-slot.is-booked {
-    --entry-color: var(--ok);
+    --entry-color: var(--confirmed);
     --slot-wash: color-mix(in srgb, var(--entry-color) 22%, var(--surface));
     background: var(--slot-wash);
     box-shadow: inset 3px 0 0 var(--entry-color);

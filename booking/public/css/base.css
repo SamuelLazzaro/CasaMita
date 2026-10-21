@@ -51,13 +51,15 @@
     --error-tint: #faf0ed;
     --pending: #8a6d00;
     --pending-tint: #fff6d6;
-    /* hotel payments: deposit received, paid in full. Magenta for the
-       deposit: a blue would blend with the confirmed green once washed
-       into calendar cells, and with the hotel accent. */
-    --deposit: #be185d;
-    --deposit-tint: #fce7f3;
-    --paid: #6d28d9;
-    --paid-tint: #f1ebfd;
+    /* confirmed booking: green, blue for the hotel (see below), where the
+       green marks a stay paid in full */
+    --confirmed: var(--ok);
+    --confirmed-tint: var(--ok-tint);
+    /* hotel payments: deposit received, paid in full */
+    --deposit: #6d28d9;
+    --deposit-tint: #f1ebfd;
+    --paid: var(--ok);
+    --paid-tint: var(--ok-tint);
 
     /* layout */
     --page-width: 760px;
@@ -80,6 +82,9 @@
     --accent-text: #1b5f6a;
     --accent-text-dark: #24333a;
     --accent-tint: #e4f0f2;
+    /* sky blue, not the accent blue: the hover wash of a stay bar is the accent tint */
+    --confirmed: #0369a1;
+    --confirmed-tint: #e0f2fe;
 }
 
 :root[data-booking-type="facility"] {
