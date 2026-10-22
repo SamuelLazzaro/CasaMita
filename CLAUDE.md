@@ -36,10 +36,14 @@ Rifacimento completo di https://www.ristorantealbergocasamita.it/ mantenendone l
   su sfondo colorato (teal), mai su bianco.
 - **Prenotazioni camere**: il form è servito dal Worker in `booking/` e incorporato in
   `index.html` come iframe ad altezza automatica tramite il suo `embed.js`
-  (`<div id="booking">` + `<script src="https://<worker>/embed.js">`). Lo script invia
-  all'iframe l'attributo `lang` di `<html>`, quindi il FAB lingua cambia anche il form.
-  Il sito non tocca mai i dati della prenotazione. Il Worker accetta l'incorporamento
-  solo da `EMBED_ORIGIN` (`wrangler.jsonc`): se cambia il dominio del sito va aggiornato.
+  (`<div id="booking">` + `<script src="https://<worker>/embed.js" data-slug="casamita">`).
+  Il Worker serve più strutture: Casa Mita è la struttura `casamita`, i suoi indirizzi
+  stanno sotto `/casamita/` (form, `privacy`, link personali); la dashboard si apre dal
+  login unico `/admin`. Lo script invia all'iframe l'attributo `lang` di `<html>`,
+  quindi il FAB lingua cambia anche il form. Il sito non tocca mai i dati della
+  prenotazione. Il Worker accetta l'incorporamento solo dall'origine scritta in
+  `embed_origin` della struttura (direttorio D1, nessun deploy): se cambia il dominio
+  del sito va aggiornata con `wrangler d1 execute booking-directory --remote`.
   L'indirizzo del Worker compare in tre punti da tenere allineati: `index.html` (script
   e link di fallback) e `admin.html` (meta refresh e link).
   Tipologie, quantità e prezzi delle camere dalla dashboard (sezioni Camere e Prezzi).
