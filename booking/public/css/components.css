@@ -141,6 +141,9 @@ fieldset.field legend {
 .check-label input {
     margin: 0.2rem 0 0;
     flex-shrink: 0;
+    /* .field input sizes text fields: undo it for the radios of a fieldset.field */
+    width: auto;
+    padding: 0;
 }
 
 .choice-row {
