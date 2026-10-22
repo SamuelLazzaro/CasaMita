@@ -1,11 +1,11 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { app } from '../src/index';
-import { adminCall, adminCookie, daysAhead, envOfType, hotelBody, postJson, ROOM_B, ROOM_C, setStatus } from './helpers';
+import { adminCall, adminCookie, daysAhead, HOTEL, hotelBody, postJson, RESTAURANT, ROOM_B, ROOM_C, setStatus, url } from './helpers';
 
 /*
- * Hotel CSV export (GET /api/admin/export): the stays touching a date range,
- * every status but pending, with the exported columns only.
+ * Hotel CSV export (GET /:slug/api/admin/export): the stays touching a date
+ * range, every status but pending, with the exported columns only.
  */
 
 type ExportRow = { check_in: string; check_out: string; first_name: string; last_name: string; email: string; phone: string; room_type: string; adults: number; children: number; quoted_total: number | null; paid_amount: number | null; payment_status: string; status: string; guest_token?: string; notes?: string };
@@ -34,7 +34,7 @@ describe('hotel CSV export', () => {
         await setStatus(cancelled, 'cancelled');
         const pendingResponse = await postJson('/api/requests', hotelBody({ check_in: daysAhead(201), check_out: daysAhead(202), last_name: 'In attesa', room_type: ROOM_C.name }));
         expect(pendingResponse.status).toBe(201);
-        const rejectedResponse = await postJson('/api/requests', hotelBody({ check_in: daysAhead(202), check_out: daysAhead(203), last_name: 'Rifiutata', room_type: ROOM_C.name }), env, '203.0.113.11');
+        const rejectedResponse = await postJson('/api/requests', hotelBody({ check_in: daysAhead(202), check_out: daysAhead(203), last_name: 'Rifiutata', room_type: ROOM_C.name }), HOTEL, '203.0.113.11');
         expect(rejectedResponse.status).toBe(201);
         await setStatus(((await rejectedResponse.json()) as { id: number }).id, 'rejected');
         // A deposit on the stay inside the range.
@@ -66,9 +66,9 @@ describe('hotel CSV export', () => {
         const sameDay = await exportRows(cookie, daysAhead(10), daysAhead(10));
         expect(sameDay.status).toBe(200);
 
-        const anonymous = await app.request(`/api/admin/export?from=${daysAhead(10)}&to=${daysAhead(11)}`, {}, env);
+        const anonymous = await app.request(url(HOTEL, `/api/admin/export?from=${daysAhead(10)}&to=${daysAhead(11)}`), {}, env);
         expect(anonymous.status).toBe(401);
-        const restaurant = await app.request(`/api/admin/export?from=${daysAhead(10)}&to=${daysAhead(11)}`, { headers: { Cookie: cookie } }, envOfType('restaurant'));
+        const restaurant = await adminCall('GET', `/api/admin/export?from=${daysAhead(10)}&to=${daysAhead(11)}`, await adminCookie(RESTAURANT), undefined, RESTAURANT);
         expect(restaurant.status).toBe(404);
     });
 });

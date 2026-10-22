@@ -1,28 +1,66 @@
-import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { daysAhead, envOfType, get, hotelBody, postJson, ROOM_A, setStatus, today, tokenOf, UNKNOWN_ROOM } from './helpers';
+import { venueConfigOf } from '../src/config';
+import { daysAhead, dbOf, FACILITY, get, HOTEL, hotelBody, postJson, RESTAURANT, ROOM_A, setStatus, setTenant, today, tokenOf, UNKNOWN_ROOM } from './helpers';
 
-describe('GET /api/config', () => {
-    it('exposes the venue type, name and service windows', async () => {
+describe('GET /:slug/api/config', () => {
+    it('exposes the venue slug, type, name and service windows', async () => {
         const response = await get('/api/config');
         expect(response.status).toBe(200);
-        const config = (await response.json()) as { type: string; name: string; restaurant: { lunch: { open: string } } };
+        const config = (await response.json()) as { slug: string; type: string; name: string; restaurant: { lunch: { open: string } }; privacy: { controller: string; email: string; retentionDays: number; since: string } };
+        expect(config.slug).toBe(HOTEL);
         expect(config.type).toBe('hotel');
-        // The name comes from the instance's wrangler.jsonc, whatever it is.
-        expect(config.name).toBe(env.VENUE_NAME);
+        expect(config.name).toBe('Hotel Test');
         expect(config.restaurant.lunch.open).toBe('12:00');
+        // The privacy notice names the controller of the venue; without an address of its own, the owner's one.
+        expect(config.privacy).toMatchObject({ controller: '', email: 'owner@example.com', retentionDays: 90 });
+        expect(config.privacy.since).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
-    it('falls back to safe defaults on malformed vars', async () => {
-        const response = await get('/api/config', envOfType('spa', { VENUE_NAME: '', LUNCH_OPEN: '25:00' }));
-        const config = (await response.json()) as { type: string; name: string; restaurant: { lunch: { open: string } } };
+    it('names the data controller of the venue when the directory has it', async () => {
+        await setTenant(HOTEL, { privacy_controller: 'Hotel Test S.r.l.', privacy_address: 'Via Roma 1, Milano', privacy_email: 'privacy@hotel-test.example' });
+        try {
+            const config = (await (await get('/api/config')).json()) as { privacy: { controller: string; address: string; email: string } };
+            expect(config.privacy).toMatchObject({ controller: 'Hotel Test S.r.l.', address: 'Via Roma 1, Milano', email: 'privacy@hotel-test.example' });
+        } finally {
+            await setTenant(HOTEL, { privacy_controller: null, privacy_address: null, privacy_email: null });
+        }
+    });
+
+    it('falls back to safe defaults on malformed settings', () => {
+        const config = venueConfigOf({ type: 'spa', name: '', default_lang: 'fr', facility_open: null, facility_close: null, lunch_open: '25:00', lunch_close: '14:00', dinner_open: null, dinner_close: null, retention_days: -5 });
         expect(config.type).toBe('hotel');
         expect(config.name).toBe('Booking');
+        expect(config.defaultLang).toBe('it');
         expect(config.restaurant.lunch.open).toBe('12:00');
+        expect(config.retentionDays).toBe(90);
     });
 });
 
-describe('GET /api/availability', () => {
+describe('venue resolution', () => {
+    it('answers 404 for unknown, malformed, reserved and suspended slugs', async () => {
+        expect((await get('/api/config', 'no-such-venue')).status).toBe(404);
+        expect((await get('/api/config', 'Hotel Test')).status).toBe(404);
+        expect((await get('/api/config', 'api')).status).toBe(404);
+        expect((await get('/api/config', 'admin')).status).toBe(404);
+        await setTenant(RESTAURANT, { status: 'suspended' });
+        try {
+            expect((await get('/api/config', RESTAURANT)).status).toBe(404);
+        } finally {
+            await setTenant(RESTAURANT, { status: 'active' });
+        }
+        expect((await get('/api/config', RESTAURANT)).status).toBe(200);
+    });
+
+    it('serves the pages of the venue under its prefix', async () => {
+        for (const path of ['', '/', '/admin', '/area', '/privacy']) {
+            const response = await get(path);
+            expect(response.status, path).toBe(200);
+            expect(response.headers.get('content-type'), path).toContain('text/html');
+        }
+    });
+});
+
+describe('GET /:slug/api/availability', () => {
     it('lists every room type with the rooms left', async () => {
         const response = await get(`/api/availability?check_in=${daysAhead(30)}&check_out=${daysAhead(32)}`);
         expect(response.status).toBe(200);
@@ -41,25 +79,28 @@ describe('GET /api/availability', () => {
         expect(((await long.json()) as { error: string }).error).toBe('too_many_nights');
     });
 
-    it('is not exposed by non-hotel deployments', async () => {
-        const response = await get(`/api/availability?check_in=${daysAhead(5)}&check_out=${daysAhead(6)}`, envOfType('restaurant'));
+    it('is not exposed by non-hotel venues', async () => {
+        const response = await get(`/api/availability?check_in=${daysAhead(5)}&check_out=${daysAhead(6)}`, RESTAURANT);
         expect(response.status).toBe(404);
     });
 });
 
-describe('POST /api/requests (hotel)', () => {
-    it('stores a pending request with a personal token and audits it', async () => {
+describe('POST /:slug/api/requests (hotel)', () => {
+    it('stores a pending request with a personal token in the venue database and audits it', async () => {
         const response = await postJson('/api/requests', hotelBody(), undefined, '198.51.100.10');
         expect(response.status).toBe(201);
         const body = (await response.json()) as { id: number; status: string };
         expect(body.status).toBe('pending');
-        const row = await env.DB.prepare('SELECT * FROM requests WHERE id = ?1').bind(body.id).first<Record<string, unknown>>();
+        const row = await dbOf(HOTEL).prepare('SELECT * FROM requests WHERE id = ?1').bind(body.id).first<Record<string, unknown>>();
         expect(row!.type).toBe('hotel');
         expect(row!.room_type).toBe(ROOM_A.name);
         expect(row!.adults).toBe(1);
         expect(String(row!.guest_token)).toMatch(/^[a-f0-9]{32}$/);
-        const audit = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'request_submitted'").first<{ n: number }>();
+        const audit = await dbOf(HOTEL).prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'request_submitted'").first<{ n: number }>();
         expect(audit!.n).toBeGreaterThan(0);
+        // Nothing of it reached another venue.
+        const elsewhere = await dbOf(RESTAURANT).prepare('SELECT COUNT(*) AS n FROM requests').first<{ n: number }>();
+        expect(elsewhere!.n).toBe(0);
     });
 
     it('rejects invalid guest and stay fields with a code', async () => {
@@ -98,10 +139,10 @@ describe('POST /api/requests (hotel)', () => {
     });
 
     it('silently drops honeypot submissions', async () => {
-        const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM requests').first<{ n: number }>();
+        const before = await dbOf(HOTEL).prepare('SELECT COUNT(*) AS n FROM requests').first<{ n: number }>();
         const response = await postJson('/api/requests', hotelBody({ website: 'http://spam.example' }), undefined, '198.51.100.160');
         expect(response.status).toBe(201);
-        const after = await env.DB.prepare('SELECT COUNT(*) AS n FROM requests').first<{ n: number }>();
+        const after = await dbOf(HOTEL).prepare('SELECT COUNT(*) AS n FROM requests').first<{ n: number }>();
         expect(after!.n).toBe(before!.n);
     });
 
@@ -116,8 +157,8 @@ describe('POST /api/requests (hotel)', () => {
         expect(((await sixth.json()) as { error: string }).error).toBe('too_many_requests');
     });
 
-    it('is closed on facility deployments', async () => {
-        const response = await postJson('/api/requests', hotelBody(), envOfType('facility'), '198.51.100.210');
+    it('is closed on facility venues', async () => {
+        const response = await postJson('/api/requests', hotelBody(), FACILITY, '198.51.100.210');
         expect(response.status).toBe(403);
     });
 });
@@ -139,17 +180,20 @@ describe('personal link', () => {
         expect(body.can_cancel).toBe(true);
         expect(body.email).toBeUndefined();
 
+        // The token belongs to the hotel: another venue does not know it.
+        expect((await get(`/api/booking/${token}`, RESTAURANT)).status).toBe(404);
+
         const cancelled = await postJson(`/api/booking/${token}/cancel`, {});
         expect(cancelled.status).toBe(200);
         const again = await postJson(`/api/booking/${token}/cancel`, {});
         expect(again.status).toBe(409);
-        const row = await env.DB.prepare('SELECT status, cancelled_at FROM requests WHERE id = ?1').bind(id).first<{ status: string; cancelled_at: string | null }>();
+        const row = await dbOf(HOTEL).prepare('SELECT status, cancelled_at FROM requests WHERE id = ?1').bind(id).first<{ status: string; cancelled_at: string | null }>();
         expect(row!.status).toBe('cancelled');
         expect(row!.cancelled_at).not.toBeNull();
     });
 
     it('refuses to cancel a stay that already started', async () => {
-        const result = await env.DB.prepare("INSERT INTO requests (type, first_name, last_name, email, phone, check_in, check_out, adults, children, room_type, guest_token, status) VALUES ('hotel', 'Old', 'Guest', 'old@example.com', '3331234567', ?1, ?2, 1, 0, 'Camera singola', ?3, 'approved')").bind('2020-01-01', '2020-01-05', 'a'.repeat(32)).run();
+        const result = await dbOf(HOTEL).prepare("INSERT INTO requests (type, first_name, last_name, email, phone, check_in, check_out, adults, children, room_type, guest_token, status) VALUES ('hotel', 'Old', 'Guest', 'old@example.com', '3331234567', ?1, ?2, 1, 0, 'Camera singola', ?3, 'approved')").bind('2020-01-01', '2020-01-05', 'a'.repeat(32)).run();
         expect(result.success).toBe(true);
         const response = await postJson(`/api/booking/${'a'.repeat(32)}/cancel`, {});
         expect(response.status).toBe(409);
@@ -172,18 +216,22 @@ describe('personal link', () => {
 });
 
 describe('embedding', () => {
-    it('is disabled without EMBED_ORIGIN and framable by that origin only when set', async () => {
-        // Explicitly empty: an instance's wrangler.jsonc may set EMBED_ORIGIN.
-        const off = await get('/embed', envOfType('hotel', { EMBED_ORIGIN: '' }));
+    it('is disabled without an embed origin and framable by that origin only when set', async () => {
+        const off = await get('/embed');
         expect(off.status).toBe(404);
-        const on = await get('/embed', envOfType('hotel', { EMBED_ORIGIN: 'https://www.hotel.example/' }));
-        expect(on.status).toBe(200);
-        expect(on.headers.get('content-security-policy')).toContain('frame-ancestors https://www.hotel.example;');
-        expect(on.headers.get('x-frame-options')).toBeNull();
-        const other = await get('/api/config', envOfType('hotel', { EMBED_ORIGIN: 'https://www.hotel.example' }));
-        expect(other.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
-        expect(other.headers.get('x-frame-options')).toBe('DENY');
-        const malformed = await get('/embed', envOfType('hotel', { EMBED_ORIGIN: 'hotel.example' }));
-        expect(malformed.status).toBe(404);
+        try {
+            await setTenant(HOTEL, { embed_origin: 'https://www.hotel.example/' });
+            const on = await get('/embed');
+            expect(on.status).toBe(200);
+            expect(on.headers.get('content-security-policy')).toContain('frame-ancestors https://www.hotel.example;');
+            expect(on.headers.get('x-frame-options')).toBeNull();
+            const other = await get('/api/config');
+            expect(other.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+            expect(other.headers.get('x-frame-options')).toBe('DENY');
+            await setTenant(HOTEL, { embed_origin: 'hotel.example' });
+            expect((await get('/embed')).status).toBe(404);
+        } finally {
+            await setTenant(HOTEL, { embed_origin: null });
+        }
     });
 });

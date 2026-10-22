@@ -16,6 +16,7 @@
                 <p class="subtitle" id="venue-name">&nbsp;</p>
             </div>
             <nav class="site-header-nav">
+                <button type="button" id="change-password" data-i18n="admin.changePassword" hidden>Cambia password</button>
                 <button type="button" id="logout" data-i18n="admin.logout" hidden>Esci</button>
                 <button type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
             </nav>
@@ -55,6 +56,10 @@
             <section id="login-view" class="panel" hidden>
                 <h2 data-i18n="admin.loginTitle">Accesso gestore</h2>
                 <form id="login-form" class="form">
+                    <div class="field">
+                        <label for="username" data-i18n="field.username">Nome utente</label>
+                        <input type="text" id="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+                    </div>
                     <div class="field">
                         <label for="password" data-i18n="field.password">Password</label>
                         <!-- Show / hide button (js/password-toggle.js): the JS only flips
@@ -432,6 +437,51 @@
                         <div><button type="submit" class="btn btn-primary" data-i18n="export.download">Esporta</button></div>
                     </form>
                     <p id="export-status" class="status" role="status" hidden></p>
+                </div>
+            </dialog>
+
+            <!-- Password change of the signed-in user: current password again, new one twice. -->
+            <dialog id="dialog-password" class="dialog" aria-labelledby="password-dialog-title">
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <h2 id="password-dialog-title" data-i18n="admin.passwordTitle">Cambia password</h2>
+                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
+                    </div>
+                    <form id="password-form" class="form">
+                        <div class="field">
+                            <label for="current-password" data-i18n="field.currentPassword">Password attuale</label>
+                            <div class="password-toggle">
+                                <input type="password" id="current-password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+                                <button type="button" class="password-toggle-button" aria-controls="current-password" aria-pressed="false" data-i18n-label="field.showPassword" aria-label="Mostra password">
+                                    <svg class="password-toggle-icon password-toggle-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <svg class="password-toggle-icon password-toggle-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="new-password" data-i18n="field.newPassword">Nuova password</label>
+                            <div class="password-toggle">
+                                <input type="password" id="new-password" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" minlength="12" maxlength="128" required>
+                                <button type="button" class="password-toggle-button" aria-controls="new-password" aria-pressed="false" data-i18n-label="field.showPassword" aria-label="Mostra password">
+                                    <svg class="password-toggle-icon password-toggle-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <svg class="password-toggle-icon password-toggle-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                </button>
+                            </div>
+                            <p class="hint" data-i18n="admin.passwordHint">Almeno 12 caratteri. Le password già comparse in violazioni di dati note vengono rifiutate.</p>
+                        </div>
+                        <div class="field">
+                            <label for="confirm-password" data-i18n="field.confirmPassword">Ripeti la nuova password</label>
+                            <div class="password-toggle">
+                                <input type="password" id="confirm-password" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" minlength="12" maxlength="128" required>
+                                <button type="button" class="password-toggle-button" aria-controls="confirm-password" aria-pressed="false" data-i18n-label="field.showPassword" aria-label="Mostra password">
+                                    <svg class="password-toggle-icon password-toggle-icon-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    <svg class="password-toggle-icon password-toggle-icon-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div><button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button></div>
+                    </form>
+                    <p id="password-status" class="status" role="status" hidden></p>
                 </div>
             </dialog>
 

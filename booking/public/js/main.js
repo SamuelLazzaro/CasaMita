@@ -5,11 +5,13 @@
 import { fetchConfig, submitRequest } from './api.js';
 import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
-import { initI18n, setLanguage } from './i18n.js';
+import { initI18n, setLanguage, translate } from './i18n.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { applyVenue, errorMessage, showStatus } from './ui.js';
+import { tenantSlug } from './tenant.js';
+import { applyTenantLinks, applyVenue, errorMessage, showStatus } from './ui.js';
 
 startTapFeedback();
+applyTenantLinks();
 
 const loading = document.getElementById('loading');
 const sections = { hotel: document.getElementById('hotel-section'), restaurant: document.getElementById('restaurant-section'), facility: document.getElementById('facility-notice') };
@@ -36,6 +38,12 @@ document.getElementById('new-request').addEventListener('click', () => {
 });
 
 async function init() {
+    // The form of a venue lives under its prefix: opened at the root there is nothing to load.
+    if (tenantSlug() === null) {
+        initI18n();
+        showStatus(loading, translate('error.no_venue'), 'error');
+        return;
+    }
     let config;
     try {
         config = await fetchConfig();

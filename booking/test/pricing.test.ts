@@ -1,10 +1,8 @@
-import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import { app } from '../src/index';
 import { computeQuote, quoteStay } from '../src/pricing';
 import { requestDetails } from '../src/texts';
 import { addDays } from '../src/dates';
-import { adminCall, adminCookie, daysAhead, get, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, setBasePrice, today, UNKNOWN_ROOM } from './helpers';
+import { adminCall, adminCookie, daysAhead, dbOf, get, HOTEL, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, setBasePrice, today, UNKNOWN_ROOM } from './helpers';
 
 /** Query string of GET /api/quote for a stay in a room type. */
 function quoteQuery(room: string, checkIn: string, checkOut: string): string {
@@ -96,14 +94,14 @@ describe('pricing administration and public quote', () => {
         const created = await postJson('/api/requests', hotelBody({ check_in: checkIn, check_out: checkOut }), undefined, '10.0.5.50');
         expect(created.status).toBe(201);
         const id = (await json<{ id: number }>(created)).id;
-        const row = await env.DB.prepare('SELECT quoted_subtotal, quoted_discount_percent, quoted_total FROM requests WHERE id = ?1').bind(id).first<{ quoted_subtotal: number; quoted_discount_percent: number; quoted_total: number }>();
+        const row = await dbOf(HOTEL).prepare('SELECT quoted_subtotal, quoted_discount_percent, quoted_total FROM requests WHERE id = ?1').bind(id).first<{ quoted_subtotal: number; quoted_discount_percent: number; quoted_total: number }>();
         expect(row).toEqual({ quoted_subtotal: 600, quoted_discount_percent: 10, quoted_total: 540 });
 
         // Changing the price afterwards does not touch the frozen quote.
         await setBasePrice(cookie, ROOM_A, 999);
-        const again = await env.DB.prepare('SELECT quoted_total FROM requests WHERE id = ?1').bind(id).first<{ quoted_total: number }>();
+        const again = await dbOf(HOTEL).prepare('SELECT quoted_total FROM requests WHERE id = ?1').bind(id).first<{ quoted_total: number }>();
         expect(again!.quoted_total).toBe(540);
-        expect((await quoteStay(env.DB, ROOM_A.name, checkIn, checkOut))!.subtotal).toBe(999 * 2 + 180 * 2);
+        expect((await quoteStay(dbOf(HOTEL), ROOM_A.name, checkIn, checkOut))!.subtotal).toBe(999 * 2 + 180 * 2);
     });
 
     it('direct bookings take the computed quote or the agreed total typed by the venue', async () => {
@@ -114,12 +112,12 @@ describe('pricing administration and public quote', () => {
         const checkOut = daysAhead(232);
         const computed = await adminCall('POST', '/api/admin/bookings', cookie, hotelBody({ room_type: ROOM_B.name, check_in: checkIn, check_out: checkOut }));
         expect(computed.status).toBe(201);
-        const first = await env.DB.prepare('SELECT quoted_total, quoted_discount_percent FROM requests WHERE id = ?1').bind((await json<{ id: number }>(computed)).id).first<{ quoted_total: number; quoted_discount_percent: number }>();
+        const first = await dbOf(HOTEL).prepare('SELECT quoted_total, quoted_discount_percent FROM requests WHERE id = ?1').bind((await json<{ id: number }>(computed)).id).first<{ quoted_total: number; quoted_discount_percent: number }>();
         expect(first!.quoted_total).toBe(160);
 
         const agreed = await adminCall('POST', '/api/admin/bookings', cookie, { ...hotelBody({ room_type: ROOM_B.name, check_in: daysAhead(233), check_out: daysAhead(235) }), total: 140 });
         expect(agreed.status).toBe(201);
-        const second = await env.DB.prepare('SELECT quoted_subtotal, quoted_total, quoted_discount_percent FROM requests WHERE id = ?1').bind((await json<{ id: number }>(agreed)).id).first<{ quoted_subtotal: number; quoted_total: number; quoted_discount_percent: number }>();
+        const second = await dbOf(HOTEL).prepare('SELECT quoted_subtotal, quoted_total, quoted_discount_percent FROM requests WHERE id = ?1').bind((await json<{ id: number }>(agreed)).id).first<{ quoted_subtotal: number; quoted_total: number; quoted_discount_percent: number }>();
         expect(second).toEqual({ quoted_subtotal: 140, quoted_total: 140, quoted_discount_percent: 0 });
 
         const invalid = await adminCall('POST', '/api/admin/bookings', cookie, { ...hotelBody({ room_type: ROOM_B.name, check_in: daysAhead(236), check_out: daysAhead(238) }), total: 'molto' });
@@ -160,7 +158,7 @@ describe('pricing administration and public quote', () => {
         expect((await setDay(from, 90)).status).toBe(200);
         expect(await periodsOfRoomC()).toEqual([{ from, to: from, price: 90, label: null }, { from: daysAhead(311), to: daysAhead(312), price: 100, label: 'Festa' }, { from: daysAhead(314), to, price: 100, label: 'Festa' }]);
         // The quote follows: no base price, every night covered.
-        expect((await quoteStay(env.DB, ROOM_C.name, from, daysAhead(313)))!.subtotal).toBe(90 + 100 + 100);
+        expect((await quoteStay(dbOf(HOTEL), ROOM_C.name, from, daysAhead(313)))!.subtotal).toBe(90 + 100 + 100);
     });
 
     it('refuses day prices in the past, on unknown rooms or with bad values', async () => {

@@ -5,7 +5,7 @@
  * types with their base price (hotel) and organisations (facility).
  */
 import { attachAddShortcut } from './add-shortcut.js';
-import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchExport, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, setDayPrice, updateBooking, updateRequester, updateRoomType } from './api.js';
+import { adminLogin, adminLogout, adminMe, approveRequest, cancelRequestAdmin, changePassword, createBooking, createDiscount, createPeriod, createRequester, createRoomType, deleteDiscount, deletePeriod, deleteRoomType, fetchAvailability, fetchCalendar, fetchConfig, fetchExport, fetchPricing, fetchRequesters, fetchRequests, fetchRooms, markPaid, recordDeposit, rejectRequest, requesterAction, setDayPrice, updateBooking, updateRequester, updateRoomType } from './api.js';
 import { renderMonth, renderWeek, itemName } from './calendar-render.js';
 import { createCalendarView } from './calendar-view.js';
 import { enableDragScroll } from './drag-scroll.js';
@@ -17,6 +17,7 @@ import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.j
 import { PasswordToggle } from './password-toggle.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
+import { tenantSlug, venuePath } from './tenant.js';
 import { appendDetail, applyVenue, bindPriceInput, button, downloadTextFile, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
 import { addDays, addMonths, csvAmount, csvDocument, displayStatus, formatEuro, formatLongDate, formatShortDate, formatTimestamp, mondayOf, priceInputValue, todayInRome, weekDays } from './utils.js';
 
@@ -1147,14 +1148,18 @@ const loginView = byId('login-view');
 const adminView = byId('admin-view');
 const loginForm = byId('login-form');
 
-// Show / hide button of the password field; the field goes back to hidden on submit.
-new PasswordToggle(byId('password'));
+/** @type {string|null} the venue of this page; null on the sign-in page at the root (/admin) */
+const g_slug = tenantSlug();
+
+// Show / hide buttons of the password fields; each field goes back to hidden on submit.
+for (const id of ['password', 'current-password', 'new-password', 'confirm-password']) new PasswordToggle(byId(id));
 
 async function enterDashboard() {
     loginView.hidden = true;
     adminView.hidden = false;
     byId('nav-sections').hidden = false;
     byId('logout').hidden = false;
+    byId('change-password').hidden = false;
     byId('nav-rooms').hidden = g_config.type !== 'hotel';
     byId('nav-pricing').hidden = g_config.type !== 'hotel';
     byId('nav-requesters').hidden = g_config.type !== 'facility';
@@ -1170,13 +1175,22 @@ async function enterDashboard() {
     await Promise.all(loads);
 }
 
+/*
+ * Sign-in: the username leads to the venue. From the root page (/admin), or
+ * from the page of another venue, the browser moves to the dashboard of the
+ * user's venue; on the right page the dashboard opens in place.
+ */
 loginForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const status = byId('login-status');
     hideStatus(status);
     try {
-        await adminLogin(byId('password').value);
+        const answer = await adminLogin(byId('username').value, byId('password').value);
         byId('password').value = '';
+        if (answer.slug !== g_slug) {
+            window.location.assign(venuePath(answer.slug, '/admin'));
+            return;
+        }
         await enterDashboard();
     } catch (error) {
         showStatus(status, errorMessage(error), 'error');
@@ -1186,6 +1200,35 @@ loginForm.addEventListener('submit', async (event) => {
 byId('logout').addEventListener('click', async () => {
     await adminLogout();
     window.location.reload();
+});
+
+/* --------------------------------------------------------- password change */
+
+const passwordDialog = byId('dialog-password');
+const passwordForm = byId('password-form');
+
+byId('change-password').addEventListener('click', () => {
+    passwordForm.reset();
+    hideStatus(byId('password-status'));
+    openDialog(passwordDialog);
+});
+
+passwordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const status = byId('password-status');
+    hideStatus(status);
+    const newPassword = byId('new-password').value;
+    if (newPassword !== byId('confirm-password').value) {
+        showStatus(status, translate('error.password_mismatch'), 'error');
+        return;
+    }
+    try {
+        await changePassword(byId('current-password').value, newPassword);
+        passwordForm.reset();
+        showStatus(status, translate('admin.passwordChanged'), 'ok');
+    } catch (error) {
+        showStatus(status, errorMessage(error), 'error');
+    }
 });
 
 onLanguageChange(() => {
@@ -1199,6 +1242,14 @@ onLanguageChange(() => {
 
 async function init() {
     const loading = byId('loading');
+    // The root page (/admin) is the sign-in form only: no venue to load, the
+    // answer of the sign-in says where to go.
+    if (g_slug === null) {
+        initI18n();
+        loading.hidden = true;
+        loginView.hidden = false;
+        return;
+    }
     try {
         g_config = await fetchConfig();
     } catch (error) {

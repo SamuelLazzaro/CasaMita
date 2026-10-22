@@ -1,70 +1,55 @@
 /**
- * Cloudflare Workers configuration of the booking module.
+ * Cloudflare Workers configuration of the booking module, Casa Mita deploy.
  *
- * One deployment serves ONE booking type (BOOKING_TYPE): "hotel", "facility"
- * (sports hall, track, court...) or "restaurant". To run several venues, or
- * several types, publish the same code once per venue through wrangler
- * environments ("env" key), each with its own D1 database, secrets and
- * hostname: "vars" and "d1_databases" are NOT inherited and must be repeated
- * in full inside every environment.
+ * One deployment serves MANY venues. The DIRECTORY database holds the
+ * venues (tenants), their configuration and the dashboard users; every
+ * venue has its own booking database, listed below with its own binding
+ * (the name written in the tenants.binding column of the directory).
  *
- * Required secrets (never in this file, never in git), per deployment:
+ * Adding a venue: `npm run tenant:add -- <slug> ... --remote` creates the
+ * database, appends its entry here, applies the migrations and writes the
+ * directory rows; then `npm run deploy`.
+ *
+ * Required secrets (never in this file, never in git):
  *   wrangler secret put ADMIN_SECRET    # HMAC key signing the session cookies
- *   wrangler secret put ADMIN_PASSWORD  # password of the admin dashboard
  *   wrangler secret put BREVO_API_KEY   # email notifications (missing = disabled)
  * For local development copy .dev.vars.example to .dev.vars.
  */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "booking-casamita",
-	"main": "src/index.ts",
-	// Aligned with the workerd version bundled in wrangler ~4.35 (also used by
-	// the test pool): do not raise it without upgrading wrangler.
-	"compatibility_date": "2025-09-01",
-	// Static assets are served BEFORE the Worker runs (zero CPU): their
-	// security headers live in public/_headers.
-	"assets": {
-		"directory": "./public",
-		"binding": "ASSETS"
-	},
-	// Data retention (GDPR art. 5.1.e): once a day the guests' personal data
-	// of bookings ended more than RETENTION_DAYS ago are anonymised.
-	"triggers": {
-		"crons": [
-			"30 3 * * *"
-		]
-	},
-	"vars": {
-		"BOOKING_TYPE": "hotel",
-		"VENUE_NAME": "Casa Mita",
-		"DEFAULT_LANG": "it",
-		// sender on the venue's domain: authenticate the domain in Brevo first
-		// "EMAIL_SENDER": "prenotazioni@ristorantealbergocasamita.it",
-		// "EMAIL_ADMIN": "info@ristorantealbergocasamita.it",
-		"EMAIL_SENDER": "samuellazzaro@libero.it",
-		"EMAIL_ADMIN": "samuellazzaro@libero.it",
-		// facility: opening hours, 30-minute slots
-		"FACILITY_OPEN": "08:00",
-		"FACILITY_CLOSE": "24:00",
-		// restaurant: lunch and dinner service windows, 15-minute steps
-		"LUNCH_OPEN": "12:00",
-		"LUNCH_CLOSE": "14:30",
-		"DINNER_OPEN": "19:00",
-		"DINNER_CLOSE": "22:30",
-		// days after the end of a booking before the guest data are anonymised (0 = never)
-		"RETENTION_DAYS": "90",
-		// origin of the venue's own website allowed to embed the public form
-		// (GET /embed + public/embed.js); empty = embedding disabled
-		"EMBED_ORIGIN": "https://samuellazzaro.github.io/CasaMita/"
-	},
-	"d1_databases": [
-		{
-			// "binding" is the variable name the code sees the DB through
-			// (c.env.DB): it does not have to match the database name.
-			"binding": "DB",
-			"database_name": "booking-casamita",
-			"database_id": "357cc2ce-1fc4-4fb9-9539-2b0519b09853",
-			"migrations_dir": "./migrations"
-		}
-	]
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "booking-casamita",
+    "main": "src/index.ts",
+    // Aligned with the workerd version bundled in wrangler ~4.35 (also used by
+    // the test pool): do not raise it without upgrading wrangler.
+    "compatibility_date": "2025-09-01",
+    // Static assets are served BEFORE the Worker runs (zero CPU): their
+    // security headers live in public/_headers.
+    "assets": {
+        "directory": "./public",
+        "binding": "ASSETS"
+    },
+    // Data retention (GDPR art. 5.1.e): once a day, venue by venue, the
+    // guests' personal data of bookings ended more than retention_days ago
+    // are anonymised.
+    "triggers": {
+        "crons": ["30 3 * * *"]
+    },
+    "vars": {
+        // PBKDF2 iterations of NEW password hashes (src/password.ts). Workers
+        // Free allows 10 ms of CPU per request: 20000 costs about 5 ms. On the
+        // Paid plan set 600000 (OWASP); existing hashes are refreshed at the
+        // next login of each user.
+        "PASSWORD_HASH_ITERATIONS": "20000",
+        // "off" skips the Have I Been Pwned check of new passwords.
+        "PASSWORD_BREACH_CHECK": "on"
+    },
+    "d1_databases": [
+        {
+            // The directory: tenants, configuration, users (migrations-directory/).
+            "binding": "DIRECTORY",
+            "database_name": "booking-directory",
+            "database_id": "REPLACE-WITH-THE-ID-OF-booking-directory",
+            "migrations_dir": "./migrations-directory"
+        }
+    ]
 }

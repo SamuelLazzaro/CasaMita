@@ -1,33 +1,6 @@
-# Booking — istanza Casa Mita
-
-Istanza **hotel** del modulo `D:\Personal\Claude\modules\booking` per il sito
-di Casa Mita (`../index.html`, sezione «Prenotazioni camere»). Guida completa
-all'installazione: `modules/booking/docs/guida-installazione-hotel.md` nel
-repository di origine.
-
-Configurazione specifica di questa istanza:
-
-| Dove | Valore |
-|---|---|
-| `wrangler.jsonc` → `name` | `booking-casamita` (parte dell'indirizzo `workers.dev`) |
-| `wrangler.jsonc` → `vars` | `VENUE_NAME` Casa Mita, `EMAIL_SENDER` `prenotazioni@ristorantealbergocasamita.it`, `EMAIL_ADMIN` `info@ristorantealbergocasamita.it`, `EMBED_ORIGIN` `https://www.ristorantealbergocasamita.it`, `RETENTION_DAYS` 90 |
-| `wrangler.jsonc` → `database_id` | DA COMPILARE con l'id stampato da `npx wrangler d1 create booking-casamita` |
-| `migrations/0004_room_types.sql` | importa le cinque tipologie del sito nella tabella `room_types`; **quantità provvisorie (1 per tipologia), da confermare con il gestore**, che poi le gestisce dalla sezione Camere |
-| `public/css/base.css` | palette teal del sito nel blocco `[data-booking-type="hotel"]` |
-| `public/privacy.html` | informativa del servizio: ragione sociale, P.IVA e data da completare (stessi dati del footer del sito) |
-
-Indirizzo del Worker: dopo `npm run deploy` sostituire il segnaposto
-`booking-casamita.samuellazzaro.workers.dev` in `../index.html`
-(script `embed.js` e link di fallback) e in `../admin.html`.
-
-Modifiche al codice vanno fatte prima nel modulo di origine e poi ricopiate
-qui (escludendo `node_modules/`, `.wrangler/`, `.dev.vars`), così le altre
-istanze restano allineate.
-
----
+# Booking
 
 Sistema di prenotazione riusabile, configurabile per tipologia di struttura:
-
 
 | `BOOKING_TYPE` | Chi prenota | Cosa chiede |
 |---|---|---|
@@ -60,16 +33,27 @@ su D1 reale. Pensato per il piano gratuito di Workers.
 - [x] Iterazione 3: area riservata delle società (`/access/<token>`, `/area`: richieste
       e annullamenti dalla società), pagina demo con selettore delle tre
       varianti.
+- [ ] Iterazione 4, multi-cliente: un solo deploy serve più strutture, ognuna
+      con il proprio database D1 e il proprio prefisso `/<slug>/`; direttorio
+      (strutture, configurazione, utenti), login con username e password.
+      Fatte la fase 1 (backend e test) e la fase 2 (frontend con prefisso,
+      pagina di accesso unica `/admin`, cambio password, informativa privacy
+      per struttura) e la fase 3 (script `tenant:add`, `tenant:password`,
+      `migrate:all`) e la fase 4 (guida di installazione riscritta per il
+      modello multi-cliente).
 
 ## Struttura
 
 ```
 booking/
-├── wrangler.jsonc        # vars per istanza, binding D1, regola Text per il CSV, cron
-├── migrations/           # migrazioni SQL
+├── wrangler.jsonc        # binding D1 (direttorio + uno per struttura), vars, cron
+├── migrations/           # migrazioni SQL del database di ogni struttura
+├── migrations-directory/ # migrazioni SQL del direttorio (tenants, users)
 ├── src/
-│   ├── index.ts          # entry Hono (security header, rotte, cron handler)
-│   ├── config.ts         # lettura e normalizzazione delle vars
+│   ├── index.ts          # entry Hono (security header, rotte /<slug>/..., cron handler)
+│   ├── tenant.ts         # risoluzione della struttura dal prefisso: riga del direttorio, binding D1, configurazione
+│   ├── config.ts         # normalizzazione della configurazione di una struttura
+│   ├── password.ts       # hash PBKDF2 delle password, politica, controllo Have I Been Pwned
 │   ├── dates.ts          # helper puri su date/orari civili Europe/Rome
 │   ├── rooms.ts          # parsing del CSV e calcolo disponibilità
 │   ├── notifications.ts  # Brevo, best effort, un evento per funzione
@@ -77,16 +61,16 @@ booking/
 │   ├── retention.ts      # anonimizzazione dei dati scaduti
 │   ├── ratelimit.ts      # finestra fissa su D1
 │   ├── validation.ts     # regole dei campi, condivise da form pubblico e prenotazione diretta
-│   ├── auth.ts           # sessioni con cookie firmati HMAC (admin, società)
+│   ├── auth.ts           # sessioni con cookie firmati HMAC (utenti della dashboard, società)
 │   ├── slots.ts          # impianto: slot da 30 minuti, conflitti
-│   └── routes/           # public.ts (config, disponibilità, richiesta, link personale), admin.ts (dashboard)
+│   └── routes/           # session.ts (login), public.ts (pagine, config, disponibilità, richiesta, link personale), admin.ts (dashboard), requester.ts (area società)
 ├── public/               # frontend statico
 │   ├── index.html        # form pubblico (hotel / ristorante; avviso per facility)
 │   ├── booking.html      # pagina personale del cliente (/booking/<token>)
 │   ├── admin.html        # dashboard del gestore
 │   ├── privacy.html      # informativa art. 13 GDPR (template da compilare)
 │   ├── css/              # base / layout / components / password-toggle / dashboard / main (@import)
-│   └── js/               # constants / translations / i18n / utils / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / main / booking / admin / area
+│   └── js/               # constants / translations / i18n / utils / tenant / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / main / booking / admin / area / privacy
 └── test/                 # vitest + @cloudflare/vitest-pool-workers
 ```
 
@@ -95,29 +79,85 @@ booking/
 ```bash
 npm install
 cp .dev.vars.example .dev.vars   # secret locali (ignorato da git)
-npm run migrate:local            # crea il database locale in .wrangler/
+npm run migrate:local            # crea i database locali (direttorio e struttura demo) in .wrangler/
 npm run dev                      # http://localhost:8787
 npm test                         # suite completa su D1 isolato
 npm run typecheck
 ```
 
-Per provare un'altra tipologia in locale: `npx wrangler dev --var BOOKING_TYPE:restaurant`.
+### Script di gestione delle strutture (`scripts/`)
 
-## Configurazione per istanza (`wrangler.jsonc`, chiave `vars`)
+Ogni script vuole `--local` (database di `wrangler dev`, sotto `.wrangler/`)
+oppure `--remote` (Cloudflare): senza uno dei due si ferma, così nessuno
+tocca la produzione per sbaglio. Girano con Node senza dipendenze in più e
+usano `src/password.ts` per l'hash, lo stesso codice del Worker.
 
-| Var | Significato |
+```bash
+npm run tenant:add -- hotel-rossi --type hotel --name "Hotel Rossi" --username rossi --remote
+npm run tenant:password -- rossi --remote
+npm run migrate:all -- --remote
+npm run test:scripts
+```
+
+- `tenant:add <slug> --type --name --username`: crea il database D1 della
+  struttura (`booking-<slug>`; con `--local` non crea nulla, lo fa `wrangler
+  dev` al primo uso), aggiunge il binding `DB_<SLUG>` a `wrangler.jsonc`
+  conservando i commenti, applica le migrazioni, scrive la riga di `tenants`
+  e il primo utente con una password generata (20 caratteri, stampata una
+  sola volta). Opzioni: `--lang`, `--email-sender`, `--email-admin`,
+  `--retention-days`, `--embed-origin`, `--privacy-controller`,
+  `--privacy-address`, `--privacy-email`. Con `--remote` rifiuta di superare
+  i 10 database del piano Free, salvo `--allow-many-databases`. Poi
+  `npm run deploy`: il binding nuovo è attivo solo da lì.
+- `tenant:password <username>`: nuova password generata, sblocco
+  dell'account, fine di tutte le sessioni dell'utente.
+- `migrate:all`: applica le migrazioni in sospeso a tutti i database di
+  `wrangler.jsonc` (direttorio compreso); `migrate:local` e `migrate:remote`
+  sono scorciatoie.
+
+## Multi-cliente: direttorio e una struttura per prefisso
+
+Un solo deploy serve più strutture. Il database **direttorio** (binding
+`DIRECTORY`, migrazioni in `migrations-directory/`) contiene le strutture
+(`tenants`), la loro configurazione e gli utenti della dashboard (`users`).
+Ogni struttura ha il proprio database D1, dichiarato in `wrangler.jsonc` con
+un binding (`DB_<SLUG>`) il cui nome è scritto nella colonna `binding` della
+sua riga: `src/tenant.ts` lo cerca in `env` a ogni richiesta. I binding sono
+statici, quindi una struttura nuova richiede un deploy.
+
+Tutto ciò che riguarda una struttura sta sotto il suo prefisso `/<slug>/`
+(form pubblico, `admin`, `area`, `booking/<token>`, `access/<token>`,
+`embed`, `privacy`, `api/...`); CSS e JS restano alla radice, uguali per
+tutte. Slug sconosciuti, malformati, riservati (`api`, `css`, `js`, `assets`)
+o sospesi rispondono 404.
+
+Configurazione per struttura (colonne di `tenants`):
+
+| Colonna | Significato |
 |---|---|
-| `BOOKING_TYPE` | `hotel`, `facility` o `restaurant` |
-| `VENUE_NAME` | nome della struttura (titoli, mittente e prefisso oggetto delle email) |
-| `DEFAULT_LANG` | lingua iniziale dell'interfaccia (`it` o `en`), se l'utente non ne ha scelta una |
-| `EMAIL_SENDER` | mittente delle notifiche (dominio autenticato in Brevo) |
-| `EMAIL_ADMIN` | casella del gestore: riceve la copia di ogni evento ed è il Reply-To delle email ai clienti |
-| `FACILITY_OPEN`, `FACILITY_CLOSE` | orari di apertura dell'impianto, slot da 30 minuti |
-| `LUNCH_OPEN`, `LUNCH_CLOSE`, `DINNER_OPEN`, `DINNER_CLOSE` | finestre di pranzo e cena, orari a passi di 15 minuti (l'ultimo posto è prima della chiusura) |
-| `RETENTION_DAYS` | giorni dopo la fine della prenotazione prima dell'anonimizzazione dei dati del cliente (`0` = mai) |
+| `slug` | prefisso dei percorsi, `[a-z0-9-]`, da 2 a 40 caratteri |
+| `binding` | nome del binding D1 della struttura in `wrangler.jsonc` |
+| `type` | `hotel`, `facility` o `restaurant` |
+| `name` | nome della struttura (titoli, mittente e prefisso oggetto delle email) |
+| `default_lang` | lingua iniziale dell'interfaccia (`it` o `en`), se l'utente non ne ha scelta una |
+| `email_sender` | mittente delle notifiche (dominio autenticato in Brevo) |
+| `email_admin` | casella del gestore: riceve la copia di ogni evento ed è il Reply-To delle email ai clienti |
+| `facility_open`, `facility_close` | orari di apertura dell'impianto, slot da 30 minuti |
+| `lunch_open`, `lunch_close`, `dinner_open`, `dinner_close` | finestre di pranzo e cena, orari a passi di 15 minuti (l'ultimo posto è prima della chiusura) |
+| `retention_days` | giorni dopo la fine della prenotazione prima dell'anonimizzazione dei dati del cliente (`0` = mai) |
+| `embed_origin` | origine del sito della struttura autorizzata a incorporare il form (`NULL` = disabilitato) |
+| `privacy_controller`, `privacy_address`, `privacy_email` | titolare del trattamento mostrato nell'informativa (fase 2) |
+| `status` | `active` o `suspended` |
 
-Secret (mai nel file, `wrangler secret put`): `ADMIN_SECRET`, `ADMIN_PASSWORD`,
-`BREVO_API_KEY`.
+Variabili del deploy (`wrangler.jsonc`, chiave `vars`): `PASSWORD_HASH_ITERATIONS`
+(iterazioni PBKDF2 dei nuovi hash: `20000` sul piano Free, `600000` sul Paid;
+gli hash esistenti si aggiornano al login successivo) e `PASSWORD_BREACH_CHECK`
+(`off` salta il controllo Have I Been Pwned). Secret (mai nel file,
+`wrangler secret put`): `ADMIN_SECRET`, `BREVO_API_KEY`.
+
+I valori attuali rispettano i limiti del piano Workers **Free** (10 ms di
+CPU per richiesta, 10 database, 50 query per invocazione): cosa si può
+cambiare passando al piano Paid è in `docs/piano-paid.md`.
 
 ### Camere (tabella `room_types`, migrazione 0004)
 
@@ -129,24 +169,25 @@ rinominarla aggiorna entrambi nello stesso batch; eliminarla è rifiutato (409
 confermata, di quella tipologia (va prima annullata), e cancella con sé i suoi
 periodi di prezzo. Ridurre il numero di camere sotto le prenotazioni confermate
 è permesso: la risposta riporta in `overbooked` le camere mancanti nella notte
-più piena e la dashboard lo segnala. La migrazione 0004 importa le tipologie
-del vecchio `rooms.csv` dell'istanza con i prezzi base già impostati.
+più piena e la dashboard lo segnala. La migrazione 0004 importa le quattro
+tipologie del vecchio `rooms.csv` con i prezzi base già impostati.
 
 Una tipologia risulta occupata **solo** dalle prenotazioni approvate che si
 sovrappongono al soggiorno (check-out escluso). Il form pubblico mostra le
 camere rimaste per le date scelte; il server rifiuta con 409 una richiesta su
 una tipologia esaurita.
 
-## API pubbliche
+## API pubbliche (sotto `/<slug>`)
 
 | Metodo e percorso | Descrizione |
 |---|---|
-| `GET /api/config` | tipologia, nome, lingua di default, finestre orarie |
-| `GET /api/availability?check_in&check_out` | hotel: camere rimaste per tipologia |
-| `POST /api/requests` | invio richiesta (hotel, ristorante); campo honeypot `website`; 5 invii per IP ogni 10 minuti |
-| `GET /booking/:token` | pagina personale del cliente |
-| `GET /api/booking/:token` | dettagli e stato della richiesta |
-| `POST /api/booking/:token/cancel` | annullamento da parte del cliente (richiesta non ancora iniziata) |
+| `GET /<slug>/`, `/<slug>/admin`, `/<slug>/area`, `/<slug>/privacy` | pagine della struttura (gli stessi file di `public/`) |
+| `GET /<slug>/api/config` | slug, tipologia, nome, lingua di default, finestre orarie |
+| `GET /<slug>/api/availability?check_in&check_out` | hotel: camere rimaste per tipologia |
+| `POST /<slug>/api/requests` | invio richiesta (hotel, ristorante); campo honeypot `website`; 5 invii per IP ogni 10 minuti |
+| `GET /<slug>/booking/:token` | pagina personale del cliente |
+| `GET /<slug>/api/booking/:token` | dettagli e stato della richiesta |
+| `POST /<slug>/api/booking/:token/cancel` | annullamento da parte del cliente (richiesta non ancora iniziata) |
 
 Gli errori rispondono con un codice (`{"error": "room_unavailable"}`) che il
 frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
@@ -159,15 +200,33 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
   markup; le note multilinea sono citate riga per riga.
 - Il link personale è la credenziale del cliente: viaggia solo nell'email a
   lui destinata, mai nella copia al gestore.
-- Anonimizzazione automatica (cron giornaliero) dei dati identificativi dopo
-  `RETENTION_DAYS` dalla fine della prenotazione, art. 5.1.e GDPR.
+- Anonimizzazione automatica (cron giornaliero, struttura per struttura) dei
+  dati identificativi dopo `retention_days` dalla fine della prenotazione,
+  art. 5.1.e GDPR.
+- Password degli utenti della dashboard: hash PBKDF2-HMAC-SHA256 con sale,
+  numero di iterazioni salvato nell'hash e configurabile; politica OWASP
+  (almeno 12 caratteri, nessuna regola di composizione, rifiuto delle
+  password presenti nelle violazioni note tramite l'API k-anonymity di Have
+  I Been Pwned: solo i primi 5 caratteri dello SHA-1 lasciano il Worker);
+  blocco dell'account per 15 minuti dopo 10 password errate, oltre al limite
+  per IP. Sul piano Free le 10 ms di CPU per richiesta impongono 20.000
+  iterazioni invece delle 600.000 di OWASP: deroga dichiarata, da chiudere
+  alzando `PASSWORD_HASH_ITERATIONS` col piano Paid.
 - `public/privacy.html` è un template: compilare i segnaposto prima della
   pubblicazione.
 
 ## Dashboard del gestore (`/admin`)
 
-Accesso con `ADMIN_PASSWORD` (sessione di 8 ore, 10 tentativi per IP ogni 15
-minuti). Il campo password ha il bottone "mostra / nascondi" (copia del
+Un solo link per tutti i gestori: `/admin` (la `admin.html` alla radice) con
+nome utente e password (tabella `users` del direttorio; `POST /api/admin/login`
+alla radice del deploy, senza struttura nell'URL, risponde con lo slug della
+struttura dell'utente e il browser passa a `/<slug>/admin`, dove la dashboard
+si apre direttamente finché la sessione vale). Sessione di 8 ore legata alla
+struttura, 10 tentativi per IP ogni 15 minuti, blocco dell'account dopo 10
+password errate. Il bottone **Cambia password** in testata apre la finestra
+con password attuale, nuova e conferma (`js/tenant.js` ricava lo slug dal
+percorso, `api.js` lo antepone a ogni chiamata); il cambio chiude le altre
+sessioni dell'utente. I campi password hanno il bottone "mostra / nascondi" (copia del
 componente `components/password-toggle`, file `password-toggle.css` /
 `password-toggle.js`); al submit il campo torna nascosto. Sezioni:
 
@@ -250,9 +309,13 @@ possono superare le camere disponibili; per l'impianto gli slot vengono
 inseriti in un `db.batch()` e il vincolo di unicità fa fallire tutto il blocco
 se una fascia è già occupata.
 
+Percorsi sotto `/<slug>`, tranne login e logout:
+
 | Metodo e percorso | Descrizione |
 |---|---|
-| `POST /api/admin/login`, `POST /api/admin/logout`, `GET /api/admin/me` | sessione |
+| `POST /api/admin/login` (`username`, `password`), `POST /api/admin/logout` | sessione; il login risponde con `slug` e `username`; 401 `invalid_credentials`, 429 `too_many_requests` o `account_locked` |
+| `GET /api/admin/me` | struttura e utente della sessione |
+| `POST /api/admin/password` (`current_password`, `new_password`) | cambio password; 400 `password_too_short`, `password_too_long`, `password_breached` |
 | `GET /api/admin/calendar?view=day\|week\|month&date=` | voci del calendario (in attesa e confermate) |
 | `GET /api/admin/requests?status=` | richieste per stato |
 | `POST /api/admin/requests/:id/approve\|reject\|cancel` | decisioni (il rifiuto accetta `reason`) |
@@ -267,9 +330,9 @@ se una fascia è già occupata.
 | `GET/POST /api/admin/requesters`, `PATCH /api/admin/requesters/:id` | impianto: società |
 | `POST /api/admin/requesters/:id/suspend\|reactivate\|regenerate-link\|send-link` | impianto: azioni sulla società |
 
-## Area riservata delle società (`/area`, solo impianto)
+## Area riservata delle società (`/<slug>/area`, solo impianto)
 
-La società entra dal link personale `/access/<token>` ricevuto via email
+La società entra dal link personale `/<slug>/access/<token>` ricevuto via email
 (cookie di sessione firmato, 30 giorni; sospensione e rigenerazione del link
 invalidano subito le sessioni). Nell'area vede il calendario condiviso (stessa
 griglia oraria della dashboard) con nome e colore di chi occupa ogni fascia
@@ -279,9 +342,11 @@ libera che apre il form già compilato, ritira le richieste in attesa e
 annulla le proprie prenotazioni future; ogni evento notifica la struttura via
 email.
 
+Percorsi sotto `/<slug>`:
+
 | Metodo e percorso | Descrizione |
 |---|---|
-| `GET /access/:token` | accesso dal link personale, redirect a `/area` |
+| `GET /access/:token` | accesso dal link personale, redirect a `/<slug>/area` |
 | `GET /api/requester/me`, `POST /api/requester/logout` | sessione |
 | `GET /api/requester/calendar?view=&date=` | prenotazioni confermate di tutti più le proprie in attesa |
 | `GET /api/requester/requests`, `POST /api/requester/requests` | proprie richieste, nuova richiesta |
@@ -359,17 +424,17 @@ riceve email. Ristorante e impianto non hanno pagamenti.
 ## Incorporare il form nel sito della struttura
 
 Il form pubblico può essere incluso in una pagina del sito esistente tramite
-iframe ad altezza automatica. Impostare `EMBED_ORIGIN` in `wrangler.jsonc` con
-l'origine del sito (`https://www.nomehotel.it`) e pubblicare; poi nella pagina
-del sito:
+iframe ad altezza automatica. Scrivere in `embed_origin` della struttura
+(direttorio) l'origine del sito (`https://www.nomehotel.it`); poi nella pagina
+del sito, con lo slug della struttura in `data-slug`:
 
 ```html
 <div id="booking"></div>
-<script src="https://<indirizzo-del-worker>/embed.js" data-target="#booking" defer></script>
+<script src="https://<indirizzo-del-worker>/embed.js" data-slug="<slug-della-struttura>" data-target="#booking" defer></script>
 ```
 
-`GET /embed` serve la stessa `index.html` con `frame-ancestors` limitato a
-quell'origine (404 finché `EMBED_ORIGIN` è vuoto); tutte le altre pagine
+`GET /<slug>/embed` serve la stessa `index.html` con `frame-ancestors` limitato
+a quell'origine (404 finché `embed_origin` è vuoto); tutte le altre pagine
 restano non incorporabili. In modalità incorporata la pagina nasconde testata
 e piè di pagina, apre i link in una nuova scheda e comunica la propria altezza
 allo script con `postMessage`. Lo script, a sua volta, invia all'iframe la
@@ -381,5 +446,7 @@ coerente con il proprio selettore di lingua.
 
 `docs/guida-installazione-hotel.md` e il PDF generato da
 `python docs/build-pdf.py docs/guida-installazione-hotel.md`: guida passo
-passo per pubblicare un'istanza hotel (Cloudflare, Brevo, incorporamento nel
-sito, configurazione del gestore, manutenzione, limiti dei piani gratuiti).
+passo per pubblicare il deploy (Cloudflare, Brevo) e registrare una
+struttura con `tenant:add` (hotel come esempio), incorporare il form nel suo
+sito, configurazione a carico del gestore, manutenzione, limiti dei piani
+gratuiti. `docs/piano-paid.md`: cosa cambia passando al piano Paid.

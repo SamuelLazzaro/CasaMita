@@ -1,31 +1,28 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import type { Bindings } from '../src/types';
 import { app } from '../src/index';
-import { daysAhead, envOfType } from './helpers';
+import { daysAhead, dbOf, FACILITY, HOTEL, url } from './helpers';
 
-const facility = envOfType('facility');
-
-/** Creates an active requester straight in the database and returns its id and token. */
+/** Creates an active requester straight in the facility database and returns its id and token. */
 async function createRequester(name: string): Promise<{ id: number; token: string }> {
     const token = crypto.randomUUID().replace(/-/g, '');
-    const result = await env.DB.prepare("INSERT INTO requesters (name, contact_name, email, phone, access_token) VALUES (?1, 'Contact', 'club@example.com', '3331234567', ?2)").bind(name, token).run();
+    const result = await dbOf(FACILITY).prepare("INSERT INTO requesters (name, contact_name, email, phone, access_token) VALUES (?1, 'Contact', 'club@example.com', '3331234567', ?2)").bind(name, token).run();
     return { id: result.meta.last_row_id, token };
 }
 
 /** Visits the personal link and returns the session cookie. */
 async function requesterCookie(token: string): Promise<string> {
-    const response = await app.request(`/access/${token}`, {}, facility);
+    const response = await app.request(url(FACILITY, `/access/${token}`), {}, env);
     if (response.status !== 302) throw new Error(`access failed (status ${response.status})`);
     return response.headers.get('set-cookie')!.split(';')[0];
 }
 
-async function post(path: string, cookie: string, body: unknown = {}, bindings: Bindings = facility): Promise<Response> {
-    return await app.request(path, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, bindings);
+async function post(path: string, cookie: string, body: unknown = {}, slug: string = FACILITY): Promise<Response> {
+    return await app.request(url(slug, path), { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
 }
 
-async function get(path: string, cookie: string): Promise<Response> {
-    return await app.request(path, { headers: { Cookie: cookie } }, facility);
+async function get(path: string, cookie: string, slug: string = FACILITY): Promise<Response> {
+    return await app.request(url(slug, path), { headers: { Cookie: cookie } }, env);
 }
 
 async function json<T>(response: Response): Promise<T> {
@@ -33,23 +30,23 @@ async function json<T>(response: Response): Promise<T> {
 }
 
 describe('access link', () => {
-    it('signs an active requester in and redirects to the area', async () => {
+    it('signs an active requester in and redirects to the area of the venue', async () => {
         const { token } = await createRequester('Club A');
-        const response = await app.request(`/access/${token}`, {}, facility);
+        const response = await app.request(url(FACILITY, `/access/${token}`), {}, env);
         expect(response.status).toBe(302);
-        expect(response.headers.get('location')).toBe('/area');
+        expect(response.headers.get('location')).toBe(`/${FACILITY}/area`);
         expect(response.headers.get('set-cookie')).toContain('sess_requester=');
         const me = await json<{ name: string }>(await get('/api/requester/me', await requesterCookie(token)));
         expect(me.name).toBe('Club A');
     });
 
     it('refuses unknown tokens and suspended requesters alike', async () => {
-        expect((await app.request(`/access/${'0'.repeat(32)}`, {}, facility)).status).toBe(404);
-        expect((await app.request('/access/short', {}, facility)).status).toBe(404);
+        expect((await app.request(url(FACILITY, `/access/${'0'.repeat(32)}`), {}, env)).status).toBe(404);
+        expect((await app.request(url(FACILITY, '/access/short'), {}, env)).status).toBe(404);
         const { id, token } = await createRequester('Club B');
         const cookie = await requesterCookie(token);
-        await env.DB.prepare("UPDATE requesters SET status = 'suspended' WHERE id = ?1").bind(id).run();
-        expect((await app.request(`/access/${token}`, {}, facility)).status).toBe(404);
+        await dbOf(FACILITY).prepare("UPDATE requesters SET status = 'suspended' WHERE id = ?1").bind(id).run();
+        expect((await app.request(url(FACILITY, `/access/${token}`), {}, env)).status).toBe(404);
         // A session issued before the suspension stops working at once.
         expect((await get('/api/requester/me', cookie)).status).toBe(401);
     });
@@ -57,8 +54,15 @@ describe('access link', () => {
     it('invalidates old sessions when the link is regenerated', async () => {
         const { id, token } = await createRequester('Club C');
         const cookie = await requesterCookie(token);
-        await env.DB.prepare('UPDATE requesters SET access_token = ?2 WHERE id = ?1').bind(id, 'f'.repeat(32)).run();
+        await dbOf(FACILITY).prepare('UPDATE requesters SET access_token = ?2 WHERE id = ?1').bind(id, 'f'.repeat(32)).run();
         expect((await get('/api/requester/me', cookie)).status).toBe(401);
+    });
+
+    it('is a credential of one venue only', async () => {
+        const { token } = await createRequester('Club H');
+        // The same token means nothing to another venue, and the session is useless there too.
+        expect((await app.request(url(HOTEL, `/access/${token}`), {}, env)).status).toBe(404);
+        expect((await get('/api/requester/me', await requesterCookie(token), HOTEL)).status).toBe(401);
     });
 });
 
@@ -90,8 +94,8 @@ describe('requests from the area', () => {
         const cookie = await requesterCookie(token);
         const date = daysAhead(14);
         const other = await createRequester('Club F');
-        const approved = await env.DB.prepare("INSERT INTO requests (type, requester_id, date, start_time, end_time, status) VALUES ('facility', ?1, ?2, '10:00', '11:00', 'approved')").bind(other.id, date).run();
-        await env.DB.prepare('INSERT INTO slots (slot_key, request_id) VALUES (?1, ?2), (?3, ?2)').bind(`${date}_1000`, approved.meta.last_row_id, `${date}_1030`).run();
+        const approved = await dbOf(FACILITY).prepare("INSERT INTO requests (type, requester_id, date, start_time, end_time, status) VALUES ('facility', ?1, ?2, '10:00', '11:00', 'approved')").bind(other.id, date).run();
+        await dbOf(FACILITY).prepare('INSERT INTO slots (slot_key, request_id) VALUES (?1, ?2), (?3, ?2)').bind(`${date}_1000`, approved.meta.last_row_id, `${date}_1030`).run();
 
         const clash = await post('/api/requester/requests', cookie, { date, start_time: '10:30', end_time: '11:30' });
         expect(clash.status).toBe(409);
@@ -111,15 +115,15 @@ describe('requests from the area', () => {
         const { id, token } = await createRequester('Club G');
         const cookie = await requesterCookie(token);
         const date = daysAhead(16);
-        const approved = await env.DB.prepare("INSERT INTO requests (type, requester_id, date, start_time, end_time, status) VALUES ('facility', ?1, ?2, '20:00', '21:00', 'approved')").bind(id, date).run();
-        await env.DB.prepare('INSERT INTO slots (slot_key, request_id) VALUES (?1, ?2), (?3, ?2)').bind(`${date}_2000`, approved.meta.last_row_id, `${date}_2030`).run();
+        const approved = await dbOf(FACILITY).prepare("INSERT INTO requests (type, requester_id, date, start_time, end_time, status) VALUES ('facility', ?1, ?2, '20:00', '21:00', 'approved')").bind(id, date).run();
+        await dbOf(FACILITY).prepare('INSERT INTO slots (slot_key, request_id) VALUES (?1, ?2), (?3, ?2)').bind(`${date}_2000`, approved.meta.last_row_id, `${date}_2030`).run();
         expect((await post(`/api/requester/requests/${approved.meta.last_row_id}/cancel`, cookie)).status).toBe(200);
-        const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM slots WHERE request_id = ?1').bind(approved.meta.last_row_id).first<{ n: number }>();
+        const left = await dbOf(FACILITY).prepare('SELECT COUNT(*) AS n FROM slots WHERE request_id = ?1').bind(approved.meta.last_row_id).first<{ n: number }>();
         expect(left!.n).toBe(0);
     });
 
     it('is closed without a session', async () => {
-        expect((await app.request('/api/requester/me', {}, facility)).status).toBe(401);
-        expect((await app.request('/api/requester/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }, facility)).status).toBe(401);
+        expect((await app.request(url(FACILITY, '/api/requester/me'), {}, env)).status).toBe(401);
+        expect((await app.request(url(FACILITY, '/api/requester/requests'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }, env)).status).toBe(401);
     });
 });

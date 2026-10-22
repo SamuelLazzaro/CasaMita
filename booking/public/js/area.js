@@ -11,10 +11,11 @@ import { initFacilityForm } from './form-facility.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { appendDetail, applyVenue, button, errorMessage, hideStatus, openDialog, showStatus, statusBadge } from './ui.js';
+import { appendDetail, applyTenantLinks, applyVenue, button, errorMessage, hideStatus, openDialog, showStatus, statusBadge } from './ui.js';
 import { formatLongDate, formatShortDate, formatTimestamp, mondayOf, todayInRome, weekDays } from './utils.js';
 
 startTapFeedback();
+applyTenantLinks();
 
 const byId = (id) => document.getElementById(id);
 

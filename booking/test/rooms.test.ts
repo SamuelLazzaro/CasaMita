@@ -1,7 +1,6 @@
-import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { roomAvailability } from '../src/rooms';
-import { adminCall, adminCookie, daysAhead, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, ROOM_LARGEST, setStatus } from './helpers';
+import { adminCall, adminCookie, daysAhead, dbOf, HOTEL, hotelBody, postJson, ROOM_A, ROOM_B, ROOM_C, ROOM_LARGEST, setStatus } from './helpers';
 
 type RoomRow = { id: number; name: string; max_guests: number; quantity: number; price_per_night: number | null };
 
@@ -55,9 +54,9 @@ describe('room types administration', () => {
         expect(renamed.status).toBe(200);
         expect((await json<{ overbooked: number }>(renamed)).overbooked).toBe(0);
 
-        const row = await env.DB.prepare('SELECT room_type FROM requests WHERE id = ?1').bind(bookingId).first<{ room_type: string }>();
+        const row = await dbOf(HOTEL).prepare('SELECT room_type FROM requests WHERE id = ?1').bind(bookingId).first<{ room_type: string }>();
         expect(row!.room_type).toBe('Tripla vista mare');
-        const period = await env.DB.prepare('SELECT room_type FROM rate_periods WHERE room_type = ?1').bind('Tripla vista mare').first();
+        const period = await dbOf(HOTEL).prepare('SELECT room_type FROM rate_periods WHERE room_type = ?1').bind('Tripla vista mare').first();
         expect(period).not.toBeNull();
         // Fields left out of the PATCH keep their value.
         const room = (await listRooms(cookie)).find((candidate) => candidate.id === ROOM_C.id)!;
@@ -91,16 +90,16 @@ describe('room types administration', () => {
         expect(await json<{ error: string; bookings: number }>(blocked)).toEqual({ error: 'room_in_use', bookings: 1 });
         // Once cancelled, the booking no longer counts; the past ones never did.
         await setStatus(bookingId, 'cancelled');
-        await env.DB.prepare("INSERT INTO requests (type, first_name, last_name, email, phone, check_in, check_out, adults, children, room_type, guest_token, status) VALUES ('hotel', 'Old', 'Guest', 'old@example.com', '3331234567', '2020-01-01', '2020-01-03', 1, 0, ?1, ?2, 'approved')").bind(ROOM_A.name, 'b'.repeat(32)).run();
+        await dbOf(HOTEL).prepare("INSERT INTO requests (type, first_name, last_name, email, phone, check_in, check_out, adults, children, room_type, guest_token, status) VALUES ('hotel', 'Old', 'Guest', 'old@example.com', '3331234567', '2020-01-01', '2020-01-03', 1, 0, ?1, ?2, 'approved')").bind(ROOM_A.name, 'b'.repeat(32)).run();
         expect((await adminCall('POST', '/api/admin/pricing/periods', cookie, { room_type: ROOM_A.name, date_from: daysAhead(350), date_to: daysAhead(351), price_per_night: 99 })).status).toBe(201);
 
         const deleted = await adminCall('DELETE', `/api/admin/rooms/${ROOM_A.id}`, cookie);
         expect(deleted.status).toBe(200);
         expect((await listRooms(cookie)).find((room) => room.id === ROOM_A.id)).toBeUndefined();
-        const periods = await env.DB.prepare('SELECT COUNT(*) AS n FROM rate_periods WHERE room_type = ?1').bind(ROOM_A.name).first<{ n: number }>();
+        const periods = await dbOf(HOTEL).prepare('SELECT COUNT(*) AS n FROM rate_periods WHERE room_type = ?1').bind(ROOM_A.name).first<{ n: number }>();
         expect(periods!.n).toBe(0);
         // The old booking keeps the name of the type it was in.
-        const old = await env.DB.prepare("SELECT room_type FROM requests WHERE guest_token = ?1").bind('b'.repeat(32)).first<{ room_type: string }>();
+        const old = await dbOf(HOTEL).prepare("SELECT room_type FROM requests WHERE guest_token = ?1").bind('b'.repeat(32)).first<{ room_type: string }>();
         expect(old!.room_type).toBe(ROOM_A.name);
         expect((await adminCall('DELETE', `/api/admin/rooms/${ROOM_A.id}`, cookie)).status).toBe(404);
     });
@@ -118,7 +117,7 @@ describe('roomAvailability', () => {
         expect(second.status).toBe(201);
         const firstId = ((await first.json()) as { id: number }).id;
         const secondId = ((await second.json()) as { id: number }).id;
-        const roomFor = async (checkIn: string, checkOut: string, exclude = 0) => (await roomAvailability(env.DB, checkIn, checkOut, exclude)).find((candidate) => candidate.name === room)!;
+        const roomFor = async (checkIn: string, checkOut: string, exclude = 0) => (await roomAvailability(dbOf(HOTEL), checkIn, checkOut, exclude)).find((candidate) => candidate.name === room)!;
         // Availability never goes below zero.
         const left = (booked: number): number => Math.max(0, ROOM_LARGEST.quantity - booked);
 

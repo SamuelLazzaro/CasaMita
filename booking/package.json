@@ -9,8 +9,12 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "typecheck": "tsc --noEmit",
-        "migrate:local": "wrangler d1 migrations apply booking-casamita --local",
-        "migrate:remote": "wrangler d1 migrations apply booking-casamita --remote"
+        "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+        "migrate:local": "node scripts/migrate-all.mjs --local",
+        "migrate:remote": "node scripts/migrate-all.mjs --remote",
+        "migrate:all": "node scripts/migrate-all.mjs",
+        "tenant:add": "node scripts/tenant-add.mjs",
+        "tenant:password": "node scripts/tenant-password.mjs"
     },
     "dependencies": {
         "hono": "^4.6.0"

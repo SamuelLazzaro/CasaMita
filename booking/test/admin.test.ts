@@ -1,48 +1,117 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
-import type { Bindings } from '../src/types';
 import { app } from '../src/index';
-import { daysAhead, envOfType, hotelBody, postJson, restaurantBody, ROOM_A, setStatus } from './helpers';
+import { hashPassword, iterationsOf } from '../src/password';
+import { adminCookie, daysAhead, dbOf, FACILITY, HOTEL, hotelBody, login, PASSWORD, postJson, RESTAURANT, restaurantBody, ROOM_A, setStatus, url, USERNAMES } from './helpers';
 
-/** Logs the admin in (fake password from vitest.config.ts) and returns the session cookie. */
-async function adminCookie(bindings: Bindings = env): Promise<string> {
-    const response = await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.0.1' }, body: JSON.stringify({ password: 'test-password' }) }, bindings);
-    if (response.status !== 200) throw new Error(`admin login failed in tests (status ${response.status})`);
-    return response.headers.get('set-cookie')!.split(';')[0];
+async function adminPost(path: string, cookie: string, body: unknown = {}, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
 }
 
-async function adminPost(path: string, cookie: string, body: unknown = {}, bindings: Bindings = env): Promise<Response> {
-    return await app.request(path, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, bindings);
+async function adminGet(path: string, cookie: string, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), { headers: { Cookie: cookie } }, env);
 }
 
-async function adminGet(path: string, cookie: string, bindings: Bindings = env): Promise<Response> {
-    return await app.request(path, { headers: { Cookie: cookie } }, bindings);
-}
-
-async function adminPatch(path: string, cookie: string, body: unknown, bindings: Bindings = env): Promise<Response> {
-    return await app.request(path, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, bindings);
+async function adminPatch(path: string, cookie: string, body: unknown, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
 }
 
 async function json<T>(response: Response): Promise<T> {
     return (await response.json()) as T;
 }
 
-async function statusOf(id: number): Promise<string> {
-    const row = await env.DB.prepare('SELECT status FROM requests WHERE id = ?1').bind(id).first<{ status: string }>();
+async function statusOf(id: number, slug: string = HOTEL): Promise<string> {
+    const row = await dbOf(slug).prepare('SELECT status FROM requests WHERE id = ?1').bind(id).first<{ status: string }>();
     return row!.status;
 }
 
-const facility = envOfType('facility');
-const restaurant = envOfType('restaurant');
+/** A dashboard user of the hotel venue created for one test, so that locking or changing its password disturbs nothing else. */
+async function createUser(username: string, password: string, iterations = 1000): Promise<number> {
+    const result = await env.DIRECTORY.prepare('INSERT INTO users (tenant_slug, username, password_hash) VALUES (?1, ?2, ?3)').bind(HOTEL, username, await hashPassword(password, iterations)).run();
+    return result.meta.last_row_id;
+}
+
+async function storedHashOf(username: string): Promise<string> {
+    const row = await env.DIRECTORY.prepare('SELECT password_hash FROM users WHERE username = ?1').bind(username).first<{ password_hash: string }>();
+    return row!.password_hash;
+}
+
+const facility = FACILITY;
+const restaurant = RESTAURANT;
 
 describe('admin login', () => {
-    it('rejects a wrong password and accepts the right one', async () => {
-        const wrong = await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.0.2' }, body: JSON.stringify({ password: 'nope' }) }, env);
+    it('rejects a wrong password and an unknown user alike, accepts the right credentials and names the venue', async () => {
+        const wrong = await login(USERNAMES[HOTEL], 'nope', '10.0.0.2');
         expect(wrong.status).toBe(401);
-        const cookie = await adminCookie();
+        expect((await json<{ error: string }>(wrong)).error).toBe('invalid_credentials');
+        const unknown = await login('nobody', PASSWORD, '10.0.0.3');
+        expect(unknown.status).toBe(401);
+        expect((await json<{ error: string }>(unknown)).error).toBe('invalid_credentials');
+
+        const ok = await login(USERNAMES[HOTEL], PASSWORD, '10.0.0.4');
+        expect(ok.status).toBe(200);
+        expect(await json<{ slug: string; username: string }>(ok)).toEqual({ ok: true, slug: HOTEL, username: USERNAMES[HOTEL] });
+        const cookie = ok.headers.get('set-cookie')!.split(';')[0];
         expect(cookie.startsWith('sess_admin=')).toBe(true);
-        expect((await adminGet('/api/admin/me', cookie)).status).toBe(200);
-        expect((await app.request('/api/admin/me', {}, env)).status).toBe(401);
+        const me = await adminGet('/api/admin/me', cookie);
+        expect(me.status).toBe(200);
+        expect(await json<{ slug: string; username: string; venue: string }>(me)).toMatchObject({ slug: HOTEL, username: USERNAMES[HOTEL], venue: 'Hotel Test' });
+        expect((await app.request(url(HOTEL, '/api/admin/me'), {}, env)).status).toBe(401);
+    });
+
+    it('binds the session to its venue', async () => {
+        const hotelCookie = await adminCookie(HOTEL);
+        expect((await adminGet('/api/admin/me', hotelCookie, RESTAURANT)).status).toBe(401);
+        expect((await adminGet('/api/admin/me', hotelCookie, HOTEL)).status).toBe(200);
+        expect((await adminGet('/api/admin/me', await adminCookie(RESTAURANT), RESTAURANT)).status).toBe(200);
+    });
+
+    it('locks the account after ten wrong passwords, whatever the IP', async () => {
+        await createUser('lock-test', 'locked-user-password');
+        for (let i = 0; i < 10; i++) expect((await login('lock-test', 'wrong', `10.0.8.${i}`)).status).toBe(401);
+        const locked = await login('lock-test', 'locked-user-password', '10.0.8.50');
+        expect(locked.status).toBe(429);
+        expect((await json<{ error: string }>(locked)).error).toBe('account_locked');
+    });
+
+    it('rate limits the eleventh attempt of one IP within the window', async () => {
+        for (let i = 0; i < 10; i++) await login('nobody', 'wrong', '10.0.6.1');
+        const blocked = await login(USERNAMES[HOTEL], PASSWORD, '10.0.6.1');
+        expect(blocked.status).toBe(429);
+        expect((await json<{ error: string }>(blocked)).error).toBe('too_many_requests');
+    });
+
+    it('changes the password with the policy applied and ends the other sessions of the user', async () => {
+        await createUser('change-test', 'first-password-123');
+        const first = await login('change-test', 'first-password-123', '10.0.9.1');
+        const second = await login('change-test', 'first-password-123', '10.0.9.2');
+        const cookie = first.headers.get('set-cookie')!.split(';')[0];
+        const otherCookie = second.headers.get('set-cookie')!.split(';')[0];
+
+        const wrongCurrent = await adminPost('/api/admin/password', cookie, { current_password: 'nope', new_password: 'second-password-456' });
+        expect(wrongCurrent.status).toBe(401);
+        const tooShort = await adminPost('/api/admin/password', cookie, { current_password: 'first-password-123', new_password: 'short' });
+        expect(tooShort.status).toBe(400);
+        expect((await json<{ error: string }>(tooShort)).error).toBe('password_too_short');
+
+        const changed = await adminPost('/api/admin/password', cookie, { current_password: 'first-password-123', new_password: 'second-password-456' });
+        expect(changed.status).toBe(200);
+        // The session that changed the password goes on with its fresh cookie; the other one is over.
+        const freshCookie = changed.headers.get('set-cookie')!.split(';')[0];
+        expect((await adminGet('/api/admin/me', freshCookie)).status).toBe(200);
+        expect((await adminGet('/api/admin/me', cookie)).status).toBe(401);
+        expect((await adminGet('/api/admin/me', otherCookie)).status).toBe(401);
+        expect((await login('change-test', 'first-password-123', '10.0.9.3')).status).toBe(401);
+        expect((await login('change-test', 'second-password-456', '10.0.9.4')).status).toBe(200);
+    });
+
+    it('refreshes at login a hash made with another iteration count', async () => {
+        await createUser('rehash-test', 'rehash-password-789', 500);
+        expect(iterationsOf(await storedHashOf('rehash-test'))).toBe(500);
+        expect((await login('rehash-test', 'rehash-password-789', '10.0.9.10')).status).toBe(200);
+        // PASSWORD_HASH_ITERATIONS of the test suite (vitest.config.ts).
+        expect(iterationsOf(await storedHashOf('rehash-test'))).toBe(1000);
+        expect((await login('rehash-test', 'rehash-password-789', '10.0.9.11')).status).toBe(200);
     });
 });
 
@@ -123,7 +192,7 @@ describe('direct bookings', () => {
         expect(first.status).toBe(201);
         const id = (await json<{ id: number; status: string }>(first)).id;
         expect(await statusOf(id)).toBe('approved');
-        const row = await env.DB.prepare('SELECT lang, guest_token, decided_at FROM requests WHERE id = ?1').bind(id).first<{ lang: string; guest_token: string; decided_at: string }>();
+        const row = await dbOf(HOTEL).prepare('SELECT lang, guest_token, decided_at FROM requests WHERE id = ?1').bind(id).first<{ lang: string; guest_token: string; decided_at: string }>();
         expect(row!.lang).toBe('en');
         expect(row!.guest_token).toMatch(/^[a-f0-9]{32}$/);
         expect(row!.decided_at).not.toBeNull();
@@ -146,7 +215,7 @@ describe('direct bookings', () => {
         const cookie = await adminCookie(restaurant);
         const ok = await adminPost('/api/admin/bookings', cookie, restaurantBody({ time: '13:00' }), restaurant);
         expect(ok.status).toBe(201);
-        expect(await statusOf((await json<{ id: number }>(ok)).id)).toBe('approved');
+        expect(await statusOf((await json<{ id: number }>(ok)).id, restaurant)).toBe('approved');
         const outside = await adminPost('/api/admin/bookings', cookie, restaurantBody({ time: '17:00' }), restaurant);
         expect(outside.status).toBe(400);
     });
@@ -156,14 +225,14 @@ describe('direct bookings', () => {
         const created = await adminPost('/api/admin/requesters', cookie, { name: 'Polisportiva Test', contact_name: 'Giulia', email: 'polis@example.com', phone: '0331 123456' }, facility);
         expect(created.status).toBe(201);
         const { id: requesterId, access_link } = await json<{ id: number; access_link: string }>(created);
-        expect(access_link).toMatch(/\/access\/[a-f0-9]{32}$/);
+        expect(access_link).toMatch(/\/facility-test\/access\/[a-f0-9]{32}$/);
 
         const date = daysAhead(15);
         const booking = { requester_id: requesterId, date, start_time: '18:00', end_time: '19:30', notes: 'Allenamento' };
         const first = await adminPost('/api/admin/bookings', cookie, booking, facility);
         expect(first.status).toBe(201);
         const id = (await json<{ id: number }>(first)).id;
-        const slots = await env.DB.prepare('SELECT slot_key FROM slots WHERE request_id = ?1 ORDER BY slot_key').bind(id).all<{ slot_key: string }>();
+        const slots = await dbOf(FACILITY).prepare('SELECT slot_key FROM slots WHERE request_id = ?1 ORDER BY slot_key').bind(id).all<{ slot_key: string }>();
         expect(slots.results.map((row) => row.slot_key)).toEqual([`${date}_1800`, `${date}_1830`, `${date}_1900`]);
 
         const overlapping = await adminPost('/api/admin/bookings', cookie, { ...booking, start_time: '19:00', end_time: '20:00' }, facility);
@@ -181,7 +250,7 @@ describe('direct bookings', () => {
 
         // Cancelling frees the slots.
         expect((await adminPost(`/api/admin/requests/${id}/cancel`, cookie, {}, facility)).status).toBe(200);
-        const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM slots WHERE request_id = ?1').bind(id).first<{ n: number }>();
+        const left = await dbOf(FACILITY).prepare('SELECT COUNT(*) AS n FROM slots WHERE request_id = ?1').bind(id).first<{ n: number }>();
         expect(left!.n).toBe(0);
     });
 });
@@ -252,7 +321,7 @@ describe('editing bookings', () => {
         const moved = await adminPatch(`/api/admin/requests/${id}`, cookie, { ...booking, start_time: '19:00', end_time: '20:30' }, facility);
         expect(moved.status).toBe(200);
         expect((await json<{ changed: string[] }>(moved)).changed.sort()).toEqual(['end_time', 'start_time']);
-        const slots = await env.DB.prepare('SELECT slot_key FROM slots WHERE request_id = ?1 ORDER BY slot_key').bind(id).all<{ slot_key: string }>();
+        const slots = await dbOf(FACILITY).prepare('SELECT slot_key FROM slots WHERE request_id = ?1 ORDER BY slot_key').bind(id).all<{ slot_key: string }>();
         expect(slots.results.map((row) => row.slot_key)).toEqual([`${date}_1900`, `${date}_1930`, `${date}_2000`]);
 
         const other = { ...booking, start_time: '10:00', end_time: '11:00' };
@@ -263,7 +332,7 @@ describe('editing bookings', () => {
         expect(conflict.error).toBe('slots_taken');
         expect(conflict.slots).toEqual([`${date}_1030`]);
         // The failed move left the booking where it was.
-        const kept = await env.DB.prepare('SELECT start_time, end_time FROM requests WHERE id = ?1').bind(id).first<{ start_time: string; end_time: string }>();
+        const kept = await dbOf(FACILITY).prepare('SELECT start_time, end_time FROM requests WHERE id = ?1').bind(id).first<{ start_time: string; end_time: string }>();
         expect(kept).toEqual({ start_time: '19:00', end_time: '20:30' });
     });
 });
@@ -278,9 +347,9 @@ describe('requesters', () => {
         expect(mine.status).toBe('active');
         expect(mine.access_link).toBe(created.access_link);
 
-        const edited = await app.request(`/api/admin/requesters/${created.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ contact_name: 'Marco Rossi' }) }, facility);
+        const edited = await adminPatch(`/api/admin/requesters/${created.id}`, cookie, { contact_name: 'Marco Rossi' }, facility);
         expect(edited.status).toBe(200);
-        const badEmail = await app.request(`/api/admin/requesters/${created.id}`, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'nope' }) }, facility);
+        const badEmail = await adminPatch(`/api/admin/requesters/${created.id}`, cookie, { email: 'nope' }, facility);
         expect(badEmail.status).toBe(400);
 
         const date = daysAhead(25);
@@ -288,7 +357,7 @@ describe('requesters', () => {
         const suspended = await json<{ ok: boolean; slots_freed: number; requests_cancelled: number }>(await adminPost(`/api/admin/requesters/${created.id}/suspend`, cookie, {}, facility));
         expect(suspended.slots_freed).toBe(2);
         expect(suspended.requests_cancelled).toBe(1);
-        expect(await statusOf(booking.id)).toBe('cancelled');
+        expect(await statusOf(booking.id, facility)).toBe('cancelled');
         const blocked = await adminPost('/api/admin/bookings', cookie, { requester_id: created.id, date, start_time: '11:00', end_time: '12:00' }, facility);
         expect(blocked.status).toBe(404);
 

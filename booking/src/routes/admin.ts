@@ -1,23 +1,25 @@
 import { Hono } from 'hono';
-import type { Bindings, PaymentStatus, RequesterRow, RequestRow } from '../types';
-import { ADMIN_SESSION_S, clearSessionCookie, constantTimeEqual, COOKIE_ADMIN, createSession, requireAdmin, writeSessionCookie } from '../auth';
-import { venueConfig, type VenueConfig } from '../config';
+import type { AdminVariables, Bindings, PaymentStatus, RequesterRow, RequestRow } from '../types';
+import { requireAdmin, startAdminSession } from '../auth';
+import type { VenueConfig } from '../config';
+import { configuredIterations, hashPassword, isBreachedPassword, passwordPolicyError, verifyPassword } from '../password';
+import { tenantBase } from '../tenant';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
 import { notifyAccessLink, notifyApproved, notifyCancelledByAdmin, notifyChangedByAdmin, notifyRegisteredByAdmin, notifyRejected, type AccessLinkReason, type Recipient } from '../notifications';
-import { attemptAllowed } from '../ratelimit';
 import { periodFields, periodOverlaps, quoteStay, setDayPrice, type DiscountRule, type RatePeriod } from '../pricing';
 import { createRoomType, deleteRoomType, futureBookingsOf, overbookedRooms, roomAvailability, roomFields, roomNameTaken, roomTypeById, roomTypeByName, roomTypes, updateRoomType } from '../rooms';
 import { isSlotConflict, keysOf, occupiedSlots, slotInserts } from '../slots';
-import { auditStatement, clientIp, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, priceValue, randomToken, readJson, text, writeAudit } from '../util';
+import { auditStatement, integerBetween, isValidEmail, isValidPhone, langOf, optionalText, positiveInt, priceValue, randomToken, readJson, text, writeAudit } from '../util';
 import { facilityFields, guestFields, hotelFields, restaurantFields, validateStay, type HotelFields } from '../validation';
 
 /*
- * Admin dashboard routes: login, calendar, decisions on the requests, direct
- * bookings (every type) and, for facilities, the registered requesters.
+ * Admin dashboard routes of one venue (/:slug/api/admin): account, calendar,
+ * decisions on the requests, direct bookings (every type) and, for
+ * facilities, the registered requesters. Sign-in lives at the root of the
+ * deployment (routes/session.ts); every route here runs behind
+ * resolveTenant() (index.ts) and requireAdmin().
  */
 
-const LOGIN_MAX_ATTEMPTS = 10;
-const LOGIN_WINDOW_SECONDS = 15 * 60;
 const MAX_REASON = 300;
 const MAX_LIST = 300;
 const DEFAULT_COLOR = '#3b82f6';
@@ -68,30 +70,34 @@ function overlappingSql(room: string, checkIn: string, checkOut: string, id: str
     return OVERLAPPING_APPROVED.replace('%ROOM%', room).replace('%OUT%', checkOut).replace('%IN%', checkIn).replace('%ID%', id);
 }
 
-export const admin = new Hono<{ Bindings: Bindings }>();
-
-admin.post('/login', async (c) => {
-    if (!(await attemptAllowed(c.env.DB, `login:${clientIp(c)}`, LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_SECONDS))) return c.json({ error: 'too_many_requests' }, 429);
-    const body = await readJson(c);
-    const password = typeof body?.password === 'string' ? body.password : '';
-    if (password === '' || !(await constantTimeEqual(password, c.env.ADMIN_PASSWORD))) {
-        await writeAudit(c.env.DB, 'admin_login_failed', `ip ${clientIp(c)}`, 'system');
-        return c.json({ error: 'invalid_credentials' }, 401);
-    }
-    const cookie = await createSession(c.env.ADMIN_SECRET, ['admin'], ADMIN_SESSION_S, new Date());
-    writeSessionCookie(c, COOKIE_ADMIN, cookie, ADMIN_SESSION_S);
-    await writeAudit(c.env.DB, 'admin_login', '', 'admin');
-    return c.json({ ok: true });
-});
-
-admin.post('/logout', (c) => {
-    clearSessionCookie(c, COOKIE_ADMIN);
-    return c.json({ ok: true });
-});
+export const admin = new Hono<{ Bindings: Bindings; Variables: AdminVariables }>();
 
 admin.use('*', requireAdmin());
 
-admin.get('/me', (c) => c.json({ ok: true }));
+/** Who is signed in and where: the dashboard shows the venue and the account. */
+admin.get('/me', (c) => c.json({ ok: true, slug: c.var.tenant.slug, venue: c.var.venue.name, username: c.var.user.username }));
+
+/**
+ * Password change of the signed-in user: the current password is required
+ * again, the new one must satisfy the policy (length, not in known breaches;
+ * see password.ts). The hash changes, so every other session of the user
+ * ends; this one gets a fresh cookie and goes on.
+ */
+admin.post('/password', async (c) => {
+    const body = await readJson(c);
+    if (body === null) return c.json({ error: 'invalid_body' }, 400);
+    const current = typeof body.current_password === 'string' ? body.current_password : '';
+    if (current === '' || !(await verifyPassword(current, c.var.user.password_hash))) return c.json({ error: 'invalid_credentials' }, 401);
+    const policyError = passwordPolicyError(body.new_password);
+    if (policyError !== null) return c.json({ error: policyError }, 400);
+    const next = body.new_password as string;
+    if (await isBreachedPassword(next, c.env)) return c.json({ error: 'password_breached' }, 400);
+    const passwordHash = await hashPassword(next, configuredIterations(c.env));
+    await c.env.DIRECTORY.prepare("UPDATE users SET password_hash = ?2, password_changed_at = datetime('now') WHERE id = ?1").bind(c.var.user.id, passwordHash).run();
+    await writeAudit(c.env.DIRECTORY, 'password_changed', '', `user:${c.var.user.id}`);
+    await startAdminSession(c, { ...c.var.user, password_hash: passwordHash });
+    return c.json({ ok: true });
+});
 
 /**
  * Calendar items of a view: pending and approved requests touching the
@@ -99,13 +105,13 @@ admin.get('/me', (c) => c.json({ ok: true }));
  * date inside it.
  */
 admin.get('/calendar', async (c) => {
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
     const view = c.req.query('view') ?? 'week';
     const date = c.req.query('date') ?? romeNow(new Date()).date;
     if (!['day', 'week', 'month'].includes(view) || !isValidDate(date)) return c.json({ error: 'invalid_body' }, 400);
     const { from, to } = calendarRange(view as CalendarView, date);
     const condition = venue.type === 'hotel' ? `r.type = ?3 AND r.check_in <= ?2 AND r.check_out > ?1` : `r.type = ?3 AND r.date >= ?1 AND r.date <= ?2`;
-    const { results } = await c.env.DB.prepare(`${SELECT_REQUEST} WHERE r.status IN ('pending', 'approved') AND ${condition} ORDER BY COALESCE(r.check_in, r.date), r.start_time`).bind(from, to, venue.type).all<AdminRequestRow>();
+    const { results } = await c.var.db.prepare(`${SELECT_REQUEST} WHERE r.status IN ('pending', 'approved') AND ${condition} ORDER BY COALESCE(r.check_in, r.date), r.start_time`).bind(from, to, venue.type).all<AdminRequestRow>();
     return c.json({ view, date, from, to, items: results.map(adminView) });
 });
 
@@ -116,7 +122,7 @@ admin.get('/calendar', async (c) => {
  * validation starts there instead of today.
  */
 admin.get('/availability', async (c) => {
-    if (venueConfig(c.env).type !== 'hotel') return c.json({ error: 'not_found' }, 404);
+    if (c.var.venue.type !== 'hotel') return c.json({ error: 'not_found' }, 404);
     const checkIn = c.req.query('check_in') ?? '';
     const checkOut = c.req.query('check_out') ?? '';
     const exclude = positiveInt(c.req.query('exclude')) ?? 0;
@@ -124,7 +130,7 @@ admin.get('/availability', async (c) => {
     const horizon = exclude > 0 && checkIn < today ? checkIn : today;
     const stayError = validateStay(checkIn, checkOut, horizon);
     if (stayError) return c.json({ error: stayError }, 400);
-    return c.json({ check_in: checkIn, check_out: checkOut, rooms: await roomAvailability(c.env.DB, checkIn, checkOut, exclude) });
+    return c.json({ check_in: checkIn, check_out: checkOut, rooms: await roomAvailability(c.var.db, checkIn, checkOut, exclude) });
 });
 
 /**
@@ -135,12 +141,12 @@ admin.get('/availability', async (c) => {
  * header follows the language of the dashboard.
  */
 admin.get('/export', async (c) => {
-    if (venueConfig(c.env).type !== 'hotel') return c.json({ error: 'not_found' }, 404);
+    if (c.var.venue.type !== 'hotel') return c.json({ error: 'not_found' }, 404);
     const from = c.req.query('from') ?? '';
     const to = c.req.query('to') ?? '';
     if (!isValidDate(from) || !isValidDate(to)) return c.json({ error: 'invalid_date' }, 400);
     if (to < from) return c.json({ error: 'period_reversed' }, 400);
-    const { results } = await c.env.DB.prepare(`SELECT check_in, check_out, first_name, last_name, email, phone, room_type, adults, children, quoted_total, paid_amount, payment_status, status FROM requests WHERE type = 'hotel' AND status IN ('approved', 'rejected', 'cancelled') AND check_in <= ?2 AND check_out > ?1 ORDER BY check_in, check_out, last_name, first_name, id`).bind(from, to).all();
+    const { results } = await c.var.db.prepare(`SELECT check_in, check_out, first_name, last_name, email, phone, room_type, adults, children, quoted_total, paid_amount, payment_status, status FROM requests WHERE type = 'hotel' AND status IN ('approved', 'rejected', 'cancelled') AND check_in <= ?2 AND check_out > ?1 ORDER BY check_in, check_out, last_name, first_name, id`).bind(from, to).all();
     return c.json({ from, to, items: results });
 });
 
@@ -149,53 +155,53 @@ admin.get('/requests', async (c) => {
     const status = c.req.query('status') ?? 'pending';
     if (!['pending', 'approved', 'rejected', 'cancelled'].includes(status)) return c.json({ error: 'invalid_body' }, 400);
     const order = status === 'pending' ? 'r.created_at ASC' : 'r.created_at DESC';
-    const { results } = await c.env.DB.prepare(`${SELECT_REQUEST} WHERE r.status = ?1 ORDER BY ${order} LIMIT ${MAX_LIST}`).bind(status).all<AdminRequestRow>();
+    const { results } = await c.var.db.prepare(`${SELECT_REQUEST} WHERE r.status = ?1 ORDER BY ${order} LIMIT ${MAX_LIST}`).bind(status).all<AdminRequestRow>();
     return c.json({ status, items: results.map(adminView) });
 });
 
 admin.post('/requests/:id/approve', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     if (request.status !== 'pending') return c.json({ error: 'not_pending' }, 409);
     const today = romeNow(new Date()).date;
     if (startDate(request) < today) return c.json({ error: 'in_past' }, 409);
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
 
     if (request.type === 'hotel') {
-        const quantity = (await roomTypeByName(c.env.DB, request.room_type ?? ''))?.quantity ?? 0;
+        const quantity = (await roomTypeByName(c.var.db, request.room_type ?? ''))?.quantity ?? 0;
         const overlapping = overlappingSql('requests.room_type', 'requests.check_in', 'requests.check_out', 'requests.id');
-        const result = await c.env.DB.prepare(`UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending' AND ${overlapping} < ?2`).bind(request.id, quantity).run();
+        const result = await c.var.db.prepare(`UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending' AND ${overlapping} < ?2`).bind(request.id, quantity).run();
         if (result.meta.changes === 0) return c.json({ error: 'room_unavailable' }, 409);
     } else if (request.type === 'facility') {
         const keys = keysOf({ date: request.date ?? '', start_time: request.start_time ?? '', end_time: request.end_time ?? '' }, venue.facility.slotMinutes);
-        const taken = await occupiedSlots(c.env.DB, keys);
+        const taken = await occupiedSlots(c.var.db, keys);
         if (taken.length > 0) return c.json({ error: 'slots_taken', slots: taken }, 409);
         try {
-            await c.env.DB.batch([c.env.DB.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id), ...slotInserts(c.env.DB, request.id, keys)]);
+            await c.var.db.batch([c.var.db.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id), ...slotInserts(c.var.db, request.id, keys)]);
         } catch (error) {
-            if (isSlotConflict(error)) return c.json({ error: 'slots_taken', slots: await occupiedSlots(c.env.DB, keys) }, 409);
+            if (isSlotConflict(error)) return c.json({ error: 'slots_taken', slots: await occupiedSlots(c.var.db, keys) }, 409);
             throw error;
         }
     } else {
-        await c.env.DB.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
+        await c.var.db.prepare("UPDATE requests SET status = 'approved', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
     }
 
-    await writeAudit(c.env.DB, 'request_approved', `request #${request.id}`, 'admin');
+    await writeAudit(c.var.db, 'request_approved', `request #${request.id}`, 'admin');
     notifyApproved(c, { ...request, status: 'approved' }, requesterRecipient(request));
     return c.json({ ok: true, status: 'approved' });
 });
 
 admin.post('/requests/:id/reject', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     if (request.status !== 'pending') return c.json({ error: 'not_pending' }, 409);
     const body = (await readJson(c)) ?? {};
     const reason = optionalText(body.reason, MAX_REASON);
     if (reason === undefined) return c.json({ error: 'reason_too_long' }, 400);
-    await c.env.DB.prepare("UPDATE requests SET status = 'rejected', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
-    await writeAudit(c.env.DB, 'request_rejected', `request #${request.id}${reason ? `: ${reason}` : ''}`, 'admin');
+    await c.var.db.prepare("UPDATE requests SET status = 'rejected', decided_at = datetime('now') WHERE id = ?1 AND status = 'pending'").bind(request.id).run();
+    await writeAudit(c.var.db, 'request_rejected', `request #${request.id}${reason ? `: ${reason}` : ''}`, 'admin');
     notifyRejected(c, { ...request, status: 'rejected' }, reason, requesterRecipient(request));
     return c.json({ ok: true, status: 'rejected' });
 });
@@ -203,13 +209,13 @@ admin.post('/requests/:id/reject', async (c) => {
 /** Immediate cancellation by the venue of a pending or approved booking; facility slots are freed. */
 admin.post('/requests/:id/cancel', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     if (request.status !== 'pending' && request.status !== 'approved') return c.json({ error: 'cannot_cancel' }, 409);
-    await c.env.DB.batch([
-        c.env.DB.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id),
-        c.env.DB.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id),
-        auditStatement(c.env.DB, 'request_cancelled', `request #${request.id} cancelled by the venue`, 'admin'),
+    await c.var.db.batch([
+        c.var.db.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id),
+        c.var.db.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id),
+        auditStatement(c.var.db, 'request_cancelled', `request #${request.id} cancelled by the venue`, 'admin'),
     ]);
     notifyCancelledByAdmin(c, { ...request, status: 'cancelled' }, requesterRecipient(request));
     return c.json({ ok: true, status: 'cancelled' });
@@ -248,7 +254,7 @@ function paymentPrecondition(request: AdminRequestRow): string | null {
 /** Deposit received: a positive amount below the total (the amount left is total - deposit). */
 admin.post('/requests/:id/deposit', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     const blocked = paymentPrecondition(request);
     if (blocked !== null) return c.json({ error: blocked }, 409);
@@ -259,24 +265,24 @@ admin.post('/requests/:id/deposit', async (c) => {
     const amount = priceValue(body.amount);
     if (amount === null || amount <= 0) return c.json({ error: 'invalid_amount' }, 400);
     if (amount >= request.quoted_total) return c.json({ error: 'deposit_not_partial' }, 400);
-    const result = await c.env.DB.prepare("UPDATE requests SET payment_status = 'deposit', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status = 'none'").bind(request.id, amount).run();
+    const result = await c.var.db.prepare("UPDATE requests SET payment_status = 'deposit', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status = 'none'").bind(request.id, amount).run();
     if (result.meta.changes === 0) return c.json({ error: 'deposit_recorded' }, 409);
-    await writeAudit(c.env.DB, 'deposit_recorded', `request #${request.id}: ${amount} of ${request.quoted_total}`, 'admin');
-    return c.json({ ok: true, payment_status: 'deposit', item: await updatedView(c.env.DB, request.id) });
+    await writeAudit(c.var.db, 'deposit_recorded', `request #${request.id}: ${amount} of ${request.quoted_total}`, 'admin');
+    return c.json({ ok: true, payment_status: 'deposit', item: await updatedView(c.var.db, request.id) });
 });
 
 /** Paid in full: the amount paid becomes the total (when known), whatever deposit was recorded before. */
 admin.post('/requests/:id/paid', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     const blocked = paymentPrecondition(request);
     if (blocked !== null) return c.json({ error: blocked }, 409);
     const paidAmount = request.quoted_total ?? request.paid_amount;
-    const result = await c.env.DB.prepare("UPDATE requests SET payment_status = 'paid', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status IN ('none', 'deposit')").bind(request.id, paidAmount).run();
+    const result = await c.var.db.prepare("UPDATE requests SET payment_status = 'paid', paid_amount = ?2, paid_at = datetime('now') WHERE id = ?1 AND status = 'approved' AND payment_status IN ('none', 'deposit')").bind(request.id, paidAmount).run();
     if (result.meta.changes === 0) return c.json({ error: 'already_paid' }, 409);
-    await writeAudit(c.env.DB, 'payment_recorded', `request #${request.id}: paid in full${paidAmount === null ? '' : ` (${paidAmount})`}`, 'admin');
-    return c.json({ ok: true, payment_status: 'paid', item: await updatedView(c.env.DB, request.id) });
+    await writeAudit(c.var.db, 'payment_recorded', `request #${request.id}: paid in full${paidAmount === null ? '' : ` (${paidAmount})`}`, 'admin');
+    return c.json({ ok: true, payment_status: 'paid', item: await updatedView(c.var.db, request.id) });
 });
 
 /** The request as the dashboard sees it after a write, so the dialog can redraw without a second round trip. */
@@ -292,17 +298,17 @@ async function updatedView(db: D1Database, id: number): Promise<Record<string, u
  * personal link; the owner, being the author, gets none.
  */
 admin.post('/bookings', async (c) => {
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const lang = langOf(body.lang, venue.defaultLang);
     const now = romeNow(new Date());
 
-    const outcome = venue.type === 'hotel' ? await directHotel(c.env.DB, body, lang, now.date) : venue.type === 'restaurant' ? await directRestaurant(c.env.DB, body, venue, lang, now) : await directFacility(c.env.DB, body, venue, lang, now);
+    const outcome = venue.type === 'hotel' ? await directHotel(c.var.db, body, lang, now.date) : venue.type === 'restaurant' ? await directRestaurant(c.var.db, body, venue, lang, now) : await directFacility(c.var.db, body, venue, lang, now);
     if ('error' in outcome) return c.json({ error: outcome.error, ...(outcome.slots ? { slots: outcome.slots } : {}) }, outcome.status);
 
-    const request = await loadRequest(c.env.DB, outcome.id);
-    await writeAudit(c.env.DB, 'booking_registered', `${venue.type} booking #${outcome.id} registered by the venue`, 'admin');
+    const request = await loadRequest(c.var.db, outcome.id);
+    await writeAudit(c.var.db, 'booking_registered', `${venue.type} booking #${outcome.id} registered by the venue`, 'admin');
     if (request) notifyRegisteredByAdmin(c, request, requesterRecipient(request));
     return c.json({ id: outcome.id, status: 'approved' }, 201);
 });
@@ -403,24 +409,24 @@ async function directFacility(db: D1Database, body: Record<string, unknown>, ven
  */
 admin.patch('/requests/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await loadRequest(c.env.DB, id);
+    const request = id === null ? null : await loadRequest(c.var.db, id);
     if (request === null) return c.json({ error: 'not_found' }, 404);
     if (request.status !== 'pending' && request.status !== 'approved') return c.json({ error: 'cannot_edit' }, 409);
     const now = romeNow(new Date());
     if (isOver(request, now.date)) return c.json({ error: 'in_past' }, 409);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
 
-    const outcome = request.type === 'hotel' ? await editHotel(c.env.DB, request, body, now.date) : request.type === 'restaurant' ? await editRestaurant(c.env.DB, request, body, venue, now) : await editFacility(c.env.DB, request, body, venue, now);
+    const outcome = request.type === 'hotel' ? await editHotel(c.var.db, request, body, now.date) : request.type === 'restaurant' ? await editRestaurant(c.var.db, request, body, venue, now) : await editFacility(c.var.db, request, body, venue, now);
     if ('error' in outcome) return c.json({ error: outcome.error, ...(outcome.slots ? { slots: outcome.slots } : {}) }, outcome.status);
 
     if (outcome.changed.length > 0) {
-        await writeAudit(c.env.DB, 'booking_edited', `request #${request.id}: ${outcome.changed.join(', ')}`, 'admin');
-        const updated = await loadRequest(c.env.DB, request.id);
+        await writeAudit(c.var.db, 'booking_edited', `request #${request.id}: ${outcome.changed.join(', ')}`, 'admin');
+        const updated = await loadRequest(c.var.db, request.id);
         if (updated && body.notify !== false) notifyChangedByAdmin(c, updated, requesterRecipient(updated));
     }
-    return c.json({ ok: true, changed: outcome.changed, item: await updatedView(c.env.DB, request.id) });
+    return c.json({ ok: true, changed: outcome.changed, item: await updatedView(c.var.db, request.id) });
 });
 
 type EditOutcome = { changed: string[] } | { error: string; status: 400 | 404 | 409; slots?: string[] };
@@ -514,16 +520,16 @@ async function editFacility(db: D1Database, request: AdminRequestRow, body: Reco
 // Hotel room types (migration 0004): name, guests, quantity, base price
 // ---------------------------------------------------------------------------
 
-admin.get('/rooms', async (c) => c.json({ rooms: await roomTypes(c.env.DB) }));
+admin.get('/rooms', async (c) => c.json({ rooms: await roomTypes(c.var.db) }));
 
 admin.post('/rooms', async (c) => {
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const fields = roomFields(body);
     if ('error' in fields) return c.json({ error: fields.error }, 400);
-    if (await roomNameTaken(c.env.DB, fields.name)) return c.json({ error: 'room_exists' }, 409);
-    const id = await createRoomType(c.env.DB, fields);
-    await writeAudit(c.env.DB, 'room_type_created', `${fields.name}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
+    if (await roomNameTaken(c.var.db, fields.name)) return c.json({ error: 'room_exists' }, 409);
+    const id = await createRoomType(c.var.db, fields);
+    await writeAudit(c.var.db, 'room_type_created', `${fields.name}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
     return c.json({ id }, 201);
 });
 
@@ -534,29 +540,29 @@ admin.post('/rooms', async (c) => {
  */
 admin.patch('/rooms/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const existing = id === null ? null : await roomTypeById(c.env.DB, id);
+    const existing = id === null ? null : await roomTypeById(c.var.db, id);
     if (existing === null) return c.json({ error: 'not_found' }, 404);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const fields = roomFields({ name: existing.name, max_guests: existing.max_guests, quantity: existing.quantity, price_per_night: existing.price_per_night, ...body });
     if ('error' in fields) return c.json({ error: fields.error }, 400);
-    if (await roomNameTaken(c.env.DB, fields.name, existing.id)) return c.json({ error: 'room_exists' }, 409);
-    await updateRoomType(c.env.DB, existing, fields);
+    if (await roomNameTaken(c.var.db, fields.name, existing.id)) return c.json({ error: 'room_exists' }, 409);
+    await updateRoomType(c.var.db, existing, fields);
     const renamed = fields.name === existing.name ? '' : ` (was "${existing.name}")`;
-    await writeAudit(c.env.DB, 'room_type_updated', `${fields.name}${renamed}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
-    const overbooked = await overbookedRooms(c.env.DB, fields.name, fields.quantity, romeNow(new Date()).date);
+    await writeAudit(c.var.db, 'room_type_updated', `${fields.name}${renamed}: ${fields.quantity} rooms, ${fields.maxGuests} guests, ${fields.price}/night`, 'admin');
+    const overbooked = await overbookedRooms(c.var.db, fields.name, fields.quantity, romeNow(new Date()).date);
     return c.json({ ok: true, overbooked });
 });
 
 /** Refused (409 room_in_use) while a pending or approved booking of the type has not checked out yet. */
 admin.delete('/rooms/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const existing = id === null ? null : await roomTypeById(c.env.DB, id);
+    const existing = id === null ? null : await roomTypeById(c.var.db, id);
     if (existing === null) return c.json({ error: 'not_found' }, 404);
-    const bookings = await futureBookingsOf(c.env.DB, existing.name, romeNow(new Date()).date);
+    const bookings = await futureBookingsOf(c.var.db, existing.name, romeNow(new Date()).date);
     if (bookings > 0) return c.json({ error: 'room_in_use', bookings }, 409);
-    await deleteRoomType(c.env.DB, existing);
-    await writeAudit(c.env.DB, 'room_type_deleted', existing.name, 'admin');
+    await deleteRoomType(c.var.db, existing);
+    await writeAudit(c.var.db, 'room_type_deleted', existing.name, 'admin');
     return c.json({ ok: true });
 });
 
@@ -567,10 +573,10 @@ admin.delete('/rooms/:id', async (c) => {
 
 /** Everything the Prices section shows: base price per room type (null when missing), periods, discount rules. */
 admin.get('/pricing', async (c) => {
-    const [base, periods, discounts] = await c.env.DB.batch([
-        c.env.DB.prepare('SELECT name AS room_type, price_per_night FROM room_types ORDER BY id'),
-        c.env.DB.prepare('SELECT id, room_type, date_from, date_to, price_per_night, label FROM rate_periods ORDER BY date_from, room_type'),
-        c.env.DB.prepare('SELECT id, min_nights, percent FROM discount_rules ORDER BY min_nights'),
+    const [base, periods, discounts] = await c.var.db.batch([
+        c.var.db.prepare('SELECT name AS room_type, price_per_night FROM room_types ORDER BY id'),
+        c.var.db.prepare('SELECT id, room_type, date_from, date_to, price_per_night, label FROM rate_periods ORDER BY date_from, room_type'),
+        c.var.db.prepare('SELECT id, min_nights, percent FROM discount_rules ORDER BY min_nights'),
     ]);
     return c.json({ base: base.results, periods: periods.results as RatePeriod[], discounts: discounts.results as DiscountRule[] });
 });
@@ -578,33 +584,33 @@ admin.get('/pricing', async (c) => {
 admin.post('/pricing/periods', async (c) => {
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const fields = await periodFields(c.env.DB, body);
+    const fields = await periodFields(c.var.db, body);
     if ('error' in fields) return c.json({ error: fields.error }, 400);
-    if (await periodOverlaps(c.env.DB, fields)) return c.json({ error: 'period_overlap' }, 409);
-    const result = await c.env.DB.prepare('INSERT INTO rate_periods (room_type, date_from, date_to, price_per_night, label) VALUES (?1, ?2, ?3, ?4, ?5)').bind(fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
-    await writeAudit(c.env.DB, 'price_period_created', `${fields.roomType} ${fields.dateFrom}..${fields.dateTo}: ${fields.price}`, 'admin');
+    if (await periodOverlaps(c.var.db, fields)) return c.json({ error: 'period_overlap' }, 409);
+    const result = await c.var.db.prepare('INSERT INTO rate_periods (room_type, date_from, date_to, price_per_night, label) VALUES (?1, ?2, ?3, ?4, ?5)').bind(fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
+    await writeAudit(c.var.db, 'price_period_created', `${fields.roomType} ${fields.dateFrom}..${fields.dateTo}: ${fields.price}`, 'admin');
     return c.json({ id: result.meta.last_row_id }, 201);
 });
 
 admin.patch('/pricing/periods/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const existing = id === null ? null : await c.env.DB.prepare('SELECT * FROM rate_periods WHERE id = ?1').bind(id).first<RatePeriod>();
+    const existing = id === null ? null : await c.var.db.prepare('SELECT * FROM rate_periods WHERE id = ?1').bind(id).first<RatePeriod>();
     if (existing === null) return c.json({ error: 'not_found' }, 404);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
-    const fields = await periodFields(c.env.DB, { room_type: existing.room_type, date_from: existing.date_from, date_to: existing.date_to, price_per_night: existing.price_per_night, label: existing.label ?? '', ...body });
+    const fields = await periodFields(c.var.db, { room_type: existing.room_type, date_from: existing.date_from, date_to: existing.date_to, price_per_night: existing.price_per_night, label: existing.label ?? '', ...body });
     if ('error' in fields) return c.json({ error: fields.error }, 400);
-    if (await periodOverlaps(c.env.DB, fields, existing.id)) return c.json({ error: 'period_overlap' }, 409);
-    await c.env.DB.prepare('UPDATE rate_periods SET room_type = ?2, date_from = ?3, date_to = ?4, price_per_night = ?5, label = ?6 WHERE id = ?1').bind(existing.id, fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
-    await writeAudit(c.env.DB, 'price_period_updated', `period #${existing.id}`, 'admin');
+    if (await periodOverlaps(c.var.db, fields, existing.id)) return c.json({ error: 'period_overlap' }, 409);
+    await c.var.db.prepare('UPDATE rate_periods SET room_type = ?2, date_from = ?3, date_to = ?4, price_per_night = ?5, label = ?6 WHERE id = ?1').bind(existing.id, fields.roomType, fields.dateFrom, fields.dateTo, fields.price, fields.label).run();
+    await writeAudit(c.var.db, 'price_period_updated', `period #${existing.id}`, 'admin');
     return c.json({ ok: true });
 });
 
 admin.delete('/pricing/periods/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const result = id === null ? null : await c.env.DB.prepare('DELETE FROM rate_periods WHERE id = ?1').bind(id).run();
+    const result = id === null ? null : await c.var.db.prepare('DELETE FROM rate_periods WHERE id = ?1').bind(id).run();
     if (result === null || result.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
-    await writeAudit(c.env.DB, 'price_period_deleted', `period #${id}`, 'admin');
+    await writeAudit(c.var.db, 'price_period_deleted', `period #${id}`, 'admin');
     return c.json({ ok: true });
 });
 
@@ -620,14 +626,14 @@ admin.put('/pricing/days/:date', async (c) => {
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const roomType = typeof body.room_type === 'string' ? body.room_type.trim() : '';
-    if ((await roomTypeByName(c.env.DB, roomType)) === null) return c.json({ error: 'unknown_room' }, 400);
+    if ((await roomTypeByName(c.var.db, roomType)) === null) return c.json({ error: 'unknown_room' }, 400);
     // An explicit null resets the day; anything else must be a valid price.
     const resetRequested = body.price_per_night === null;
     const price = resetRequested ? null : priceValue(body.price_per_night);
     if (!resetRequested && price === null) return c.json({ error: 'invalid_price' }, 400);
     if (day < romeNow(new Date()).date) return c.json({ error: 'day_past' }, 409);
-    await setDayPrice(c.env.DB, roomType, day, price);
-    await writeAudit(c.env.DB, price === null ? 'price_day_reset' : 'price_day_set', `${roomType} ${day}${price === null ? '' : `: ${price}`}`, 'admin');
+    await setDayPrice(c.var.db, roomType, day, price);
+    await writeAudit(c.var.db, price === null ? 'price_day_reset' : 'price_day_set', `${roomType} ${day}${price === null ? '' : `: ${price}`}`, 'admin');
     return c.json({ ok: true });
 });
 
@@ -637,18 +643,18 @@ admin.post('/pricing/discounts', async (c) => {
     const minNights = integerBetween(body.min_nights, 2, 365);
     const percent = integerBetween(body.percent, 1, 100);
     if (minNights === null || percent === null) return c.json({ error: 'invalid_discount' }, 400);
-    const existing = await c.env.DB.prepare('SELECT id FROM discount_rules WHERE min_nights = ?1').bind(minNights).first<{ id: number }>();
+    const existing = await c.var.db.prepare('SELECT id FROM discount_rules WHERE min_nights = ?1').bind(minNights).first<{ id: number }>();
     if (existing !== null) return c.json({ error: 'discount_exists' }, 409);
-    const result = await c.env.DB.prepare('INSERT INTO discount_rules (min_nights, percent) VALUES (?1, ?2)').bind(minNights, percent).run();
-    await writeAudit(c.env.DB, 'discount_created', `from ${minNights} nights: ${percent}%`, 'admin');
+    const result = await c.var.db.prepare('INSERT INTO discount_rules (min_nights, percent) VALUES (?1, ?2)').bind(minNights, percent).run();
+    await writeAudit(c.var.db, 'discount_created', `from ${minNights} nights: ${percent}%`, 'admin');
     return c.json({ id: result.meta.last_row_id }, 201);
 });
 
 admin.delete('/pricing/discounts/:id', async (c) => {
     const id = positiveInt(c.req.param('id'));
-    const result = id === null ? null : await c.env.DB.prepare('DELETE FROM discount_rules WHERE id = ?1').bind(id).run();
+    const result = id === null ? null : await c.var.db.prepare('DELETE FROM discount_rules WHERE id = ?1').bind(id).run();
     if (result === null || result.meta.changes === 0) return c.json({ error: 'not_found' }, 404);
-    await writeAudit(c.env.DB, 'discount_deleted', `rule #${id}`, 'admin');
+    await writeAudit(c.var.db, 'discount_deleted', `rule #${id}`, 'admin');
     return c.json({ ok: true });
 });
 
@@ -656,12 +662,13 @@ admin.delete('/pricing/discounts/:id', async (c) => {
 // Facility requesters
 // ---------------------------------------------------------------------------
 
-function accessLinkOf(origin: string, token: string): string {
-    return `${origin}/access/${token}`;
+/** Personal link of a requester; `base` is the venue's base URL (origin plus slug, see tenantBase). */
+function accessLinkOf(base: string, token: string): string {
+    return `${base}/access/${token}`;
 }
 
-function requesterView(row: RequesterRow, origin: string): Record<string, unknown> {
-    return { id: row.id, name: row.name, contact_name: row.contact_name, email: row.email, phone: row.phone, status: row.status, color: row.color, created_at: row.created_at, access_link: accessLinkOf(origin, row.access_token) };
+function requesterView(row: RequesterRow, base: string): Record<string, unknown> {
+    return { id: row.id, name: row.name, contact_name: row.contact_name, email: row.email, phone: row.phone, status: row.status, color: row.color, created_at: row.created_at, access_link: accessLinkOf(base, row.access_token) };
 }
 
 type RequesterFields = { name: string; contactName: string; email: string; phone: string; color: string };
@@ -686,9 +693,9 @@ async function loadRequester(db: D1Database, idText: string | undefined): Promis
 }
 
 admin.get('/requesters', async (c) => {
-    const origin = new URL(c.req.url).origin;
-    const { results } = await c.env.DB.prepare('SELECT * FROM requesters ORDER BY name').all<RequesterRow>();
-    return c.json({ items: results.map((row) => requesterView(row, origin)) });
+    const base = tenantBase(c);
+    const { results } = await c.var.db.prepare('SELECT * FROM requesters ORDER BY name').all<RequesterRow>();
+    return c.json({ items: results.map((row) => requesterView(row, base)) });
 });
 
 admin.post('/requesters', async (c) => {
@@ -697,69 +704,69 @@ admin.post('/requesters', async (c) => {
     const fields = requesterFields(body);
     if ('error' in fields) return c.json({ error: fields.error }, 400);
     const token = randomToken();
-    const result = await c.env.DB.prepare('INSERT INTO requesters (name, contact_name, email, phone, color, access_token) VALUES (?1, ?2, ?3, ?4, ?5, ?6)').bind(fields.name, fields.contactName, fields.email, fields.phone, fields.color, token).run();
+    const result = await c.var.db.prepare('INSERT INTO requesters (name, contact_name, email, phone, color, access_token) VALUES (?1, ?2, ?3, ?4, ?5, ?6)').bind(fields.name, fields.contactName, fields.email, fields.phone, fields.color, token).run();
     const id = result.meta.last_row_id;
-    await writeAudit(c.env.DB, 'requester_created', `requester #${id} ${fields.name}`, 'admin');
-    const link = accessLinkOf(new URL(c.req.url).origin, token);
-    notifyAccessLink(c, { name: fields.name, email: fields.email }, venueConfig(c.env).defaultLang, link, 'creation');
+    await writeAudit(c.var.db, 'requester_created', `requester #${id} ${fields.name}`, 'admin');
+    const link = accessLinkOf(tenantBase(c), token);
+    notifyAccessLink(c, { name: fields.name, email: fields.email }, c.var.venue.defaultLang, link, 'creation');
     return c.json({ id, access_link: link }, 201);
 });
 
 admin.patch('/requesters/:id', async (c) => {
-    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    const requester = await loadRequester(c.var.db, c.req.param('id'));
     if (requester === null) return c.json({ error: 'not_found' }, 404);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const merged = { name: requester.name, contact_name: requester.contact_name, email: requester.email, phone: requester.phone, color: requester.color, ...body };
     const fields = requesterFields(merged);
     if ('error' in fields) return c.json({ error: fields.error }, 400);
-    await c.env.DB.prepare('UPDATE requesters SET name = ?2, contact_name = ?3, email = ?4, phone = ?5, color = ?6 WHERE id = ?1').bind(requester.id, fields.name, fields.contactName, fields.email, fields.phone, fields.color).run();
-    await writeAudit(c.env.DB, 'requester_updated', `requester #${requester.id}`, 'admin');
+    await c.var.db.prepare('UPDATE requesters SET name = ?2, contact_name = ?3, email = ?4, phone = ?5, color = ?6 WHERE id = ?1').bind(requester.id, fields.name, fields.contactName, fields.email, fields.phone, fields.color).run();
+    await writeAudit(c.var.db, 'requester_updated', `requester #${requester.id}`, 'admin');
     return c.json({ ok: true });
 });
 
 /** Suspension also cancels the requester's future bookings and frees their slots (atomic). */
 admin.post('/requesters/:id/suspend', async (c) => {
-    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    const requester = await loadRequester(c.var.db, c.req.param('id'));
     if (requester === null) return c.json({ error: 'not_found' }, 404);
     const today = romeNow(new Date()).date;
-    const results = await c.env.DB.batch([
-        c.env.DB.prepare("DELETE FROM slots WHERE request_id IN (SELECT id FROM requests WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved'))").bind(requester.id, today),
-        c.env.DB.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved')").bind(requester.id, today),
-        c.env.DB.prepare("UPDATE requesters SET status = 'suspended' WHERE id = ?1").bind(requester.id),
-        auditStatement(c.env.DB, 'requester_suspended', `requester #${requester.id}`, 'admin'),
+    const results = await c.var.db.batch([
+        c.var.db.prepare("DELETE FROM slots WHERE request_id IN (SELECT id FROM requests WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved'))").bind(requester.id, today),
+        c.var.db.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE requester_id = ?1 AND date >= ?2 AND status IN ('pending', 'approved')").bind(requester.id, today),
+        c.var.db.prepare("UPDATE requesters SET status = 'suspended' WHERE id = ?1").bind(requester.id),
+        auditStatement(c.var.db, 'requester_suspended', `requester #${requester.id}`, 'admin'),
     ]);
     return c.json({ ok: true, slots_freed: results[0].meta.changes, requests_cancelled: results[1].meta.changes });
 });
 
 admin.post('/requesters/:id/reactivate', async (c) => {
-    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    const requester = await loadRequester(c.var.db, c.req.param('id'));
     if (requester === null) return c.json({ error: 'not_found' }, 404);
-    await c.env.DB.prepare("UPDATE requesters SET status = 'active' WHERE id = ?1").bind(requester.id).run();
-    await writeAudit(c.env.DB, 'requester_reactivated', `requester #${requester.id}`, 'admin');
+    await c.var.db.prepare("UPDATE requesters SET status = 'active' WHERE id = ?1").bind(requester.id).run();
+    await writeAudit(c.var.db, 'requester_reactivated', `requester #${requester.id}`, 'admin');
     return c.json({ ok: true });
 });
 
 /** New access token: every session issued with the old one stops working at once. */
 admin.post('/requesters/:id/regenerate-link', async (c) => {
-    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    const requester = await loadRequester(c.var.db, c.req.param('id'));
     if (requester === null) return c.json({ error: 'not_found' }, 404);
     const token = randomToken();
-    await c.env.DB.prepare('UPDATE requesters SET access_token = ?2 WHERE id = ?1').bind(requester.id, token).run();
-    await writeAudit(c.env.DB, 'requester_link_regenerated', `requester #${requester.id}`, 'admin');
-    const link = accessLinkOf(new URL(c.req.url).origin, token);
+    await c.var.db.prepare('UPDATE requesters SET access_token = ?2 WHERE id = ?1').bind(requester.id, token).run();
+    await writeAudit(c.var.db, 'requester_link_regenerated', `requester #${requester.id}`, 'admin');
+    const link = accessLinkOf(tenantBase(c), token);
     sendAccessLink(c, requester, link, 'regeneration');
     return c.json({ ok: true, access_link: link });
 });
 
 admin.post('/requesters/:id/send-link', async (c) => {
-    const requester = await loadRequester(c.env.DB, c.req.param('id'));
+    const requester = await loadRequester(c.var.db, c.req.param('id'));
     if (requester === null) return c.json({ error: 'not_found' }, 404);
-    sendAccessLink(c, requester, accessLinkOf(new URL(c.req.url).origin, requester.access_token), 'resend');
-    await writeAudit(c.env.DB, 'requester_link_sent', `requester #${requester.id}`, 'admin');
+    sendAccessLink(c, requester, accessLinkOf(tenantBase(c), requester.access_token), 'resend');
+    await writeAudit(c.var.db, 'requester_link_sent', `requester #${requester.id}`, 'admin');
     return c.json({ ok: true });
 });
 
 function sendAccessLink(c: Parameters<typeof notifyAccessLink>[0], requester: RequesterRow, link: string, reason: AccessLinkReason): void {
-    notifyAccessLink(c, { name: requester.name, email: requester.email }, venueConfig(c.env).defaultLang, link, reason);
+    notifyAccessLink(c, { name: requester.name, email: requester.email }, c.var.venue.defaultLang, link, reason);
 }

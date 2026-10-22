@@ -1,7 +1,19 @@
 /* ui.js — DOM helpers shared by the pages: status messages, selects, venue theme. */
 import { STATUS_ERROR_CLASS, STATUS_OK_CLASS } from './constants.js';
 import { translate } from './i18n.js';
+import { tenantPath, tenantSlug } from './tenant.js';
 import { limitToCents, priceInputValue } from './utils.js';
+
+/**
+ * Points the links marked data-tenant-href at the venue of the page: the
+ * attribute holds the path without the prefix ('/privacy'), the href written
+ * in the HTML is the fallback for the pages opened at the root.
+ * @returns {void}
+ */
+export function applyTenantLinks() {
+    if (tenantSlug() === null) return;
+    for (const link of document.querySelectorAll('a[data-tenant-href]')) link.href = tenantPath(link.dataset.tenantHref);
+}
 
 /**
  * Shows a status message; kind 'ok' and 'error' color it, anything else is neutral.

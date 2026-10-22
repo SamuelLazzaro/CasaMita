@@ -1,5 +1,4 @@
-import type { Bindings, Lang, RequestRow } from './types';
-import { venueConfig } from './config';
+import type { Bindings, Lang, RequestRow, TenantVariables } from './types';
 import { emailTexts, requestDetails } from './texts';
 import { writeAudit } from './util';
 
@@ -38,35 +37,41 @@ export type Notification = {
     adminMessage?: string;
 };
 
-/** Structural subset of the Hono context used here, so any route can pass its own. */
+/** Structural subset of the Hono context used here (tenant-scoped routes), so any route can pass its own. */
 type NotificationContext = {
     env: Bindings;
     req: { url: string };
     executionCtx: { waitUntil(promise: Promise<unknown>): void };
+    var: TenantVariables;
 };
 
 export function guestName(request: Pick<RequestRow, 'first_name' | 'last_name'>): string {
     return `${request.first_name ?? ''} ${request.last_name ?? ''}`.trim();
 }
 
-export function personalLink(origin: string, token: string): string {
-    return `${origin}/booking/${token}`;
+/** Base URL of the venue's pages: origin plus slug (same as tenant.ts tenantBase). */
+function baseOf(c: NotificationContext): string {
+    return `${new URL(c.req.url).origin}/${c.var.tenant.slug}`;
 }
 
-/** Plain-text body of the guest email (exported for tests). */
-export function guestBody(notification: Notification, origin: string, venueName: string): string {
+export function personalLink(base: string, token: string): string {
+    return `${base}/booking/${token}`;
+}
+
+/** Plain-text body of the guest email (exported for tests); `base` is the venue's base URL. */
+export function guestBody(notification: Notification, base: string, venueName: string): string {
     const texts = emailTexts(notification.lang);
-    return [texts.greeting(notification.recipient.name), '', notification.message, '', ...notification.details.map((row) => `  ${row}`), '', '—', texts.footerAuto(venueName), texts.footerReply, `${texts.privacy}: ${origin}/privacy.html`].join('\n');
+    return [texts.greeting(notification.recipient.name), '', notification.message, '', ...notification.details.map((row) => `  ${row}`), '', '—', texts.footerAuto(venueName), texts.footerReply, `${texts.privacy}: ${base}/privacy`].join('\n');
 }
 
 /** Plain-text body of the owner email (exported for tests). */
-export function adminBody(notification: Notification, origin: string, venueName: string): string {
+export function adminBody(notification: Notification, base: string, venueName: string): string {
     const texts = emailTexts(notification.lang);
-    return [notification.adminMessage ?? '', '', ...notification.details.map((row) => `  ${row}`), '', '—', texts.footerAuto(venueName), texts.footerReplyAdmin, `${texts.privacy}: ${origin}/privacy.html`].join('\n');
+    return [notification.adminMessage ?? '', '', ...notification.details.map((row) => `  ${row}`), '', '—', texts.footerAuto(venueName), texts.footerReplyAdmin, `${texts.privacy}: ${base}/privacy`].join('\n');
 }
 
 function send(c: NotificationContext, notification: Notification): void {
-    const sending = deliver(c.env, new URL(c.req.url).origin, notification);
+    const sending = deliver(c, baseOf(c), notification);
     try {
         c.executionCtx.waitUntil(sending);
     } catch {
@@ -74,21 +79,21 @@ function send(c: NotificationContext, notification: Notification): void {
     }
 }
 
-async function deliver(env: Bindings, origin: string, notification: Notification): Promise<void> {
-    if (!env.BREVO_API_KEY) return;
-    if (!env.EMAIL_SENDER || !env.EMAIL_ADMIN) {
-        console.error('notifications: EMAIL_SENDER or EMAIL_ADMIN not configured, send skipped');
+async function deliver(c: NotificationContext, base: string, notification: Notification): Promise<void> {
+    if (!c.env.BREVO_API_KEY) return;
+    const { tenant, venue, db } = c.var;
+    if (!tenant.email_sender || !tenant.email_admin) {
+        console.error(`notifications: email_sender or email_admin not configured for "${tenant.slug}", send skipped`);
         return;
     }
-    const venue = venueConfig(env);
-    const sender = { name: venue.name, email: env.EMAIL_SENDER };
+    const sender = { name: venue.name, email: tenant.email_sender };
     const prefix = `[${venue.name}]`;
 
-    await sendBrevo(env, { sender, to: [{ email: notification.recipient.email, name: notification.recipient.name }], replyTo: { email: env.EMAIL_ADMIN }, subject: `${prefix} ${notification.subject}`, textContent: guestBody(notification, origin, venue.name) }, `"${notification.subject}" to ${notification.recipient.name}`);
+    await sendBrevo(c.env, db, { sender, to: [{ email: notification.recipient.email, name: notification.recipient.name }], replyTo: { email: tenant.email_admin }, subject: `${prefix} ${notification.subject}`, textContent: guestBody(notification, base, venue.name) }, `"${notification.subject}" to ${notification.recipient.name}`);
 
     if (notification.adminMessage) {
         const adminSubject = notification.adminSubject ?? notification.subject;
-        await sendBrevo(env, { sender, to: [{ email: env.EMAIL_ADMIN }], replyTo: { email: notification.recipient.email, name: notification.recipient.name }, subject: `${prefix} ${adminSubject}`, textContent: adminBody(notification, origin, venue.name) }, `"${adminSubject}" to the owner (${notification.recipient.name})`);
+        await sendBrevo(c.env, db, { sender, to: [{ email: tenant.email_admin }], replyTo: { email: notification.recipient.email, name: notification.recipient.name }, subject: `${prefix} ${adminSubject}`, textContent: adminBody(notification, base, venue.name) }, `"${adminSubject}" to the owner (${notification.recipient.name})`);
     }
 }
 
@@ -99,14 +104,14 @@ async function callBrevo(env: Bindings, body: Record<string, unknown>): Promise<
 }
 
 /** Brevo call with its own error handling: one failed send must not block the next nor reach waitUntil. */
-async function sendBrevo(env: Bindings, body: Record<string, unknown>, auditDescription: string): Promise<void> {
+async function sendBrevo(env: Bindings, db: D1Database, body: Record<string, unknown>, auditDescription: string): Promise<void> {
     try {
         await callBrevo(env, body);
     } catch (error) {
         // No email addresses in the audit (minimisation): subject and name are enough to resend by hand.
         console.error('notifications: send failed', error);
         try {
-            await writeAudit(env.DB, 'notification_failed', auditDescription, 'system');
+            await writeAudit(db, 'notification_failed', auditDescription, 'system');
         } catch {
             // Audit is best effort too: never propagate from waitUntil.
         }
@@ -124,9 +129,9 @@ async function sendBrevo(env: Bindings, body: Record<string, unknown>, auditDesc
  */
 export function notifyRequestSubmitted(c: NotificationContext, request: RequestRow, requester: Recipient | null = null): void {
     const texts = emailTexts(request.lang);
-    const origin = new URL(c.req.url).origin;
+    const base = baseOf(c);
     const recipient = recipientOf(request, requester);
-    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(origin, request.guest_token)}`] : [];
+    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(base, request.guest_token)}`] : [];
     const message = request.guest_token ? `${texts.submittedMessage} ${texts.personalLinkHint}` : texts.submittedMessage;
     send(c, {
         lang: request.lang,
@@ -167,8 +172,8 @@ export function notifyCancelledByAdmin(c: NotificationContext, request: RequestR
 /** Admin: booking registered directly by the venue, already confirmed. Guests get their personal link. */
 export function notifyRegisteredByAdmin(c: NotificationContext, request: RequestRow, requester: Recipient | null = null): void {
     const texts = emailTexts(request.lang);
-    const origin = new URL(c.req.url).origin;
-    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(origin, request.guest_token)}`] : [];
+    const base = baseOf(c);
+    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(base, request.guest_token)}`] : [];
     const message = request.guest_token ? `${texts.registeredMessage} ${texts.personalLinkHint}` : texts.registeredMessage;
     send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.registeredSubject, message, details: [...requestDetails(request, request.lang, false), ...linkRows] });
 }
@@ -176,8 +181,8 @@ export function notifyRegisteredByAdmin(c: NotificationContext, request: Request
 /** Admin: pending or approved booking changed by the venue; the email carries the data as they are now. Guests get their personal link to review it. */
 export function notifyChangedByAdmin(c: NotificationContext, request: RequestRow, requester: Recipient | null = null): void {
     const texts = emailTexts(request.lang);
-    const origin = new URL(c.req.url).origin;
-    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(origin, request.guest_token)}`] : [];
+    const base = baseOf(c);
+    const linkRows = request.guest_token ? [`${texts.personalLink}: ${personalLink(base, request.guest_token)}`] : [];
     // With the payment rows: a change of the total tells the guest what is still due.
     send(c, { lang: request.lang, recipient: recipientOf(request, requester), subject: texts.changedSubject, message: texts.changedMessage, details: [...requestDetails(request, request.lang, false, true), ...linkRows] });
 }
@@ -193,7 +198,7 @@ export type AccessLinkReason = 'creation' | 'regeneration' | 'resend';
  */
 export function notifyAccessLink(c: NotificationContext, requester: Recipient, lang: Lang, accessLink: string, reason: AccessLinkReason): void {
     const texts = emailTexts(lang);
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
     send(c, { lang, recipient: requester, subject: texts.accessLinkSubject(reason), message: `${texts.accessLinkMessage(reason, venue.name)} ${texts.accessLinkWarning}`, details: [`${texts.accessLink}: ${accessLink}`] });
 }
 

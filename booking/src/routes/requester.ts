@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import type { Bindings, RequesterVariables, RequestRow } from '../types';
 import { clearSessionCookie, COOKIE_REQUESTER, requireRequester } from '../auth';
-import { venueConfig } from '../config';
 import { calendarRange, isValidDate, romeNow, type CalendarView } from '../dates';
 import { notifyCancelledByGuest, notifyRequestSubmitted } from '../notifications';
 import { keysOf, occupiedSlots } from '../slots';
@@ -9,9 +8,10 @@ import { auditStatement, positiveInt, readJson, writeAudit } from '../util';
 import { facilityFields } from '../validation';
 
 /*
- * Reserved area of the facility requesters (sports clubs...): they sign in
- * through the personal link (GET /access/:token in public.ts), see the shared
- * calendar, send booking requests and cancel their own ones.
+ * Reserved area of the facility requesters (sports clubs...) of one venue
+ * (/:slug/api/requester): they sign in through the personal link
+ * (GET /:slug/access/:token in public.ts), see the shared calendar, send
+ * booking requests and cancel their own ones.
  */
 
 const MAX_LIST = 300;
@@ -44,7 +44,7 @@ requester.get('/calendar', async (c) => {
     const date = c.req.query('date') ?? romeNow(new Date()).date;
     if (!['day', 'week', 'month'].includes(view) || !isValidDate(date)) return c.json({ error: 'invalid_body' }, 400);
     const { from, to } = calendarRange(view as CalendarView, date);
-    const { results } = await c.env.DB
+    const { results } = await c.var.db
         .prepare(
             `SELECT r.id, r.status, r.requester_id, r.date, r.start_time, r.end_time, q.name AS requester_name, q.color AS requester_color
              FROM requests r JOIN requesters q ON q.id = r.requester_id
@@ -60,26 +60,26 @@ requester.get('/calendar', async (c) => {
 /** The caller's own requests: everything from today on, plus the recent past. */
 requester.get('/requests', async (c) => {
     const me = c.get('requester');
-    const { results } = await c.env.DB.prepare(`SELECT * FROM requests WHERE requester_id = ?1 ORDER BY date DESC, start_time DESC LIMIT ${MAX_LIST}`).bind(me.id).all<RequestRow>();
+    const { results } = await c.var.db.prepare(`SELECT * FROM requests WHERE requester_id = ?1 ORDER BY date DESC, start_time DESC LIMIT ${MAX_LIST}`).bind(me.id).all<RequestRow>();
     return c.json({ items: results });
 });
 
 /** New request, pending until the venue decides; slots already taken are refused at once. */
 requester.post('/requests', async (c) => {
     const me = c.get('requester');
-    const venue = venueConfig(c.env);
+    const venue = c.var.venue;
     if (venue.type !== 'facility') return c.json({ error: 'not_found' }, 404);
     const body = await readJson(c);
     if (body === null) return c.json({ error: 'invalid_body' }, 400);
     const fields = facilityFields(body, venue, romeNow(new Date()));
     if ('error' in fields) return c.json({ error: fields.error }, 400);
     const keys = keysOf({ date: fields.date, start_time: fields.startTime, end_time: fields.endTime }, venue.facility.slotMinutes);
-    const taken = await occupiedSlots(c.env.DB, keys);
+    const taken = await occupiedSlots(c.var.db, keys);
     if (taken.length > 0) return c.json({ error: 'slots_taken', slots: taken }, 409);
-    const result = await c.env.DB.prepare("INSERT INTO requests (type, requester_id, lang, notes, date, start_time, end_time) VALUES ('facility', ?1, ?2, ?3, ?4, ?5, ?6)").bind(me.id, venue.defaultLang, fields.notes, fields.date, fields.startTime, fields.endTime).run();
+    const result = await c.var.db.prepare("INSERT INTO requests (type, requester_id, lang, notes, date, start_time, end_time) VALUES ('facility', ?1, ?2, ?3, ?4, ?5, ?6)").bind(me.id, venue.defaultLang, fields.notes, fields.date, fields.startTime, fields.endTime).run();
     const id = result.meta.last_row_id;
-    const request = await c.env.DB.prepare('SELECT * FROM requests WHERE id = ?1').bind(id).first<RequestRow>();
-    await writeAudit(c.env.DB, 'request_submitted', `facility request #${id}`, `requester:${me.id}`);
+    const request = await c.var.db.prepare('SELECT * FROM requests WHERE id = ?1').bind(id).first<RequestRow>();
+    await writeAudit(c.var.db, 'request_submitted', `facility request #${id}`, `requester:${me.id}`);
     if (request) notifyRequestSubmitted(c, request, { name: me.name, email: me.email });
     return c.json({ id, status: 'pending' }, 201);
 });
@@ -88,15 +88,15 @@ requester.post('/requests', async (c) => {
 requester.post('/requests/:id/cancel', async (c) => {
     const me = c.get('requester');
     const id = positiveInt(c.req.param('id'));
-    const request = id === null ? null : await c.env.DB.prepare('SELECT * FROM requests WHERE id = ?1 AND requester_id = ?2').bind(id, me.id).first<RequestRow>();
+    const request = id === null ? null : await c.var.db.prepare('SELECT * FROM requests WHERE id = ?1 AND requester_id = ?2').bind(id, me.id).first<RequestRow>();
     if (request === null) return c.json({ error: 'not_found' }, 404);
     const today = romeNow(new Date()).date;
     const stillActive = request.status === 'pending' || request.status === 'approved';
     if (!stillActive || (request.date ?? '') < today) return c.json({ error: 'cannot_cancel' }, 409);
-    await c.env.DB.batch([
-        c.env.DB.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id),
-        c.env.DB.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id),
-        auditStatement(c.env.DB, 'request_cancelled', `request #${request.id} cancelled by the requester`, `requester:${me.id}`),
+    await c.var.db.batch([
+        c.var.db.prepare('DELETE FROM slots WHERE request_id = ?1').bind(request.id),
+        c.var.db.prepare("UPDATE requests SET status = 'cancelled', cancelled_at = datetime('now') WHERE id = ?1 AND status IN ('pending', 'approved')").bind(request.id),
+        auditStatement(c.var.db, 'request_cancelled', `request #${request.id} cancelled by the requester`, `requester:${me.id}`),
     ]);
     notifyCancelledByGuest(c, { ...request, status: 'cancelled' }, { name: me.name, email: me.email });
     return c.json({ ok: true, status: 'cancelled' });

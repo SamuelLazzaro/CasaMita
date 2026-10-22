@@ -1,4 +1,11 @@
-/* api.js — all HTTP calls, one function per endpoint. No other logic. */
+/*
+ * api.js — all HTTP calls, one function per endpoint. No other logic.
+ *
+ * Every endpoint of a venue is called under the venue's prefix
+ * (tenantPath, see tenant.js); sign-in and sign-out live at the root of the
+ * deployment, the username leads to the venue.
+ */
+import { tenantPath } from './tenant.js';
 
 /**
  * fetch + JSON parsing with uniform error handling.
@@ -39,7 +46,7 @@ function postJson(url, body) {
  * @returns {Promise<{type: string, name: string, defaultLang: string, facility: object, restaurant: {lunch: {open: string, close: string}, dinner: {open: string, close: string}, stepMinutes: number}}>}
  */
 export function fetchConfig() {
-    return requestJson('/api/config');
+    return requestJson(tenantPath('/api/config'));
 }
 
 /**
@@ -51,8 +58,8 @@ export function fetchConfig() {
 export function fetchAvailability(checkIn, checkOut, excludeRequestId = 0) {
     const stay = `check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`;
     // Editing a booking (admin): its own room must count as free, which only the admin endpoint can do.
-    if (excludeRequestId > 0) return requestJson(`/api/admin/availability?${stay}&exclude=${excludeRequestId}`);
-    return requestJson(`/api/availability?${stay}`);
+    if (excludeRequestId > 0) return requestJson(tenantPath(`/api/admin/availability?${stay}&exclude=${excludeRequestId}`));
+    return requestJson(tenantPath(`/api/availability?${stay}`));
 }
 
 /**
@@ -60,7 +67,7 @@ export function fetchAvailability(checkIn, checkOut, excludeRequestId = 0) {
  * @returns {Promise<{id: number, status: string}>}
  */
 export function submitRequest(payload) {
-    return requestJson('/api/requests', { method: 'POST', body: JSON.stringify(payload) });
+    return requestJson(tenantPath('/api/requests'), { method: 'POST', body: JSON.stringify(payload) });
 }
 
 /**
@@ -68,7 +75,7 @@ export function submitRequest(payload) {
  * @returns {Promise<object>} the guest view of the request
  */
 export function fetchBooking(token) {
-    return requestJson(`/api/booking/${encodeURIComponent(token)}`);
+    return requestJson(tenantPath(`/api/booking/${encodeURIComponent(token)}`));
 }
 
 /**
@@ -76,17 +83,19 @@ export function fetchBooking(token) {
  * @returns {Promise<{ok: boolean, status: string}>}
  */
 export function cancelBooking(token) {
-    return requestJson(`/api/booking/${encodeURIComponent(token)}/cancel`, { method: 'POST' });
+    return requestJson(tenantPath(`/api/booking/${encodeURIComponent(token)}/cancel`), { method: 'POST' });
 }
 
 /* -------------------------------------------------------------- admin API */
 
 /**
+ * Sign-in at the root of the deployment: the answer names the venue of the user.
+ * @param {string} username
  * @param {string} password
- * @returns {Promise<{ok: boolean}>}
+ * @returns {Promise<{ok: boolean, slug: string, username: string}>}
  */
-export function adminLogin(password) {
-    return postJson('/api/admin/login', { password });
+export function adminLogin(username, password) {
+    return postJson('/api/admin/login', { username, password });
 }
 
 /** @returns {Promise<{ok: boolean}>} */
@@ -94,9 +103,18 @@ export function adminLogout() {
     return postJson('/api/admin/logout');
 }
 
-/** @returns {Promise<{ok: boolean}>} 401 when there is no valid session */
+/** @returns {Promise<{ok: boolean, slug: string, venue: string, username: string}>} 401 when there is no valid session for this venue */
 export function adminMe() {
-    return requestJson('/api/admin/me');
+    return requestJson(tenantPath('/api/admin/me'));
+}
+
+/**
+ * @param {string} currentPassword
+ * @param {string} newPassword
+ * @returns {Promise<{ok: boolean}>} 401 invalid_credentials, 400 password_too_short | password_too_long | password_breached
+ */
+export function changePassword(currentPassword, newPassword) {
+    return postJson(tenantPath('/api/admin/password'), { current_password: currentPassword, new_password: newPassword });
 }
 
 /**
@@ -105,7 +123,7 @@ export function adminMe() {
  * @returns {Promise<{view: string, date: string, from: string, to: string, items: object[]}>}
  */
 export function fetchCalendar(view, date) {
-    return requestJson(`/api/admin/calendar?view=${view}&date=${date}`);
+    return requestJson(tenantPath(`/api/admin/calendar?view=${view}&date=${date}`));
 }
 
 /**
@@ -113,7 +131,7 @@ export function fetchCalendar(view, date) {
  * @returns {Promise<{status: string, items: object[]}>}
  */
 export function fetchRequests(status = 'pending') {
-    return requestJson(`/api/admin/requests?status=${status}`);
+    return requestJson(tenantPath(`/api/admin/requests?status=${status}`));
 }
 
 /**
@@ -121,7 +139,7 @@ export function fetchRequests(status = 'pending') {
  * @returns {Promise<{ok: boolean, status: string}>}
  */
 export function approveRequest(id) {
-    return postJson(`/api/admin/requests/${id}/approve`);
+    return postJson(tenantPath(`/api/admin/requests/${id}/approve`));
 }
 
 /**
@@ -130,7 +148,7 @@ export function approveRequest(id) {
  * @returns {Promise<{ok: boolean, status: string}>}
  */
 export function rejectRequest(id, reason) {
-    return postJson(`/api/admin/requests/${id}/reject`, { reason });
+    return postJson(tenantPath(`/api/admin/requests/${id}/reject`), { reason });
 }
 
 /**
@@ -138,7 +156,7 @@ export function rejectRequest(id, reason) {
  * @returns {Promise<{ok: boolean, status: string}>}
  */
 export function cancelRequestAdmin(id) {
-    return postJson(`/api/admin/requests/${id}/cancel`);
+    return postJson(tenantPath(`/api/admin/requests/${id}/cancel`));
 }
 
 /**
@@ -148,7 +166,7 @@ export function cancelRequestAdmin(id) {
  * @returns {Promise<{ok: boolean, payment_status: string, item: object}>} item = the updated request
  */
 export function recordDeposit(id, amount) {
-    return postJson(`/api/admin/requests/${id}/deposit`, { amount });
+    return postJson(tenantPath(`/api/admin/requests/${id}/deposit`), { amount });
 }
 
 /**
@@ -157,7 +175,7 @@ export function recordDeposit(id, amount) {
  * @returns {Promise<{ok: boolean, payment_status: string, item: object}>} item = the updated request
  */
 export function markPaid(id) {
-    return postJson(`/api/admin/requests/${id}/paid`);
+    return postJson(tenantPath(`/api/admin/requests/${id}/paid`));
 }
 
 /**
@@ -167,7 +185,7 @@ export function markPaid(id) {
  * @returns {Promise<{from: string, to: string, items: object[]}>}
  */
 export function fetchExport(from, to) {
-    return requestJson(`/api/admin/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    return requestJson(tenantPath(`/api/admin/export?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`));
 }
 
 /**
@@ -176,7 +194,7 @@ export function fetchExport(from, to) {
  * @returns {Promise<{id: number, status: string}>}
  */
 export function createBooking(payload) {
-    return postJson('/api/admin/bookings', payload);
+    return postJson(tenantPath('/api/admin/bookings'), payload);
 }
 
 /**
@@ -187,7 +205,7 @@ export function createBooking(payload) {
  * @returns {Promise<{ok: boolean, changed: string[], item: object}>} the columns that changed and the booking as it is now
  */
 export function updateBooking(id, payload) {
-    return requestJson(`/api/admin/requests/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return requestJson(tenantPath(`/api/admin/requests/${id}`), { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
 /* ------------------------------------------------------------- rooms API */
@@ -202,7 +220,7 @@ export function updateBooking(id, payload) {
 
 /** @returns {Promise<{rooms: {id: number, name: string, max_guests: number, quantity: number, price_per_night: number|null}[]}>} */
 export function fetchRooms() {
-    return requestJson('/api/admin/rooms');
+    return requestJson(tenantPath('/api/admin/rooms'));
 }
 
 /**
@@ -210,7 +228,7 @@ export function fetchRooms() {
  * @returns {Promise<{id: number}>}
  */
 export function createRoomType(payload) {
-    return postJson('/api/admin/rooms', payload);
+    return postJson(tenantPath('/api/admin/rooms'), payload);
 }
 
 /**
@@ -219,7 +237,7 @@ export function createRoomType(payload) {
  * @returns {Promise<{ok: boolean, overbooked: number}>} overbooked = rooms short at the busiest future night
  */
 export function updateRoomType(id, payload) {
-    return requestJson(`/api/admin/rooms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return requestJson(tenantPath(`/api/admin/rooms/${id}`), { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
 /**
@@ -227,12 +245,12 @@ export function updateRoomType(id, payload) {
  * @returns {Promise<{ok: boolean}>} 409 room_in_use while a future booking names the type
  */
 export function deleteRoomType(id) {
-    return requestJson(`/api/admin/rooms/${id}`, { method: 'DELETE' });
+    return requestJson(tenantPath(`/api/admin/rooms/${id}`), { method: 'DELETE' });
 }
 
 /** @returns {Promise<{items: object[]}>} */
 export function fetchRequesters() {
-    return requestJson('/api/admin/requesters');
+    return requestJson(tenantPath('/api/admin/requesters'));
 }
 
 /**
@@ -240,7 +258,7 @@ export function fetchRequesters() {
  * @returns {Promise<{id: number, access_link: string}>}
  */
 export function createRequester(payload) {
-    return postJson('/api/admin/requesters', payload);
+    return postJson(tenantPath('/api/admin/requesters'), payload);
 }
 
 /**
@@ -249,7 +267,7 @@ export function createRequester(payload) {
  * @returns {Promise<{ok: boolean}>}
  */
 export function updateRequester(id, payload) {
-    return requestJson(`/api/admin/requesters/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+    return requestJson(tenantPath(`/api/admin/requesters/${id}`), { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
 /**
@@ -258,19 +276,19 @@ export function updateRequester(id, payload) {
  * @returns {Promise<{ok: boolean, access_link?: string, slots_freed?: number, requests_cancelled?: number}>}
  */
 export function requesterAction(id, action) {
-    return postJson(`/api/admin/requesters/${id}/${action}`);
+    return postJson(tenantPath(`/api/admin/requesters/${id}/${action}`));
 }
 
 /* ---------------------------------------------------------- requester API */
 
 /** @returns {Promise<{id: number, name: string, contact_name: string, email: string, phone: string|null, color: string}>} 401 without a session */
 export function requesterMe() {
-    return requestJson('/api/requester/me');
+    return requestJson(tenantPath('/api/requester/me'));
 }
 
 /** @returns {Promise<{ok: boolean}>} */
 export function requesterLogout() {
-    return postJson('/api/requester/logout');
+    return postJson(tenantPath('/api/requester/logout'));
 }
 
 /**
@@ -279,12 +297,12 @@ export function requesterLogout() {
  * @returns {Promise<{from: string, to: string, items: object[]}>} approved bookings of everybody plus own pending ones
  */
 export function fetchRequesterCalendar(view, date) {
-    return requestJson(`/api/requester/calendar?view=${view}&date=${date}`);
+    return requestJson(tenantPath(`/api/requester/calendar?view=${view}&date=${date}`));
 }
 
 /** @returns {Promise<{items: object[]}>} the caller's own requests */
 export function fetchMyRequests() {
-    return requestJson('/api/requester/requests');
+    return requestJson(tenantPath('/api/requester/requests'));
 }
 
 /**
@@ -292,7 +310,7 @@ export function fetchMyRequests() {
  * @returns {Promise<{id: number, status: string}>}
  */
 export function submitFacilityRequest(payload) {
-    return postJson('/api/requester/requests', payload);
+    return postJson(tenantPath('/api/requester/requests'), payload);
 }
 
 /**
@@ -300,7 +318,7 @@ export function submitFacilityRequest(payload) {
  * @returns {Promise<{ok: boolean, status: string}>}
  */
 export function cancelMyRequest(id) {
-    return postJson(`/api/requester/requests/${id}/cancel`);
+    return postJson(tenantPath(`/api/requester/requests/${id}/cancel`));
 }
 
 /* ---------------------------------------------------------- pricing API */
@@ -312,12 +330,12 @@ export function cancelMyRequest(id) {
  * @returns {Promise<{priced: boolean, nights?: {date: string, price: number}[], subtotal?: number, discount_percent?: number, discount_amount?: number, total?: number}>}
  */
 export function fetchQuote(roomType, checkIn, checkOut) {
-    return requestJson(`/api/quote?room_type=${encodeURIComponent(roomType)}&check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`);
+    return requestJson(tenantPath(`/api/quote?room_type=${encodeURIComponent(roomType)}&check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}`));
 }
 
 /** @returns {Promise<{base: {room_type: string, price_per_night: number|null}[], periods: object[], discounts: object[]}>} */
 export function fetchPricing() {
-    return requestJson('/api/admin/pricing');
+    return requestJson(tenantPath('/api/admin/pricing'));
 }
 
 /**
@@ -325,7 +343,7 @@ export function fetchPricing() {
  * @returns {Promise<{id: number}>}
  */
 export function createPeriod(payload) {
-    return postJson('/api/admin/pricing/periods', payload);
+    return postJson(tenantPath('/api/admin/pricing/periods'), payload);
 }
 
 /**
@@ -333,7 +351,7 @@ export function createPeriod(payload) {
  * @returns {Promise<{ok: boolean}>}
  */
 export function deletePeriod(id) {
-    return requestJson(`/api/admin/pricing/periods/${id}`, { method: 'DELETE' });
+    return requestJson(tenantPath(`/api/admin/pricing/periods/${id}`), { method: 'DELETE' });
 }
 
 /**
@@ -344,7 +362,7 @@ export function deletePeriod(id) {
  * @returns {Promise<{ok: boolean}>}
  */
 export function setDayPrice(day, roomType, price) {
-    return requestJson(`/api/admin/pricing/days/${encodeURIComponent(day)}`, { method: 'PUT', body: JSON.stringify({ room_type: roomType, price_per_night: price }) });
+    return requestJson(tenantPath(`/api/admin/pricing/days/${encodeURIComponent(day)}`), { method: 'PUT', body: JSON.stringify({ room_type: roomType, price_per_night: price }) });
 }
 
 /**
@@ -353,7 +371,7 @@ export function setDayPrice(day, roomType, price) {
  * @returns {Promise<{id: number}>}
  */
 export function createDiscount(minNights, percent) {
-    return postJson('/api/admin/pricing/discounts', { min_nights: minNights, percent });
+    return postJson(tenantPath('/api/admin/pricing/discounts'), { min_nights: minNights, percent });
 }
 
 /**
@@ -361,5 +379,5 @@ export function createDiscount(minNights, percent) {
  * @returns {Promise<{ok: boolean}>}
  */
 export function deleteDiscount(id) {
-    return requestJson(`/api/admin/pricing/discounts/${id}`, { method: 'DELETE' });
+    return requestJson(tenantPath(`/api/admin/pricing/discounts/${id}`), { method: 'DELETE' });
 }

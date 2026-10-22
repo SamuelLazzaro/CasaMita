@@ -1,8 +1,32 @@
 import { env } from 'cloudflare:test';
-import type { Bindings } from '../src/types';
 import { app } from '../src/index';
 import { addDays, romeNow } from '../src/dates';
 import { roomTypes } from '../src/rooms';
+
+/*
+ * Three test venues, one per booking type, seeded by apply-migrations.ts in
+ * the directory with their own database and one dashboard user each. Every
+ * helper takes the venue's slug and prefixes the path with it, so the tests
+ * write the routes as the dashboard calls them ('/api/admin/...').
+ */
+export const HOTEL = 'hotel-test';
+export const RESTAURANT = 'restaurant-test';
+export const FACILITY = 'facility-test';
+
+/** Dashboard user of every test venue (apply-migrations.ts). */
+export const USERNAMES: Record<string, string> = { [HOTEL]: 'hotel-admin', [RESTAURANT]: 'restaurant-admin', [FACILITY]: 'facility-admin' };
+export const PASSWORD = 'test-password-123';
+
+/** The database of a test venue. */
+export function dbOf(slug: string): D1Database {
+    const databases: Record<string, D1Database> = { [HOTEL]: env.DB_HOTEL, [RESTAURANT]: env.DB_RESTAURANT, [FACILITY]: env.DB_FACILITY };
+    return databases[slug];
+}
+
+/** The route of a venue: its slug in front of the path. */
+export function url(slug: string, path: string): string {
+    return `/${slug}${path}`;
+}
 
 /*
  * The hotel tests never name a room type: they pick by position from the
@@ -12,7 +36,7 @@ import { roomTypes } from '../src/rooms';
  * has the most rooms, for the availability arithmetic. None of the seeded
  * types has a base price: every pricing test sets the prices it needs.
  */
-const rooms = await roomTypes(env.DB);
+const rooms = await roomTypes(env.DB_HOTEL);
 if (rooms.length < 3) throw new Error('the tests need at least three seeded room types');
 export const ROOM_A = rooms[0];
 export const ROOM_B = rooms[1];
@@ -21,15 +45,21 @@ export const ROOM_LARGEST = [...rooms].sort((a, b) => b.quantity - a.quantity)[0
 /** A name no room type has. */
 export const UNKNOWN_ROOM = 'Tipologia inesistente';
 
-/** Session cookie of the admin dashboard. */
-export async function adminCookie(): Promise<string> {
-    const response = await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.5.1' }, body: JSON.stringify({ password: 'test-password' }) }, env);
+/** POST /api/admin/login (the directory, no venue in the URL). */
+export async function login(username: string, password: string, ip = '10.0.5.1'): Promise<Response> {
+    return await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body: JSON.stringify({ username, password }) }, env);
+}
+
+/** Session cookie of the dashboard user of a venue. */
+export async function adminCookie(slug: string = HOTEL): Promise<string> {
+    const response = await login(USERNAMES[slug], PASSWORD);
+    if (response.status !== 200) throw new Error(`admin login failed in tests (status ${response.status})`);
     return response.headers.get('set-cookie')!.split(';')[0];
 }
 
-/** Authenticated JSON call to the admin API. */
-export async function adminCall(method: string, path: string, cookie: string, body?: unknown): Promise<Response> {
-    return await app.request(path, { method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }, env);
+/** Authenticated JSON call to the admin API of a venue. */
+export async function adminCall(method: string, path: string, cookie: string, body?: unknown, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), { method, headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }, env);
 }
 
 /** Sets the base price of a room type through the admin API (the Rooms section does it from the type's dialog). */
@@ -47,18 +77,20 @@ export function daysAhead(days: number): string {
     return addDays(today(), days);
 }
 
-/** Environment of a deployment of the given type (vars override the wrangler.jsonc ones). */
-export function envOfType(type: string, overrides: Partial<Bindings> = {}): Bindings {
-    return { ...env, BOOKING_TYPE: type, ...overrides };
+/** Unauthenticated JSON POST to a venue with a stable client IP (rate limit key). */
+export async function postJson(path: string, body: unknown, slug: string = HOTEL, ip = '203.0.113.10'): Promise<Response> {
+    return await app.request(url(slug, path), { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body: JSON.stringify(body) }, env);
 }
 
-/** Unauthenticated JSON POST with a stable client IP (rate limit key). */
-export async function postJson(path: string, body: unknown, bindings: Bindings = env, ip = '203.0.113.10'): Promise<Response> {
-    return await app.request(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body: JSON.stringify(body) }, bindings);
+export async function get(path: string, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), {}, env);
 }
 
-export async function get(path: string, bindings: Bindings = env): Promise<Response> {
-    return await app.request(path, {}, bindings);
+/** Rewrites configuration columns of a test venue in the directory (restore them when the test is done). */
+export async function setTenant(slug: string, columns: Record<string, string | number | null>): Promise<void> {
+    const names = Object.keys(columns);
+    const assignments = names.map((name, index) => `${name} = ?${index + 2}`).join(', ');
+    await env.DIRECTORY.prepare(`UPDATE tenants SET ${assignments} WHERE slug = ?1`).bind(slug, ...names.map((name) => columns[name])).run();
 }
 
 /** A complete, valid hotel request body (one adult in ROOM_A, so it fits any room type); override single fields as needed. */
@@ -72,11 +104,11 @@ export function restaurantBody(overrides: Record<string, unknown> = {}): Record<
 }
 
 /** Sets the status of a request straight in the database (test setup). */
-export async function setStatus(id: number, status: string): Promise<void> {
-    await env.DB.prepare('UPDATE requests SET status = ?2 WHERE id = ?1').bind(id, status).run();
+export async function setStatus(id: number, status: string, slug: string = HOTEL): Promise<void> {
+    await dbOf(slug).prepare('UPDATE requests SET status = ?2 WHERE id = ?1').bind(id, status).run();
 }
 
-export async function tokenOf(id: number): Promise<string> {
-    const row = await env.DB.prepare('SELECT guest_token FROM requests WHERE id = ?1').bind(id).first<{ guest_token: string }>();
+export async function tokenOf(id: number, slug: string = HOTEL): Promise<string> {
+    const row = await dbOf(slug).prepare('SELECT guest_token FROM requests WHERE id = ?1').bind(id).first<{ guest_token: string }>();
     return row!.guest_token;
 }

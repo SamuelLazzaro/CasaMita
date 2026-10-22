@@ -1,24 +1,19 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { app } from '../src/index';
-import { daysAhead, envOfType, hotelBody, postJson, restaurantBody, setStatus } from './helpers';
+import { adminCookie, daysAhead, dbOf, HOTEL, hotelBody, postJson, RESTAURANT, restaurantBody, setStatus, url } from './helpers';
 
 /*
  * Hotel payments (migration 0003): a confirmed stay goes none → deposit →
  * paid or none → paid; the status column never changes.
  */
 
-async function adminCookie(): Promise<string> {
-    const response = await app.request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.7.1' }, body: JSON.stringify({ password: 'test-password' }) }, env);
-    return response.headers.get('set-cookie')!.split(';')[0];
-}
-
-async function adminPost(path: string, cookie: string, body: unknown = {}): Promise<Response> {
-    return await app.request(path, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
+async function adminPost(path: string, cookie: string, body: unknown = {}, slug: string = HOTEL): Promise<Response> {
+    return await app.request(url(slug, path), { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
 }
 
 async function adminPatch(path: string, cookie: string, body: unknown): Promise<Response> {
-    return await app.request(path, { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
+    return await app.request(url(HOTEL, path), { method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, env);
 }
 
 async function json<T>(response: Response): Promise<T> {
@@ -28,7 +23,7 @@ async function json<T>(response: Response): Promise<T> {
 type PaymentRow = { status: string; payment_status: string; paid_amount: number | null; paid_at: string | null };
 
 async function paymentOf(id: number): Promise<PaymentRow> {
-    const row = await env.DB.prepare('SELECT status, payment_status, paid_amount, paid_at FROM requests WHERE id = ?1').bind(id).first<PaymentRow>();
+    const row = await dbOf(HOTEL).prepare('SELECT status, payment_status, paid_amount, paid_at FROM requests WHERE id = ?1').bind(id).first<PaymentRow>();
     return row!;
 }
 
@@ -107,9 +102,9 @@ describe('hotel payments', () => {
         await setStatus(pending, 'cancelled');
         expect((await json<{ error: string }>(await adminPost(`/api/admin/requests/${pending}/deposit`, cookie, { amount: 10 }))).error).toBe('not_approved');
 
-        const seating = (await json<{ id: number }>(await postJson('/api/requests', restaurantBody({ date: daysAhead(5) }), envOfType('restaurant'), '10.0.7.21'))).id;
-        await setStatus(seating, 'approved');
-        const notHotel = await adminPost(`/api/admin/requests/${seating}/paid`, cookie);
+        const seating = (await json<{ id: number }>(await postJson('/api/requests', restaurantBody({ date: daysAhead(5) }), RESTAURANT, '10.0.7.21'))).id;
+        await setStatus(seating, 'approved', RESTAURANT);
+        const notHotel = await adminPost(`/api/admin/requests/${seating}/paid`, await adminCookie(RESTAURANT), {}, RESTAURANT);
         expect(notHotel.status).toBe(409);
         expect((await json<{ error: string }>(notHotel)).error).toBe('not_hotel');
 
@@ -156,7 +151,7 @@ describe('hotel payments', () => {
         const checkIn = daysAhead(330);
         const id = await confirmedStay(cookie, 330, 150);
         expect((await adminPost(`/api/admin/requests/${id}/paid`, cookie)).status).toBe(200);
-        const calendar = await json<{ items: { id: number; payment_status: string }[] }>(await app.request(`/api/admin/calendar?view=day&date=${checkIn}`, { headers: { Cookie: cookie } }, env));
+        const calendar = await json<{ items: { id: number; payment_status: string }[] }>(await app.request(url(HOTEL, `/api/admin/calendar?view=day&date=${checkIn}`), { headers: { Cookie: cookie } }, env));
         expect(calendar.items.find((item) => item.id === id)?.payment_status).toBe('paid');
         expect((await adminPost(`/api/admin/requests/${id}/cancel`, cookie)).status).toBe(200);
         expect(await paymentOf(id)).toMatchObject({ status: 'cancelled', payment_status: 'paid' });

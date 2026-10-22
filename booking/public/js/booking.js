@@ -5,10 +5,11 @@
 import { cancelBooking, fetchBooking, fetchConfig } from './api.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { appendDetail, applyVenue, errorMessage, hideStatus, showStatus } from './ui.js';
+import { appendDetail, applyTenantLinks, applyVenue, errorMessage, hideStatus, showStatus } from './ui.js';
 import { formatEuro, formatLongDate, formatTimestamp } from './utils.js';
 
 startTapFeedback();
+applyTenantLinks();
 
 const loading = document.getElementById('loading');
 const notFound = document.getElementById('not-found');

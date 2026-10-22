@@ -2,16 +2,21 @@
  * Sessions and authentication.
  *
  * Sessions are stateless signed cookies: "<payload>.<signature>" where the
- * payload is dot-separated ("admin.<exp>" or "requester.<id>.<tokenHash>.<exp>")
- * and the signature is HMAC-SHA256 (base64url) with the ADMIN_SECRET secret.
+ * payload is dot-separated and the signature is HMAC-SHA256 (base64url)
+ * with the ADMIN_SECRET secret:
+ *   admin.<slug>.<user id>.<passwordHash>.<exp>
+ *   requester.<id>.<tokenHash>.<exp>
  *
- * The requester payload embeds a short hash of the CURRENT access_token: when
- * the admin regenerates a requester's link, every session issued before stops
- * matching and is invalidated without any server-side state.
+ * Both payloads embed a short hash of the CURRENT credential (the user's
+ * password hash, the requester's access token): when the password changes
+ * or the admin regenerates a requester's link, every session issued before
+ * stops matching and is invalidated without any server-side state. The
+ * admin payload also names the tenant, so a session of one venue is worth
+ * nothing on the routes of another.
  */
 import type { Context, MiddlewareHandler } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
-import type { Bindings, RequesterRow, RequesterVariables } from './types';
+import type { AdminVariables, Bindings, RequesterRow, RequesterVariables, UserRow } from './types';
 
 export const COOKIE_REQUESTER = 'sess_requester';
 export const COOKIE_ADMIN = 'sess_admin';
@@ -44,13 +49,13 @@ export async function constantTimeEqual(a: string, b: string): Promise<boolean> 
     return differences === 0;
 }
 
-/** Short hash (8 hex bytes) of a token, embedded in the session payload. */
+/** Short hash (8 hex bytes) of a credential, embedded in the session payload. */
 export async function hashToken(token: string): Promise<string> {
     const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(token)));
     return [...digest.slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** Signed cookie value; parts = ['admin'] or ['requester', id, tokenHash]. */
+/** Signed cookie value; parts = ['admin', slug, userId, passwordHash] or ['requester', id, tokenHash]. */
 export async function createSession(secret: string, parts: string[], durationSeconds: number, now: Date): Promise<string> {
     const expiry = Math.floor(now.getTime() / 1000) + durationSeconds;
     const payload = [...parts, String(expiry)].join('.');
@@ -80,6 +85,13 @@ export function clearSessionCookie(c: Context, name: string): void {
     deleteCookie(c, name, { path: '/' });
 }
 
+/** Issues the admin session of a user and writes its cookie; called at login and after a password change. */
+export async function startAdminSession<E extends { Bindings: Bindings }>(c: Context<E>, user: UserRow): Promise<void> {
+    const parts = ['admin', user.tenant_slug, String(user.id), await hashToken(user.password_hash)];
+    const cookie = await createSession(c.env.ADMIN_SECRET, parts, ADMIN_SESSION_S, new Date());
+    writeSessionCookie(c, COOKIE_ADMIN, cookie, ADMIN_SESSION_S);
+}
+
 /**
  * Requester area middleware: verifies the signed cookie and reloads the
  * requester on every call, so suspension or link regeneration take effect
@@ -90,7 +102,7 @@ export function requireRequester(): MiddlewareHandler<{ Bindings: Bindings; Vari
         const parts = await verifySession(c.env.ADMIN_SECRET, getCookie(c, COOKIE_REQUESTER), 'requester', new Date());
         if (!parts || parts.length !== 2) return c.json({ error: 'unauthorized' }, 401);
         const [idText, sessionTokenHash] = parts;
-        const requester = await c.env.DB.prepare('SELECT * FROM requesters WHERE id = ?1').bind(Number(idText)).first<RequesterRow>();
+        const requester = await c.var.db.prepare('SELECT * FROM requesters WHERE id = ?1').bind(Number(idText)).first<RequesterRow>();
         if (!requester || requester.status !== 'active') return c.json({ error: 'unauthorized' }, 401);
         if ((await hashToken(requester.access_token)) !== sessionTokenHash) return c.json({ error: 'unauthorized' }, 401);
         c.set('requester', requester);
@@ -98,11 +110,21 @@ export function requireRequester(): MiddlewareHandler<{ Bindings: Bindings; Vari
     };
 }
 
-/** Admin dashboard middleware. */
-export function requireAdmin(): MiddlewareHandler<{ Bindings: Bindings }> {
+/**
+ * Admin dashboard middleware: the session must belong to the tenant of the
+ * route, and the user is reloaded on every call so a deleted account or a
+ * changed password (different hash) ends the session at once.
+ */
+export function requireAdmin(): MiddlewareHandler<{ Bindings: Bindings; Variables: AdminVariables }> {
     return async (c, next) => {
         const parts = await verifySession(c.env.ADMIN_SECRET, getCookie(c, COOKIE_ADMIN), 'admin', new Date());
-        if (!parts) return c.json({ error: 'unauthorized' }, 401);
+        if (!parts || parts.length !== 3) return c.json({ error: 'unauthorized' }, 401);
+        const [slug, idText, sessionPasswordHash] = parts;
+        if (slug !== c.var.tenant.slug) return c.json({ error: 'unauthorized' }, 401);
+        const user = await c.env.DIRECTORY.prepare('SELECT * FROM users WHERE id = ?1 AND tenant_slug = ?2').bind(Number(idText), slug).first<UserRow>();
+        if (!user) return c.json({ error: 'unauthorized' }, 401);
+        if ((await hashToken(user.password_hash)) !== sessionPasswordHash) return c.json({ error: 'unauthorized' }, 401);
+        c.set('user', user);
         await next();
     };
 }
