@@ -44,7 +44,8 @@
         // PBKDF2 iterations of NEW password hashes (src/password.ts). Workers
         // Free allows 10 ms of CPU per request: on Cloudflare 20000 iterations
         // cost 7-8 ms and the whole login 9-10 ms (measured with Workers Logs),
-        // right at the limit; 10000 halves the hash. On the Paid plan set
+        // right at the limit; 10000 brings the login to 6 ms (9 ms on a cold
+        // isolate). On the Paid plan set
         // 600000 (OWASP); existing hashes are refreshed at the next login of
         // each user.
         "PASSWORD_HASH_ITERATIONS": "10000",

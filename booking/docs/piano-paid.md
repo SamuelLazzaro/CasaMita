@@ -34,8 +34,9 @@ Misura del 22 ottobre 2026 con Workers Logs (`observability` in
 `wrangler.jsonc`): a 20.000 iterazioni un login costava 9-10 ms di CPU a
 isolate caldo (circa 2 ms di richiesta più 7-8 ms di PBKDF2-HMAC-SHA256) e
 24 ms al primo login dopo il deploy, cioè esattamente il limite del Free; a
-10.000 l'hash si dimezza. Sul PC di sviluppo lo stesso hash costava 5 ms: la
-CPU di un isolate è più lenta. È una deroga dichiarata alle 600.000
+10.000 il login costa 6 ms a caldo e 9 ms a freddo (stessa misura, stesso
+giorno). Sul PC di sviluppo l'hash a 20.000 costava 5 ms: la CPU di un
+isolate è più lenta. È una deroga dichiarata alle 600.000
 iterazioni raccomandate da OWASP (`src/password.ts`, commento in testa;
 README, sezione Sicurezza e privacy).
 
