@@ -35,10 +35,11 @@
         "crons": ["30 3 * * *"]
     },
     // Workers Logs: console output and per-invocation metadata (including the
-    // CPU time of each request) in the dashboard, Observability tab. The code
-    // logs only errors, never guests' personal data.
+    // CPU time of each request) in the dashboard, Observability tab. Off by
+    // default: turn it on to measure the CPU time (docs/piano-paid.md). The
+    // code logs only errors, never guests' personal data.
     "observability": {
-        "enabled": true
+        "enabled": false
     },
     "vars": {
         // PBKDF2 iterations of NEW password hashes (src/password.ts). Workers
