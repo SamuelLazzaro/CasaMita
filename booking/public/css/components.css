@@ -145,8 +145,14 @@ fieldset.field legend {
 
 .choice-row {
     display: flex;
-    gap: var(--space-4);
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+}
+
+/* the options of a fieldset.field are labels too: keep them lighter than the legend */
+.field .check-label {
+    font-weight: normal;
 }
 
 /* Honeypot: off-screen for humans and assistive tech, present for bots. */
