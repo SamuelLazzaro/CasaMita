@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bindingOf, generatePassword, GENERATED_PASSWORD_LENGTH, insertDatabaseEntry, isValidSlug, parseArgs, sqlString, stripJsonComments, targetFlag } from './lib.mjs';
+import { bindingOf, checkDatabaseEntries, generatePassword, GENERATED_PASSWORD_LENGTH, insertDatabaseEntry, isValidSlug, parseArgs, sqlString, stripJsonComments, targetFlag } from './lib.mjs';
 
 test('stripJsonComments drops line and block comments but keeps strings', () => {
     const source = '{\n  // a comment with "quotes"\n  "url": "http://x/y", /* block */ "slash": "a//b", "esc": "say \\"hi\\" // not a comment"\n}';
@@ -28,6 +28,12 @@ test('insertDatabaseEntry works on an empty array', () => {
     const source = '{\n    "d1_databases": [\n    ]\n}\n';
     const result = insertDatabaseEntry(source, { binding: 'DB_A', database_name: 'booking-a', database_id: 'id', migrations_dir: './migrations' }, 'A');
     assert.equal(JSON.parse(stripJsonComments(result)).d1_databases.length, 1);
+});
+
+test('checkDatabaseEntries refuses a name or a binding listed twice', () => {
+    checkDatabaseEntries([{ binding: 'DIRECTORY', database_name: 'booking-directory' }, { binding: 'DB_A', database_name: 'booking-a' }]);
+    assert.throws(() => checkDatabaseEntries([{ binding: 'DIRECTORY', database_name: 'booking-directory' }, { binding: 'booking_directory', database_name: 'booking-directory' }]), /twice/);
+    assert.throws(() => checkDatabaseEntries([{ binding: 'DB_A', database_name: 'booking-a' }, { binding: 'DB_A', database_name: 'booking-b' }]), /twice/);
 });
 
 test('slug and binding rules match the Worker', () => {

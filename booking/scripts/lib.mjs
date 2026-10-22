@@ -124,9 +124,28 @@ export function stripJsonComments(text) {
     return output;
 }
 
-/** The parsed configuration (comments dropped). */
+/**
+ * Refuses a d1_databases list with a name or a binding used twice:
+ * `wrangler d1 create` appends its own entry to the file, so a database
+ * created by hand can end up listed next to the entry written for it.
+ * @param {{ database_name?: string, binding?: string }[]} databases
+ * @returns {void}
+ */
+export function checkDatabaseEntries(databases) {
+    const seen = new Set();
+    for (const entry of databases) {
+        for (const key of [`name ${entry.database_name}`, `binding ${entry.binding}`]) {
+            if (seen.has(key)) throw new Error(`wrangler.jsonc lists the database ${key} twice: keep one entry (with migrations_dir) and remove the other`);
+            seen.add(key);
+        }
+    }
+}
+
+/** The parsed configuration (comments dropped), its database list checked. */
 export function readWranglerConfig() {
-    return JSON.parse(stripJsonComments(readFileSync(WRANGLER_CONFIG, 'utf8')));
+    const config = JSON.parse(stripJsonComments(readFileSync(WRANGLER_CONFIG, 'utf8')));
+    checkDatabaseEntries(config.d1_databases ?? []);
+    return config;
 }
 
 /**
