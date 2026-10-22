@@ -876,8 +876,10 @@ html.is-keyboard-input .cal-slot.is-selectable:focus-visible {
 }
 
 /* restaurant: the seatings of a slot as compact entries, the time is the row's */
+/* a button sizes to its content: max-width keeps it inside the slot, so a long name gets the ellipsis */
 .cal-slot .cal-entry {
     width: auto;
+    max-width: calc(100% - 2px);
     margin: 2px 0 2px 2px;
     padding: 0.15rem 0.35rem;
     font-size: 0.72rem;
