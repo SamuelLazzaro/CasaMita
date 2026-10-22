@@ -117,6 +117,13 @@ fieldset.field legend {
     resize: vertical;
 }
 
+/* show / hide button of the password field (css/password-toggle.css) */
+.field .password-toggle {
+    --pt-color: var(--text-muted);
+    --pt-bg-active: var(--accent-tint);
+    --pt-focus-color: var(--accent-dark);
+}
+
 .hint {
     margin: 0;
     font-size: 0.8rem;

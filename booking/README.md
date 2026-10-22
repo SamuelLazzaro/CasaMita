@@ -85,8 +85,8 @@ booking/
 │   ├── booking.html      # pagina personale del cliente (/booking/<token>)
 │   ├── admin.html        # dashboard del gestore
 │   ├── privacy.html      # informativa art. 13 GDPR (template da compilare)
-│   ├── css/              # base / layout / components / dashboard / main (@import)
-│   └── js/               # constants / translations / i18n / utils / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / main / booking / admin / area
+│   ├── css/              # base / layout / components / password-toggle / dashboard / main (@import)
+│   └── js/               # constants / translations / i18n / utils / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / main / booking / admin / area
 └── test/                 # vitest + @cloudflare/vitest-pool-workers
 ```
 
@@ -167,7 +167,9 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
 ## Dashboard del gestore (`/admin`)
 
 Accesso con `ADMIN_PASSWORD` (sessione di 8 ore, 10 tentativi per IP ogni 15
-minuti). Sezioni:
+minuti). Il campo password ha il bottone "mostra / nascondi" (copia del
+componente `components/password-toggle`, file `password-toggle.css` /
+`password-toggle.js`); al submit il campo torna nascosto. Sezioni:
 
 - **Calendario**: per l'hotel viste settimana e mese a celle giornaliere
   (un soggiorno non ha un orario); per ristorante e impianto anche la vista

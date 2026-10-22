@@ -14,6 +14,7 @@ import { initFacilityForm } from './form-facility.js';
 import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
+import { PasswordToggle } from './password-toggle.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { appendDetail, applyVenue, bindPriceInput, button, downloadTextFile, errorMessage, hideStatus, openDialog, showSection, showStatus, statusBadge } from './ui.js';
@@ -1145,6 +1146,9 @@ for (const navButton of document.querySelectorAll('.nav-item')) navButton.addEve
 const loginView = byId('login-view');
 const adminView = byId('admin-view');
 const loginForm = byId('login-form');
+
+// Show / hide button of the password field; the field goes back to hidden on submit.
+new PasswordToggle(byId('password'));
 
 async function enterDashboard() {
     loginView.hidden = true;
