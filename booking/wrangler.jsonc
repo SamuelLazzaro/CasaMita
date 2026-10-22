@@ -67,6 +67,13 @@
             "database_name": "booking-casamita",
             "database_id": "fdfca630-d7df-4ba1-8378-a293319d5cee",
             "migrations_dir": "./migrations"
+        },
+        {
+            // Casa Mita Ristorante (restaurant)
+            "binding": "DB_CASAMITA_RISTORANTE",
+            "database_name": "booking-casamita-ristorante",
+            "database_id": "4acea2a6-bfdf-4e73-bd2c-c56c6a45df42",
+            "migrations_dir": "./migrations"
         }
     ]
 }
