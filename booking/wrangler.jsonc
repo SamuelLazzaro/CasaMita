@@ -48,8 +48,15 @@
             // The directory: tenants, configuration, users (migrations-directory/).
             "binding": "DIRECTORY",
             "database_name": "booking-directory",
-            "database_id": "REPLACE-WITH-THE-ID-OF-booking-directory",
+            "database_id": "2573a714-0a9c-4a9c-a3a8-410426bc7577",
             "migrations_dir": "./migrations-directory"
+        },
+        {
+            // Casa Mita B&B (hotel)
+            "binding": "DB_CASAMITA",
+            "database_name": "booking-casamita",
+            "database_id": "fdfca630-d7df-4ba1-8378-a293319d5cee",
+            "migrations_dir": "./migrations"
         }
     ]
 }
