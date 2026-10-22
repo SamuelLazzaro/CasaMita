@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════════════════
+   Phone input — standalone, dependency-free component
+
+   A row with the country select on the start side and the
+   national number field filling the rest. Both controls keep
+   the look the host project gives them (font, border, radius,
+   focus ring): this stylesheet only lays them out, so load it
+   AFTER the form styles of the project (same specificity, last
+   one wins — a project rule such as `.field select { width:
+   100% }` must lose to the auto width of the select here).
+
+   Theming: override the --pi-* properties on `.phone-input`
+   itself or on any ancestor.
+   ═══════════════════════════════════════════════════════════ */
+
+.phone-input {
+    /* ── Geometry ─────────────────────────────────────────── */
+    --pi-gap: 0.4rem;
+    --pi-country-min-width: 6.5rem;
+
+    display: flex;
+    align-items: stretch;
+    gap: var(--pi-gap);
+    min-width: 0;
+}
+
+/* The select sizes itself on its widest option ("MM +95" style
+   labels are all alike) and never grows with the row. */
+.phone-input > .phone-input-country {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: var(--pi-country-min-width);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The field takes what is left and may shrink below its intrinsic
+   width (type="tel" fields have a wide default size). */
+.phone-input > .phone-input-number {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}

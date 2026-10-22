@@ -262,7 +262,14 @@
                         </div>
                         <div class="field-row">
                             <div class="field"><label for="direct-hotel-email" data-i18n="field.email">Email</label><input type="email" id="direct-hotel-email" name="email" maxlength="200" required></div>
-                            <div class="field"><label for="direct-hotel-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="direct-hotel-phone" name="phone" maxlength="30" required></div>
+                            <div class="field">
+                                <label for="direct-hotel-phone" data-i18n="field.phone">Telefono</label>
+                                <!-- Country code select + national number (js/phone-input.js): the JS fills the options and joins the two as "+39 3331234567" in the FormData. -->
+                                <div class="phone-input" data-default-country="IT">
+                                    <select class="phone-input-country" id="direct-hotel-phone-country" data-i18n-label="field.phoneCountry" aria-label="Prefisso internazionale"></select>
+                                    <input type="tel" class="phone-input-number" id="direct-hotel-phone" name="phone" maxlength="24" inputmode="tel" required>
+                                </div>
+                            </div>
                         </div>
                         <div class="field-row">
                             <div class="field"><label for="direct-hotel-check-in" data-i18n="field.checkIn">Check-in</label><input type="date" id="direct-hotel-check-in" name="check_in" required></div>
@@ -299,7 +306,13 @@
                         </div>
                         <div class="field-row">
                             <div class="field"><label for="direct-restaurant-email" data-i18n="field.email">Email</label><input type="email" id="direct-restaurant-email" name="email" maxlength="200" required></div>
-                            <div class="field"><label for="direct-restaurant-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="direct-restaurant-phone" name="phone" maxlength="30" required></div>
+                            <div class="field">
+                                <label for="direct-restaurant-phone" data-i18n="field.phone">Telefono</label>
+                                <div class="phone-input" data-default-country="IT">
+                                    <select class="phone-input-country" id="direct-restaurant-phone-country" data-i18n-label="field.phoneCountry" aria-label="Prefisso internazionale"></select>
+                                    <input type="tel" class="phone-input-number" id="direct-restaurant-phone" name="phone" maxlength="24" inputmode="tel" required>
+                                </div>
+                            </div>
                         </div>
                         <div class="field-row">
                             <div class="field"><label for="direct-restaurant-date" data-i18n="field.date">Data</label><input type="date" id="direct-restaurant-date" name="date" required></div>
@@ -499,7 +512,13 @@
                         </div>
                         <div class="field-row">
                             <div class="field"><label for="requester-email" data-i18n="field.email">Email</label><input type="email" id="requester-email" name="email" maxlength="200" required></div>
-                            <div class="field"><label for="requester-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="requester-phone" name="phone" maxlength="30" required></div>
+                            <div class="field">
+                                <label for="requester-phone" data-i18n="field.phone">Telefono</label>
+                                <div class="phone-input" data-default-country="IT">
+                                    <select class="phone-input-country" id="requester-phone-country" data-i18n-label="field.phoneCountry" aria-label="Prefisso internazionale"></select>
+                                    <input type="tel" class="phone-input-number" id="requester-phone" name="phone" maxlength="24" inputmode="tel" required>
+                                </div>
+                            </div>
                         </div>
                         <div class="field"><label for="requester-color" data-i18n="field.color">Colore nel calendario</label><input type="color" id="requester-color" name="color" value="#3b82f6"></div>
                         <div><button type="submit" class="btn btn-primary" data-i18n="common.save">Salva</button></div>

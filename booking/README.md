@@ -8,6 +8,16 @@ Sistema di prenotazione riusabile, configurabile per tipologia di struttura:
 | `restaurant` | cliente anonimo, form pubblico | nome, cognome, email, telefono, data, servizio pranzo/cena, orario a passi di 15 minuti, numero persone, note |
 | `facility` | società registrata dall'admin, area riservata con link personale | data, orario dalle/alle a slot di 30 minuti, note |
 
+Il telefono si inserisce in due parti ovunque compaia (form pubblici,
+prenotazioni dirette del gestore, anagrafica delle società): una tendina dei
+prefissi internazionali (`IT +39` di default, una voce per Paese) e il numero
+nazionale senza prefisso. Il Worker riceve e salva il numero completo,
+`+39 3331234567`, nella sola colonna `phone`; in modifica il prefisso viene
+riconosciuto e rimesso nella tendina, i numeri salvati senza prefisso restano
+interi nel campo con l'Italia selezionata. Copia del componente
+`components/phone-input` (file `phone-input.css`, `phone-input.js`,
+`phone-countries.js`).
+
 In tutti i casi la richiesta nasce `pending` e l'accettazione è **sempre
 manuale** dalla dashboard del gestore. A ogni evento partono email in testo
 semplice via Brevo, al richiedente e al gestore.
@@ -69,8 +79,8 @@ booking/
 │   ├── booking.html      # pagina personale del cliente (/booking/<token>)
 │   ├── admin.html        # dashboard del gestore
 │   ├── privacy.html      # informativa art. 13 GDPR (template da compilare)
-│   ├── css/              # base / layout / components / password-toggle / dashboard / main (@import)
-│   └── js/               # constants / translations / i18n / utils / tenant / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / main / booking / admin / area / privacy
+│   ├── css/              # base / layout / components / password-toggle / phone-input / dashboard / main (@import)
+│   └── js/               # constants / translations / i18n / utils / tenant / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / phone-input + phone-countries / main / booking / admin / area / privacy
 └── test/                 # vitest + @cloudflare/vitest-pool-workers
 ```
 

@@ -15,6 +15,7 @@ import { initHotelForm } from './form-hotel.js';
 import { initRestaurantForm } from './form-restaurant.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { PasswordToggle } from './password-toggle.js';
+import { PhoneInput } from './phone-input.js';
 import { renderSlotGrid, slotGridSetup } from './slot-calendar.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { tenantSlug, venuePath } from './tenant.js';
@@ -1029,6 +1030,9 @@ const requesterDialog = byId('dialog-requester');
 const requesterForm = byId('requester-form');
 const requestersStatus = byId('requesters-status');
 
+/** Country code select + national number; writes the full number ("+39 333...") into the FormData under "phone". */
+const requesterPhone = new PhoneInput(byId('requester-phone'));
+
 async function loadRequesters() {
     try {
         g_requesters = (await fetchRequesters()).items;
@@ -1107,7 +1111,7 @@ function openRequesterDialog(requester) {
         byId('requester-name').value = requester.name;
         byId('requester-contact').value = requester.contact_name;
         byId('requester-email').value = requester.email;
-        byId('requester-phone').value = requester.phone ?? '';
+        requesterPhone.setValue(requester.phone);
         byId('requester-color').value = requester.color;
     }
     hideStatus(byId('requester-status'));

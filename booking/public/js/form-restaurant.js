@@ -6,6 +6,7 @@
  */
 import { MAX_DAYS_AHEAD } from './constants.js';
 import { currentLanguage, translate } from './i18n.js';
+import { PhoneInput } from './phone-input.js';
 import { errorMessage, fillSelect, showStatus, hideStatus } from './ui.js';
 import { addDays, minutesFromTime, seatingTimes, todayInRome } from './utils.js';
 
@@ -25,6 +26,9 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
     const submitButton = byId('submit');
     const privacy = byId('privacy');
     const langSelect = byId('lang');
+
+    /** Country code select + national number; writes the full number ("+39 333...") into the FormData under "phone". */
+    const phone = new PhoneInput(byId('phone'));
 
     /** @type {boolean} true while the form edits an existing booking (admin): the submit button reads "Save" */
     let editing = false;
@@ -90,7 +94,7 @@ export function initRestaurantForm(config, onSubmit, prefix = 'restaurant') {
         byId('first-name').value = item.first_name ?? '';
         byId('last-name').value = item.last_name ?? '';
         byId('email').value = item.email ?? '';
-        byId('phone').value = item.phone ?? '';
+        phone.setValue(item.phone);
         byId('party-size').value = String(item.party_size);
         byId('notes').value = item.notes ?? '';
         if (langSelect !== null) langSelect.value = item.lang;

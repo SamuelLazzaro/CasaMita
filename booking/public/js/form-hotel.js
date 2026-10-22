@@ -9,6 +9,7 @@
 import { MAX_DAYS_AHEAD, MAX_NIGHTS } from './constants.js';
 import { fetchAvailability, fetchQuote } from './api.js';
 import { currentLanguage, onLanguageChange, translate } from './i18n.js';
+import { PhoneInput } from './phone-input.js';
 import { bindPriceInput, errorMessage, fillSelect, showStatus, hideStatus } from './ui.js';
 import { addDays, formatEuro, formatShortDate, nightsBetween, priceInputValue, todayInRome } from './utils.js';
 
@@ -47,6 +48,9 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
     const langSelect = byId('lang');
     const priceBox = byId('price');
     const totalInput = byId('total');
+
+    /** Country code select + national number; writes the full number ("+39 333...") into the FormData under "phone". */
+    const phone = new PhoneInput(byId('phone'));
 
     /** @type {RoomOption[]} last availability answer, re-labelled on language change */
     let rooms = [];
@@ -245,7 +249,7 @@ export function initHotelForm(onSubmit, prefix = 'hotel') {
         byId('first-name').value = item.first_name ?? '';
         byId('last-name').value = item.last_name ?? '';
         byId('email').value = item.email ?? '';
-        byId('phone').value = item.phone ?? '';
+        phone.setValue(item.phone);
         byId('adults').value = String(item.adults);
         byId('children').value = String(item.children);
         byId('notes').value = item.notes ?? '';

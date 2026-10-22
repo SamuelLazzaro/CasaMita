@@ -47,7 +47,13 @@
                 </div>
                 <div class="field-row">
                     <div class="field"><label for="hotel-email" data-i18n="field.email">Email</label><input type="email" id="hotel-email" name="email" maxlength="200" autocomplete="email" required></div>
-                    <div class="field"><label for="hotel-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="hotel-phone" name="phone" maxlength="30" autocomplete="tel" required></div>
+                    <div class="field">
+                        <label for="hotel-phone" data-i18n="field.phone">Telefono</label>
+                        <div class="phone-input" data-default-country="IT">
+                            <select class="phone-input-country" id="hotel-phone-country" autocomplete="tel-country-code" data-i18n-label="field.phoneCountry" aria-label="Prefisso internazionale"></select>
+                            <input type="tel" class="phone-input-number" id="hotel-phone" name="phone" maxlength="24" autocomplete="tel-national" inputmode="tel" required>
+                        </div>
+                    </div>
                 </div>
                 <div class="field-row">
                     <div class="field"><label for="hotel-check-in" data-i18n="field.checkIn">Check-in</label><input type="date" id="hotel-check-in" name="check_in" required></div>
@@ -83,7 +89,13 @@
                 </div>
                 <div class="field-row">
                     <div class="field"><label for="restaurant-email" data-i18n="field.email">Email</label><input type="email" id="restaurant-email" name="email" maxlength="200" autocomplete="email" required></div>
-                    <div class="field"><label for="restaurant-phone" data-i18n="field.phone">Telefono</label><input type="tel" id="restaurant-phone" name="phone" maxlength="30" autocomplete="tel" required></div>
+                    <div class="field">
+                        <label for="restaurant-phone" data-i18n="field.phone">Telefono</label>
+                        <div class="phone-input" data-default-country="IT">
+                            <select class="phone-input-country" id="restaurant-phone-country" autocomplete="tel-country-code" data-i18n-label="field.phoneCountry" aria-label="Prefisso internazionale"></select>
+                            <input type="tel" class="phone-input-number" id="restaurant-phone" name="phone" maxlength="24" autocomplete="tel-national" inputmode="tel" required>
+                        </div>
+                    </div>
                 </div>
                 <div class="field-row">
                     <div class="field"><label for="restaurant-date" data-i18n="field.date">Data</label><input type="date" id="restaurant-date" name="date" required></div>
