@@ -62,7 +62,7 @@ npm install
 | Chiave | Valore |
 |---|---|
 | `name` | nome del Worker, solo minuscole e trattini, ad esempio `booking`: diventa parte dell'indirizzo pubblico |
-| `vars.PASSWORD_HASH_ITERATIONS` | lascia `20000` sul piano gratuito di Cloudflare; `600000` sul piano Paid (vedi `docs/piano-paid.md`) |
+| `vars.PASSWORD_HASH_ITERATIONS` | lascia `10000` sul piano gratuito di Cloudflare; `600000` sul piano Paid (vedi `docs/piano-paid.md`) |
 | `d1_databases` | togli il blocco di esempio `DB_DEMO`: le strutture le aggiunge lo script del passo 4. Resta solo `DIRECTORY`, il cui `database_id` arriva dal passo 2 |
 
 La configurazione delle strutture (nome, tipologia, email, orari, conservazione dei dati) non sta più in questo file: vive nel direttorio e si scrive con lo script del passo 4.

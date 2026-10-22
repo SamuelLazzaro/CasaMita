@@ -160,7 +160,7 @@ Configurazione per struttura (colonne di `tenants`):
 | `status` | `active` o `suspended` |
 
 Variabili del deploy (`wrangler.jsonc`, chiave `vars`): `PASSWORD_HASH_ITERATIONS`
-(iterazioni PBKDF2 dei nuovi hash: `20000` sul piano Free, `600000` sul Paid;
+(iterazioni PBKDF2 dei nuovi hash: `10000` sul piano Free, `600000` sul Paid;
 gli hash esistenti si aggiornano al login successivo) e `PASSWORD_BREACH_CHECK`
 (`off` salta il controllo Have I Been Pwned). Secret (mai nel file,
 `wrangler secret put`): `ADMIN_SECRET`, `BREVO_API_KEY`.
@@ -219,9 +219,10 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
   password presenti nelle violazioni note tramite l'API k-anonymity di Have
   I Been Pwned: solo i primi 5 caratteri dello SHA-1 lasciano il Worker);
   blocco dell'account per 15 minuti dopo 10 password errate, oltre al limite
-  per IP. Sul piano Free le 10 ms di CPU per richiesta impongono 20.000
-  iterazioni invece delle 600.000 di OWASP: deroga dichiarata, da chiudere
-  alzando `PASSWORD_HASH_ITERATIONS` col piano Paid.
+  per IP. Sul piano Free le 10 ms di CPU per richiesta impongono 10.000
+  iterazioni invece delle 600.000 di OWASP (con 20.000 il login misurava
+  9-10 ms di CPU, sul limite): deroga dichiarata, da chiudere alzando
+  `PASSWORD_HASH_ITERATIONS` col piano Paid.
 - `public/privacy.html` è un template: compilare i segnaposto prima della
   pubblicazione.
 

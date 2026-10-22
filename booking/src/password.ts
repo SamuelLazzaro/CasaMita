@@ -12,8 +12,9 @@ import type { Bindings } from './types';
  * Why the count is configurable (PASSWORD_HASH_ITERATIONS): OWASP asks for
  * 600,000 iterations, which costs about 150 ms of CPU per login. The Workers
  * Free plan allows 10 ms per request, so a Free deployment has to run far
- * below that (20,000 by default here, about 5 ms) and compensates with the
- * password policy below; on the Paid plan the variable goes to 600,000.
+ * below that (10,000 by default here: 20,000 measured 7-8 ms on Cloudflare,
+ * the whole login 9-10 ms) and compensates with the password policy below;
+ * on the Paid plan the variable goes to 600,000.
  *
  * Policy (OWASP Authentication Cheat Sheet): length is what matters, no
  * composition rules; at least MIN_PASSWORD_LENGTH characters, and the
@@ -26,7 +27,7 @@ const ALGORITHM = 'pbkdf2-sha256';
 const SALT_BYTES = 16;
 const KEY_BITS = 256;
 
-export const DEFAULT_ITERATIONS = 20_000;
+export const DEFAULT_ITERATIONS = 10_000;
 const MIN_ITERATIONS = 1_000;
 const MAX_ITERATIONS = 5_000_000;
 

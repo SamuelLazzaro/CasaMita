@@ -29,11 +29,15 @@ I binding D1 non contano come variabili. Le richieste ai file statici
 
 ## 1. Iterazioni dell'hash delle password
 
-**Oggi (Free).** `PASSWORD_HASH_ITERATIONS = "20000"` in `wrangler.jsonc`.
-Una verifica PBKDF2-HMAC-SHA256 a 20.000 iterazioni costa circa 5 ms di CPU
-(misura su PC di sviluppo, da confermare su Cloudflare), entro i 10 ms del
-Free. È una deroga dichiarata alle 600.000 iterazioni raccomandate da OWASP
-(`src/password.ts`, commento in testa; README, sezione Sicurezza e privacy).
+**Oggi (Free).** `PASSWORD_HASH_ITERATIONS = "10000"` in `wrangler.jsonc`.
+Misura del 22 ottobre 2026 con Workers Logs (`observability` in
+`wrangler.jsonc`): a 20.000 iterazioni un login costava 9-10 ms di CPU a
+isolate caldo (circa 2 ms di richiesta più 7-8 ms di PBKDF2-HMAC-SHA256) e
+24 ms al primo login dopo il deploy, cioè esattamente il limite del Free; a
+10.000 l'hash si dimezza. Sul PC di sviluppo lo stesso hash costava 5 ms: la
+CPU di un isolate è più lenta. È una deroga dichiarata alle 600.000
+iterazioni raccomandate da OWASP (`src/password.ts`, commento in testa;
+README, sezione Sicurezza e privacy).
 
 **Al passaggio al Paid.** Portare la variabile a `"600000"` e fare il deploy.
 Non serve alcuna migrazione: il numero di iterazioni è salvato dentro ogni
@@ -46,13 +50,18 @@ con il vecchio numero di iterazioni più il nuovo hash): va bene sul Paid,
 dove il limite è 30 s, ma non va fatto il contrario. Se un giorno si
 tornasse al Free con hash a 600.000 iterazioni, ogni login supererebbe i 10 ms
 e fallirebbe per tutti: prima di un eventuale ritorno al Free bisogna
-riportare la variabile a 20.000 e far rifare il login a ogni utente mentre
+riportare la variabile a 10.000 e far rifare il login a ogni utente mentre
 si è ancora sul Paid.
 
-**Verifica consigliata al primo deploy, su qualunque piano.** Controllare
-nella dashboard di Cloudflare (Workers, Metrics, CPU time) il tempo di una
-richiesta di login. Se sul Free supera i 10 ms, scendere a `"10000"`
-(circa 2,5 ms), annotandolo nel README come ulteriore deroga.
+**Verifica al primo deploy, su qualunque piano.** Nella dashboard di
+Cloudflare (Workers & Pages, il Worker, scheda Observability) ogni
+invocazione riporta la sua CPU time: filtrare per `POST /api/admin/login`,
+ignorando il primo login dopo un deploy (isolate freddo, costa più del
+doppio), e controllare che sul Free resti sotto i 10 ms. Cloudflare tollera
+gli sforamenti occasionali, ma termina con errore 1102 le richieste di un
+Worker che supera il limite in modo sistematico (soglia non documentata,
+[Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
+Se non basta, scendere a `"5000"`, annotandolo nel README.
 
 ## 2. Politica delle password
 
