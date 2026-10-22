@@ -7,10 +7,12 @@
 -- referencing the type BY NAME: renaming a type rewrites both (same batch),
 -- deleting one is refused while a future booking still names it.
 --
--- price_per_night is mandatory in the API. The column allows NULL only for
--- the rows seeded below from a deployment that had no base price yet: the
--- quote stays impossible (null) for them, exactly as before, until the venue
--- edits the type and types a price.
+-- No room type is seeded: every venue database starts empty and the venue
+-- creates its own types from the dashboard.
+--
+-- price_per_night is mandatory in the API. The column still allows NULL, as
+-- in the databases already migrated, where the seeded types without a base
+-- price keep the quote impossible (null) until the venue types a price.
 CREATE TABLE room_types (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   name            TEXT NOT NULL UNIQUE,
@@ -20,19 +22,5 @@ CREATE TABLE room_types (
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
-
--- Seed: the room types of the rooms.csv of this instance (Casa Mita, one
--- room per type until the venue confirms the real quantities), with the base
--- price the venue had already set in room_prices (NULL when it had none).
-INSERT INTO room_types (name, max_guests, quantity, price_per_night)
-SELECT 'Singola', 1, 1, (SELECT price_per_night FROM room_prices WHERE room_type = 'Singola');
-INSERT INTO room_types (name, max_guests, quantity, price_per_night)
-SELECT 'Matrimoniale', 2, 1, (SELECT price_per_night FROM room_prices WHERE room_type = 'Matrimoniale');
-INSERT INTO room_types (name, max_guests, quantity, price_per_night)
-SELECT 'Doppia', 2, 1, (SELECT price_per_night FROM room_prices WHERE room_type = 'Doppia');
-INSERT INTO room_types (name, max_guests, quantity, price_per_night)
-SELECT 'Tripla', 3, 1, (SELECT price_per_night FROM room_prices WHERE room_type = 'Tripla');
-INSERT INTO room_types (name, max_guests, quantity, price_per_night)
-SELECT 'Quadrupla', 4, 1, (SELECT price_per_night FROM room_prices WHERE room_type = 'Quadrupla');
 
 DROP TABLE room_prices;

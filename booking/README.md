@@ -169,8 +169,8 @@ rinominarla aggiorna entrambi nello stesso batch; eliminarla è rifiutato (409
 confermata, di quella tipologia (va prima annullata), e cancella con sé i suoi
 periodi di prezzo. Ridurre il numero di camere sotto le prenotazioni confermate
 è permesso: la risposta riporta in `overbooked` le camere mancanti nella notte
-più piena e la dashboard lo segnala. La migrazione 0004 importa le quattro
-tipologie del vecchio `rooms.csv` con i prezzi base già impostati.
+più piena e la dashboard lo segnala. La migrazione 0004 non crea tipologie:
+il database di una struttura nuova parte senza camere.
 
 Una tipologia risulta occupata **solo** dalle prenotazioni approvate che si
 sovrappongono al soggiorno (check-out escluso). Il form pubblico mostra le

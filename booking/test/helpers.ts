@@ -30,8 +30,8 @@ export function url(slug: string, path: string): string {
 
 /*
  * The hotel tests never name a room type: they pick by position from the
- * types seeded by migration 0004 (the test database is migrated afresh for
- * every test file). ROOM_A is the default of hotelBody; ROOM_B and ROOM_C
+ * types seeded by apply-migrations.ts (the test database is migrated afresh
+ * for every test file). ROOM_A is the default of hotelBody; ROOM_B and ROOM_C
  * are two other types for the tests that need distinct ones; ROOM_LARGEST
  * has the most rooms, for the availability arithmetic. None of the seeded
  * types has a base price: every pricing test sets the prices it needs.
