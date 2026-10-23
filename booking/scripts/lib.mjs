@@ -182,6 +182,37 @@ export function insertDatabaseEntry(text, entry, comment) {
     return result;
 }
 
+/**
+ * Removes the entry of a binding from the `d1_databases` array of a
+ * wrangler.jsonc text, the other entries and their comments untouched. The
+ * entries are the `{ ... }` blocks written at the array's item indentation
+ * (the shape insertDatabaseEntry writes); the one naming the binding goes,
+ * and the remaining ones are joined again with commas.
+ * @param {string} text - the JSONC source
+ * @param {string} binding - e.g. 'DB_HOTEL_ROSSI'
+ * @returns {string} the new source
+ */
+export function removeDatabaseEntry(text, binding) {
+    const keyMatch = /^([ \t]*)"d1_databases"\s*:\s*\[/m.exec(text);
+    if (keyMatch === null) throw new Error('wrangler.jsonc: no "d1_databases" array');
+    const indent = keyMatch[1];
+    const arrayStart = keyMatch.index + keyMatch[0].length;
+    const closeMatch = new RegExp(`^${indent}\\]`, 'm').exec(text.slice(arrayStart));
+    if (closeMatch === null) throw new Error('wrangler.jsonc: the "d1_databases" array has no closing line');
+    const closeIndex = arrayStart + closeMatch.index;
+    const inner = text.slice(arrayStart, closeIndex);
+    const itemIndent = `${indent}    `;
+    const blockPattern = new RegExp(`^${itemIndent}\\{[\\s\\S]*?^${itemIndent}\\}`, 'gm');
+    const blocks = inner.match(blockPattern) ?? [];
+    const bindingLine = new RegExp(`^\\s*"binding"\\s*:\\s*${JSON.stringify(binding)}\\s*,?\\s*$`, 'm');
+    const remaining = blocks.filter((block) => !bindingLine.test(block));
+    if (remaining.length === blocks.length) throw new Error(`wrangler.jsonc: no database entry with binding "${binding}"`);
+    const newInner = remaining.length === 0 ? '\n' : `\n${remaining.join(',\n')}\n`;
+    const result = text.slice(0, arrayStart) + newInner + text.slice(closeIndex);
+    JSON.parse(stripJsonComments(result));
+    return result;
+}
+
 export function writeWranglerConfig(text) {
     writeFileSync(WRANGLER_CONFIG, text);
 }

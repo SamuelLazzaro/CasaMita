@@ -20,6 +20,8 @@ export type VenueConfig = {
     restaurant: { lunch: TimeWindow; dinner: TimeWindow; stepMinutes: number };
     /** days after the end of a booking before guest data are anonymised; 0 disables the job */
     retentionDays: number;
+    /** accent colour of the venue, lowercase '#rrggbb'; null = palette of the booking type */
+    accent: string | null;
 };
 
 const BOOKING_TYPES: BookingType[] = ['hotel', 'facility', 'restaurant'];
@@ -31,6 +33,15 @@ const DEFAULT_RETENTION_DAYS = 90;
 export const FACILITY_SLOT_MINUTES = 30;
 export const RESTAURANT_STEP_MINUTES = 15;
 
+/** Six hex digits with a leading hash: the only form the directory stores and the CSS expects. */
+export const ACCENT_RE = /^#[0-9a-f]{6}$/i;
+
+/** The accent colour of a venue, normalised to lowercase; null when unset or malformed (the type's palette applies). */
+export function accentOf(value: string | null | undefined): string | null {
+    const trimmed = (value ?? '').trim();
+    return ACCENT_RE.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
 function timeWindow(open: string | null | undefined, close: string | null | undefined, fallback: TimeWindow): TimeWindow {
     const openValue = open?.trim() ?? '';
     const closeValue = close?.trim() ?? '';
@@ -40,7 +51,7 @@ function timeWindow(open: string | null | undefined, close: string | null | unde
 }
 
 /** The raw configuration columns of a tenant row (the rest of the row is not needed here). */
-export type VenueSettings = Pick<TenantRow, 'type' | 'name' | 'default_lang' | 'facility_open' | 'facility_close' | 'lunch_open' | 'lunch_close' | 'dinner_open' | 'dinner_close' | 'retention_days'>;
+export type VenueSettings = Pick<TenantRow, 'type' | 'name' | 'default_lang' | 'facility_open' | 'facility_close' | 'lunch_open' | 'lunch_close' | 'dinner_open' | 'dinner_close' | 'retention_days' | 'accent'>;
 
 export function venueConfigOf(settings: VenueSettings): VenueConfig {
     const typeValue = (settings.type ?? '').trim().toLowerCase() as BookingType;
@@ -61,6 +72,7 @@ export function venueConfigOf(settings: VenueSettings): VenueConfig {
             stepMinutes: RESTAURANT_STEP_MINUTES,
         },
         retentionDays,
+        accent: accentOf(settings.accent),
     };
 }
 
@@ -79,12 +91,18 @@ export function isSeatingTime(time: string, window: TimeWindow, stepMinutes: num
  * Null when unset or malformed, which keeps embedding disabled.
  */
 export function embedOriginOf(value: string | null | undefined): string | null {
+    const url = httpUrlOf(value);
+    return url === null ? null : new URL(url).origin;
+}
+
+/** A complete http(s) URL as stored, e.g. the venue's own booking conditions page; null when unset or malformed. */
+export function httpUrlOf(value: string | null | undefined): string | null {
     const trimmed = (value ?? '').trim();
     if (trimmed === '') return null;
     try {
         const url = new URL(trimmed);
         if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-        return url.origin;
+        return url.toString();
     } catch {
         return null;
     }

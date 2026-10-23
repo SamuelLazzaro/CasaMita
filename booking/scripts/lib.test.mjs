@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bindingOf, checkDatabaseEntries, generatePassword, GENERATED_PASSWORD_LENGTH, insertDatabaseEntry, isValidSlug, parseArgs, sqlString, stripJsonComments, targetFlag } from './lib.mjs';
+import { bindingOf, checkDatabaseEntries, generatePassword, GENERATED_PASSWORD_LENGTH, insertDatabaseEntry, isValidSlug, parseArgs, removeDatabaseEntry, sqlString, stripJsonComments, targetFlag } from './lib.mjs';
 
 test('stripJsonComments drops line and block comments but keeps strings', () => {
     const source = '{\n  // a comment with "quotes"\n  "url": "http://x/y", /* block */ "slash": "a//b", "esc": "say \\"hi\\" // not a comment"\n}';
@@ -28,6 +28,31 @@ test('insertDatabaseEntry works on an empty array', () => {
     const source = '{\n    "d1_databases": [\n    ]\n}\n';
     const result = insertDatabaseEntry(source, { binding: 'DB_A', database_name: 'booking-a', database_id: 'id', migrations_dir: './migrations' }, 'A');
     assert.equal(JSON.parse(stripJsonComments(result)).d1_databases.length, 1);
+});
+
+test('removeDatabaseEntry drops one entry wherever it sits, keeps the others and their comments', () => {
+    const empty = '{\n    "name": "booking",\n    "d1_databases": [\n        {\n            // The directory.\n            "binding": "DIRECTORY",\n            "database_name": "booking-directory",\n            "database_id": "abc",\n            "migrations_dir": "./migrations-directory"\n        }\n    ]\n}\n';
+    const withA = insertDatabaseEntry(empty, { binding: 'DB_A', database_name: 'booking-a', database_id: 'id-a', migrations_dir: './migrations' }, 'A (hotel)');
+    const withAB = insertDatabaseEntry(withA, { binding: 'DB_B', database_name: 'booking-b', database_id: 'id-b', migrations_dir: './migrations' }, 'B (restaurant)');
+
+    // Middle entry: the directory and B remain, with their comments.
+    const withoutA = removeDatabaseEntry(withAB, 'DB_A');
+    assert.deepEqual(JSON.parse(stripJsonComments(withoutA)).d1_databases.map((entry) => entry.binding), ['DIRECTORY', 'DB_B']);
+    assert.ok(withoutA.includes('// The directory.'));
+    assert.ok(withoutA.includes('// B (restaurant)'));
+    assert.ok(!withoutA.includes('booking-a'));
+
+    // Last entry: no dangling comma is left behind.
+    const withoutB = removeDatabaseEntry(withAB, 'DB_B');
+    assert.deepEqual(JSON.parse(stripJsonComments(withoutB)).d1_databases.map((entry) => entry.binding), ['DIRECTORY', 'DB_A']);
+
+    // First entry, then everything: the array can end up empty and stays valid.
+    const withoutDirectory = removeDatabaseEntry(withA, 'DIRECTORY');
+    assert.deepEqual(JSON.parse(stripJsonComments(withoutDirectory)).d1_databases.map((entry) => entry.binding), ['DB_A']);
+    assert.deepEqual(JSON.parse(stripJsonComments(removeDatabaseEntry(withoutDirectory, 'DB_A'))).d1_databases, []);
+
+    // Removing again is an error, not a silent no-op.
+    assert.throws(() => removeDatabaseEntry(withoutA, 'DB_A'), /no database entry/);
 });
 
 test('checkDatabaseEntries refuses a name or a binding listed twice', () => {

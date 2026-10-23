@@ -23,6 +23,7 @@ Versione del documento: ottobre 2026.
 | Righe D1 lette / scritte | 5 M / 100 k al giorno, poi blocco | 25 G / 50 M al mese, poi a consumo | tutto il traffico |
 | Richieste al Worker | 100.000 al giorno, poi blocco | 10 M al mese, poi a consumo | tutto il traffico |
 | Variabili per Worker (vars più secret) | 64 | 128 | `wrangler.jsonc`: oggi ne usiamo 4 |
+| Time Travel di D1 (ripristino a un istante passato) | 7 giorni | 30 giorni | finestra di ripristino dichiarata alle strutture nel contratto (`docs/contratto-servizio-e-nomina-responsabile.docx`, Allegato 3) |
 
 I binding D1 non contano come variabili. Le richieste ai file statici
 (`css/`, `js/`, HTML alla radice) non contano come richieste al Worker.
@@ -96,11 +97,12 @@ elenca già 10 (`FREE_PLAN_MAX_DATABASES` in `scripts/lib.mjs`).
 ## 4. Cron di anonimizzazione
 
 **Oggi (Free).** `runRetention` in `src/index.ts` esegue, in una sola
-invocazione, una query sul direttorio più una o due query per struttura
-(l'`UPDATE` e, se ha toccato righe, l'audit). Con il limite di 50 query per
-invocazione il cron regge fino a circa 20 strutture; oltre, le ultime
-strutture dell'elenco resterebbero senza anonimizzazione, e l'errore
-finirebbe solo nei log.
+invocazione, tre query sul direttorio (pulizia dei contatori anti-abuso,
+pulizia del registro di audit, elenco delle strutture) più da tre a quattro
+query per struttura (l'`UPDATE` di anonimizzazione e, se ha toccato righe,
+l'audit; poi le due pulizie). Con il limite di 50 query per invocazione il
+cron regge fino a circa 11 strutture; oltre, le ultime strutture dell'elenco
+resterebbero senza pulizia, e l'errore finirebbe solo nei log.
 
 **Al passaggio al Paid.** Il limite sale a 1.000 query per invocazione:
 basta per centinaia di strutture, nessuna modifica necessaria. Se invece si

@@ -20,6 +20,16 @@ export type Bindings = {
     PASSWORD_HASH_ITERATIONS?: string;
     /** 'off' disables the Have I Been Pwned check of new passwords (tests, offline development). */
     PASSWORD_BREACH_CHECK?: string;
+    /**
+     * Who runs the deployment (the data processor of every venue): shown on
+     * the root legal page (d.lgs. 70/2003 art. 7), in the venues' privacy
+     * notices and in /.well-known/security.txt. Missing = the pages keep
+     * their placeholders.
+     */
+    PROCESSOR_NAME?: string;
+    PROCESSOR_ADDRESS?: string;
+    PROCESSOR_EMAIL?: string;
+    PROCESSOR_VAT?: string;
 };
 
 export type BookingType = 'hotel' | 'facility' | 'restaurant';
@@ -50,6 +60,13 @@ export type TenantRow = {
     privacy_controller: string | null;
     privacy_address: string | null;
     privacy_email: string | null;
+    /** accent colour of the venue, '#rrggbb'; NULL = palette of the booking type */
+    accent: string | null;
+    /** identity and booking conditions shown to guests (migration 0003 of the directory) */
+    phone: string | null;
+    vat_number: string | null;
+    conditions_url: string | null;
+    conditions_text: string | null;
     status: TenantStatus;
     created_at: string;
 };

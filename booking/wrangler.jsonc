@@ -1,5 +1,7 @@
 /**
- * Cloudflare Workers configuration of the booking module, Casa Mita deploy.
+ * Cloudflare Workers configuration of the booking module: the deployment
+ * serving every venue (today the two of Casa Mita). The code is a copy of
+ * the neutral template in the Claude repository, modules/booking.
  *
  * One deployment serves MANY venues. The DIRECTORY database holds the
  * venues (tenants), their configuration and the dashboard users; every
@@ -17,7 +19,7 @@
  */
 {
     "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "booking-casamita",
+    "name": "booking",
     "main": "src/index.ts",
     // Aligned with the workerd version bundled in wrangler ~4.35 (also used by
     // the test pool): do not raise it without upgrading wrangler.
@@ -51,7 +53,15 @@
         // each user.
         "PASSWORD_HASH_ITERATIONS": "10000",
         // "off" skips the Have I Been Pwned check of new passwords.
-        "PASSWORD_BREACH_CHECK": "on"
+        "PASSWORD_BREACH_CHECK": "on",
+        // Who runs the deployment: shown on the root legal page (/legal,
+        // d.lgs. 70/2003 art. 7), named as data processor in the venues'
+        // privacy notices, and the contact of /.well-known/security.txt.
+        // Public information, not secrets. Empty = placeholders stay.
+        "PROCESSOR_NAME": "",
+        "PROCESSOR_ADDRESS": "",
+        "PROCESSOR_EMAIL": "",
+        "PROCESSOR_VAT": ""
     },
     "d1_databases": [
         {

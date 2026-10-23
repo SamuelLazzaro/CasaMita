@@ -63,6 +63,7 @@ npm install
 |---|---|
 | `name` | nome del Worker, solo minuscole e trattini, ad esempio `booking`: diventa parte dell'indirizzo pubblico |
 | `vars.PASSWORD_HASH_ITERATIONS` | lascia `10000` sul piano gratuito di Cloudflare; `600000` sul piano Paid (vedi `docs/piano-paid.md`) |
+| `vars.PROCESSOR_NAME`, `PROCESSOR_ADDRESS`, `PROCESSOR_EMAIL`, `PROCESSOR_VAT` | chi gestisce il servizio (tu, o la tua ditta): nome, indirizzo, email e partita IVA. Compaiono nella pagina `/legal` (informazioni obbligatorie per chi eroga un servizio online, d.lgs. 70/2003 art. 7), nelle informative delle strutture come responsabile del trattamento e in `/.well-known/security.txt` come contatto per le segnalazioni di sicurezza. Sono informazioni pubbliche |
 | `d1_databases` | togli il blocco di esempio `DB_DEMO`: le strutture le aggiunge lo script del passo 4. Resta solo `DIRECTORY`, il cui `database_id` arriva dal passo 2 |
 
 La configurazione delle strutture (nome, tipologia, email, orari, conservazione dei dati) non sta più in questo file: vive nel direttorio e si scrive con lo script del passo 4.
@@ -88,10 +89,10 @@ Apri `http://localhost:8787/admin`, entra con l'utente `prova` e la password sta
 npx wrangler login
 ```
 
-2. Crea il database del direttorio e copia l'identificativo stampato dal comando nel campo `database_id` del blocco `DIRECTORY` di `wrangler.jsonc`:
+2. Crea il database del direttorio e copia l'identificativo stampato dal comando nel campo `database_id` del blocco `DIRECTORY` di `wrangler.jsonc`. L'opzione `--location weur` chiede a Cloudflare di tenerlo in Europa occidentale (è una preferenza, non una garanzia, e non si può cambiare dopo); `tenant:add` fa lo stesso per i database delle strutture:
 
 ```
-npx wrangler d1 create booking-directory
+npx wrangler d1 create booking-directory --location weur
 ```
 
 3. Applica lo schema del direttorio:
@@ -199,6 +200,9 @@ npm run tenant:add -- hotel-rossi --type hotel --name "Hotel Rossi" --username r
 | `--lang` | lingua iniziale dell'interfaccia, `it` (default) o `en` |
 | `--retention-days` | giorni di conservazione dei dati del cliente dopo la fine della prenotazione, `90` di default, `0` per non anonimizzare mai |
 | `--embed-origin` | origine del sito della struttura autorizzato a incorporare il form, si può impostare anche dopo (passo 5) |
+| `--accent` | colore della struttura in esadecimale, per esempio `#237a87`: form, pagine e dashboard lo usano al posto del colore della tipologia; sceglierlo abbastanza scuro perché il testo bianco sui bottoni resti leggibile. Si può impostare anche dopo (7.3) |
+| `--phone`, `--vat` | telefono e partita IVA della struttura: con ragione sociale (`--privacy-controller`), indirizzo (`--privacy-address`) ed email del gestore formano l'identità che il cliente deve vedere prima di prenotare (Codice del consumo, art. 49) e che compare nella pagina delle condizioni e nelle email |
+| `--conditions-url` | indirizzo della pagina "condizioni di prenotazione" sul sito della struttura, se esiste. Senza, il servizio ospita una pagina propria il cui testo si imposta dopo (passo 6) |
 | `--remote` | lavora sui database di Cloudflare (`--local` su quelli di `wrangler dev`) |
 
 Lo script si ferma se lo slug o il nome utente esistono già, e, sul piano gratuito di Cloudflare, al decimo database dell'account (il direttorio più nove strutture): per andare oltre serve il piano Paid e l'opzione `--allow-many-databases`.
@@ -209,7 +213,7 @@ Al termine stampa la **password del gestore, una sola volta**: consegnala insiem
 npm run deploy
 ```
 
-Le tipologie di camera (nome, ospiti massimi, numero di camere, prezzo base) non si configurano qui: le inserisce il gestore dalla sezione Camere della dashboard (passo 6). La migrazione crea quattro tipologie di esempio ("Camera singola", "Camera doppia", "Camera tripla", "Suite familiare") che il gestore può modificare o eliminare.
+Le tipologie di camera (nome, ospiti massimi, numero di camere, prezzo base) non si configurano qui: le inserisce il gestore dalla sezione Camere della dashboard (passo 6). Il database di una struttura nuova parte senza alcuna tipologia: finché il gestore non ne crea almeno una, il form pubblico non ha camere da proporre.
 
 Per cambiare in seguito un dato della struttura (nome, email, orari, conservazione, titolare privacy) si aggiorna la sua riga nel direttorio, senza deploy:
 
@@ -248,7 +252,13 @@ Se il sito ha una propria Content Security Policy, deve ammettere l'indirizzo de
 
 ### 7.3 Aspetto
 
-Dentro l'iframe il form non mostra testata né piè di pagina: li fornisce la pagina del sito. I colori seguono i token definiti in `public/css/base.css` nel blocco `[data-booking-type="hotel"]` e valgono per tutte le strutture dello stesso tipo: per adattarli modifica quei valori e pubblica di nuovo. Il font è Inter, incluso nel Worker.
+Dentro l'iframe il form non mostra testata né piè di pagina: li fornisce la pagina del sito. Il colore principale (bottoni, link, evidenziazioni) è quello della struttura, colonna `accent` del direttorio, impostato con `--accent` alla registrazione o in seguito, senza deploy:
+
+```
+npx wrangler d1 execute booking-directory --remote --command "UPDATE tenants SET accent = '#237a87' WHERE slug = 'hotel-rossi'"
+```
+
+Senza un colore proprio vale la palette della tipologia (blu per gli hotel), definita in `public/css/base.css`. Le varianti più scure e la tinta chiara si ricavano automaticamente dal colore scelto: va bene un colore medio-scuro, su cui il testo bianco resti leggibile. Il font è Inter, incluso nel Worker.
 
 La lingua iniziale è quella della struttura (`--lang`); il pulsante in alto nel form permette al cliente di passare a inglese o italiano e la scelta resta memorizzata nel browser. Dentro l'iframe il pulsante non c'è: il form segue l'attributo `lang` dell'elemento `<html>` della pagina del sito, anche quando cambia a runtime, quindi un sito bilingue non deve fare altro che aggiornare quell'attributo.
 
@@ -261,7 +271,7 @@ Se preferisci non incorporare, un semplice link o pulsante "Prenota" che apre `h
 Queste operazioni si fanno dalla dashboard, raggiunta da `https://<indirizzo>/admin` con nome utente e password, e non richiedono lo sviluppatore. La sessione dura 8 ore; dopo dieci password errate l'account resta bloccato per 15 minuti.
 
 1. **Cambia password** (testata della dashboard): al primo accesso, con la password attuale, la nuova e la sua conferma. Cambiarla chiude le altre sessioni aperte con lo stesso utente.
-2. **Camere**: con "Nuova tipologia" si crea ogni tipologia di camera con nome, ospiti massimi, numero di camere e prezzo base a notte (obbligatorio); "Modifica" ed "Elimina" sulla riga. Le quattro tipologie di esempio vanno adattate o eliminate. Una tipologia con prenotazioni future (in attesa o confermate) non si può eliminare: prima vanno annullate le prenotazioni. Riducendo il numero di camere sotto le prenotazioni confermate la dashboard avvisa, ma non blocca. La tabella mostra anche le camere libere per le date scelte.
+2. **Camere**: con "Nuova tipologia" si crea ogni tipologia di camera con nome, ospiti massimi, numero di camere e prezzo base a notte (obbligatorio); "Modifica" ed "Elimina" sulla riga. All'inizio la sezione è vuota: senza almeno una tipologia il form pubblico non accetta prenotazioni. Una tipologia con prenotazioni future (in attesa o confermate) non si può eliminare: prima vanno annullate le prenotazioni. Riducendo il numero di camere sotto le prenotazioni confermate la dashboard avvisa, ma non blocca. La tabella mostra anche le camere libere per le date scelte.
 3. **Prezzi**: il prezzo base sta nella tipologia (sezione Camere); qui si aggiungono i periodi stagionali e le eventuali eccezioni, infine gli sconti per durata. Per cambiare il prezzo di un solo giorno è più comodo il calendario Prezzi (sezione Calendario, selettore "Prezzi"): premendo il prezzo di un giorno si apre un popup con il nuovo prezzo, che vale solo per quel giorno anche se il giorno sta dentro un periodo; "Torna al prezzo base" annulla l'eccezione. Il prezzo viene mostrato (e precompilato nella prenotazione diretta) solo se ogni notte del soggiorno ha un prezzo, dal periodo che la copre o dal base. Il prezzo mostrato al cliente riporta la dicitura "Tasse incluse, tassa di soggiorno esclusa".
 4. **Notifiche**: le richieste arrivano via email e compaiono nella sezione Notifiche, dove si approvano o rifiutano. Una tipologia risulta esaurita solo quando le prenotazioni approvate coprono tutte le camere.
 5. **Nuova prenotazione**: per i clienti che chiamano o scrivono, con gli stessi campi del form; nasce già confermata e il cliente riceve l'email con il link personale. Il prezzo è precompilato con il calcolo e si può sostituire con la cifra concordata.
@@ -269,7 +279,17 @@ Queste operazioni si fanno dalla dashboard, raggiunta da `https://<indirizzo>/ad
 7. **Modifica**: dal popup di una prenotazione in attesa o confermata, "Modifica" riapre tutti i campi (dati del cliente, date, camera, ospiti, prezzo, note, lingua). Premendo "Salva" compare il riepilogo dei soli campi cambiati, con la spunta "Avvisa il cliente via email": la modifica viene salvata solo con "Conferma modifiche". Il prezzo resta quello registrato finché non cambiano date, camera o totale. L'importo già pagato resta registrato: se il nuovo totale è più alto la prenotazione torna "Acconto pagato" con il saldo da pagare (al saldo si preme di nuovo "Segna come pagata"); se è più basso resta "Pagata" e il popup mostra l'importo da rimborsare. Il riepilogo prima della conferma mostra queste conseguenze; l'email al cliente riporta l'importo già pagato e l'eventuale saldo, non il rimborso.
 8. **Esporta CSV**: sotto "Nuova prenotazione", scarica un file per Excel con i soggiorni che toccano l'intervallo di date scelto (confermati, rifiutati e annullati; non quelli in attesa), una riga per soggiorno: check-in, check-out, nome, cognome, email, telefono, tipologia, adulti, bambini, prezzo totale concordato, cifra pagata, stato del pagamento e stato della prenotazione. La "cifra pagata" è quanto registrato con "Registra acconto" o "Segna come pagata"; resta vuota se la prenotazione non aveva un prezzo quando è stata segnata pagata. I telefoni con prefisso `+` compaiono preceduti da un apostrofo (protezione dalle formule di Excel).
 
-Informativa privacy: la pagina `https://<indirizzo>/<slug>/privacy` riporta titolare, indirizzo, email di contatto e giorni di conservazione presi dal direttorio (passo 4): controlla che compaiano i dati giusti; il form rimanda a quella pagina. Il testo è in italiano; se il sito si rivolge a clienti stranieri serve una versione inglese, da aggiungere in `public/privacy.html`.
+Informativa privacy: la pagina `https://<indirizzo>/<slug>/privacy` riporta titolare, indirizzo, email di contatto e giorni di conservazione presi dal direttorio (passo 4) e il gestore del servizio come responsabile del trattamento (vars `PROCESSOR_*`): controlla che compaiano i dati giusti; il form e le email rimandano a quella pagina. È in italiano e in inglese e segue la lingua scelta dal cliente.
+
+Condizioni di prenotazione: il cliente le deve poter leggere prima di inviare la richiesta e le ritrova nell'email di conferma (Codice del consumo, art. 49 e 51). Se la struttura le ha già sul proprio sito basta `--conditions-url` al passo 4; altrimenti il servizio ospita la pagina `https://<indirizzo>/<slug>/conditions`, con l'identità della struttura, l'avvertenza che per alloggio e ristorazione con data fissa non c'è diritto di recesso e il testo della struttura (acconti, pagamenti, cancellazioni, orari), da scrivere nel direttorio, paragrafi separati da una riga vuota:
+
+```
+npx wrangler d1 execute booking-directory --remote --command "UPDATE tenants SET conditions_text = 'Acconto del 30% alla conferma.
+
+Cancellazione gratuita fino a 7 giorni prima dell''arrivo; oltre, trattenuto l''acconto.' WHERE slug = 'hotel-rossi'"
+```
+
+Finché il testo manca, la pagina lo dice e rimanda ai recapiti della struttura. Le note legali del servizio (chi lo gestisce) stanno alla radice, `https://<indirizzo>/legal`, linkata dalla pagina di accesso dei gestori.
 
 Ristoranti e impianti sportivi hanno la stessa dashboard con sezioni diverse: niente Camere e Prezzi; l'impianto ha la sezione Società (le organizzazioni che prenotano, con il loro link personale) al posto del form pubblico.
 
@@ -296,6 +316,7 @@ Ristoranti e impianti sportivi hanno la stessa dashboard con sezioni diverse: ni
 | Sospendere una struttura (tutti i suoi indirizzi rispondono 404, i dati restano) | `UPDATE tenants SET status = 'suspended' WHERE slug = '...'`; `'active'` per riattivarla |
 | Aggiornare il codice | `npm run migrate:remote` se ci sono nuove migrazioni (le applica a tutti i database), poi `npm run deploy` |
 | Backup di una struttura | `npx wrangler d1 export booking-<slug> --remote --output backup-<slug>-AAAAMMGG.sql` (il file contiene dati personali: non committarlo); il direttorio con `booking-directory` |
+| Chiudere una struttura a fine contratto | `npm run tenant:remove -- <slug> --remote --yes`: esporta il database (la copia da consegnare alla struttura), cancella utenti e riga dal direttorio, cancella il database e il binding, scrive `removal-<slug>-<data>.txt` da allegare all'attestazione di cancellazione; poi `npm run deploy`. Senza `--yes` mostra solo il piano; `--keep-database` per un periodo di preavviso |
 | Vedere i log in tempo reale | `npx wrangler tail` |
 | Gestore che ha dimenticato la password, o account bloccato | `npm run tenant:password -- <username> --remote`: nuova password stampata una volta, account sbloccato, sessioni chiuse |
 | Invalidare tutte le sessioni di tutte le strutture | `npx wrangler secret put ADMIN_SECRET` con un nuovo valore |

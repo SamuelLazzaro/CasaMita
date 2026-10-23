@@ -3,8 +3,9 @@
  *
  *   npm run tenant:add -- <slug> --type hotel --name "Hotel Rossi" --username rossi --remote
  *
- * 1. creates the venue's D1 database on Cloudflare (`wrangler d1 create`;
- *    with --local no database is created, wrangler dev makes it on first use),
+ * 1. creates the venue's D1 database on Cloudflare (`wrangler d1 create`
+ *    with the Western Europe location hint, see D1_LOCATION_HINT; with
+ *    --local no database is created, wrangler dev makes it on first use),
  * 2. adds its binding to wrangler.jsonc (comments preserved),
  * 3. applies the booking migrations to it,
  * 4. writes the tenant row and its first user in the directory, with a
@@ -13,7 +14,9 @@
  *
  * Options: --type hotel|facility|restaurant, --name, --username (required);
  * --lang it|en, --email-sender, --email-admin, --retention-days, --embed-origin,
- * --privacy-controller, --privacy-address, --privacy-email (optional);
+ * --privacy-controller, --privacy-address, --privacy-email, --accent #rrggbb,
+ * --phone, --vat, --conditions-url (optional; the conditions text is set
+ * afterwards with `wrangler d1 execute`, see the README);
  * --local | --remote (one is required); --allow-many-databases (Paid plan:
  * skips the Free plan check of 10 databases per account).
  */
@@ -21,6 +24,15 @@ import { readFileSync } from 'node:fs';
 import { BOOKING_TYPES, bindingOf, configuredIterations, databaseNameOf, DIRECTORY_DATABASE, fail, FREE_PLAN_MAX_DATABASES, generatePassword, hashPassword, insertDatabaseEntry, isValidSlug, parseArgs, querySql, readWranglerConfig, runWrangler, sqlString, targetFlag, USERNAME_RE, WRANGLER_CONFIG, writeWranglerConfig } from './lib.mjs';
 
 const FLAGS = new Set(['local', 'remote', 'allow-many-databases']);
+
+/*
+ * Location hint of the new databases: Western Europe, so the guests' data
+ * stay in the EU as the privacy notice and the contract with the venue
+ * declare. D1 treats it as a preference, not a guarantee, and the location
+ * cannot be changed once the database exists.
+ * https://developers.cloudflare.com/d1/configuration/data-location/
+ */
+const D1_LOCATION_HINT = 'weur';
 
 let args;
 try {
@@ -39,6 +51,12 @@ const lang = args.options.lang ?? 'it';
 if (!['it', 'en'].includes(lang)) fail('--lang must be it or en');
 const retentionDays = Number(args.options['retention-days'] ?? 90);
 if (!Number.isInteger(retentionDays) || retentionDays < 0) fail('--retention-days must be a non-negative integer');
+// The accent colour: six hex digits with a leading hash, stored lowercase (src/config.ts applies the same rule when reading).
+const accent = args.options.accent === undefined ? null : args.options.accent.trim().toLowerCase();
+if (accent !== null && !/^#[0-9a-f]{6}$/.test(accent)) fail('--accent must be a hex colour like #237a87');
+// The venue's own booking conditions page, if it has one: a complete http(s) address.
+const conditionsUrl = args.options['conditions-url'] ?? null;
+if (conditionsUrl !== null && !/^https?:\/\/\S+$/.test(conditionsUrl)) fail('--conditions-url must be a complete address starting with https:// or http://');
 
 let target;
 try {
@@ -64,7 +82,7 @@ if (usernameTaken.length > 0) fail(`the directory already has a user "${username
 let databaseId;
 if (target === '--remote') {
     console.log(`Creating the D1 database ${databaseName}...`);
-    const output = runWrangler(['d1', 'create', databaseName], { capture: true });
+    const output = runWrangler(['d1', 'create', databaseName, '--location', D1_LOCATION_HINT], { capture: true });
     const idMatch = /"database_id":\s*"([0-9a-f-]{36})"/.exec(output);
     if (idMatch === null) fail(`could not read the database id from the answer of wrangler d1 create:\n${output}`);
     databaseId = idMatch[1];
@@ -87,7 +105,7 @@ runWrangler(['d1', 'migrations', 'apply', databaseName, target]);
 const password = generatePassword();
 const passwordHash = await hashPassword(password, await configuredIterations(config));
 const options = args.options;
-const tenantSql = `INSERT INTO tenants (slug, binding, type, name, default_lang, email_sender, email_admin, retention_days, embed_origin, privacy_controller, privacy_address, privacy_email) VALUES (${sqlString(slug)}, ${sqlString(binding)}, ${sqlString(type)}, ${sqlString(name.trim())}, ${sqlString(lang)}, ${sqlString(options['email-sender'])}, ${sqlString(options['email-admin'])}, ${retentionDays}, ${sqlString(options['embed-origin'])}, ${sqlString(options['privacy-controller'])}, ${sqlString(options['privacy-address'])}, ${sqlString(options['privacy-email'])})`;
+const tenantSql = `INSERT INTO tenants (slug, binding, type, name, default_lang, email_sender, email_admin, retention_days, embed_origin, privacy_controller, privacy_address, privacy_email, accent, phone, vat_number, conditions_url) VALUES (${sqlString(slug)}, ${sqlString(binding)}, ${sqlString(type)}, ${sqlString(name.trim())}, ${sqlString(lang)}, ${sqlString(options['email-sender'])}, ${sqlString(options['email-admin'])}, ${retentionDays}, ${sqlString(options['embed-origin'])}, ${sqlString(options['privacy-controller'])}, ${sqlString(options['privacy-address'])}, ${sqlString(options['privacy-email'])}, ${sqlString(accent)}, ${sqlString(options.phone)}, ${sqlString(options.vat)}, ${sqlString(conditionsUrl)})`;
 const userSql = `INSERT INTO users (tenant_slug, username, password_hash) VALUES (${sqlString(slug)}, ${sqlString(username)}, ${sqlString(passwordHash)})`;
 querySql(DIRECTORY_DATABASE, target, `${tenantSql}; ${userSql}`);
 

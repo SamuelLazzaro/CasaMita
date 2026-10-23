@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Condizioni di prenotazione</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/conditions.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div>
+                <h1 data-i18n="conditions.title">Condizioni di prenotazione</h1>
+                <p class="subtitle" id="venue-name">Sistema di prenotazione</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!--
+            Pre-contractual information of the venue (Codice del consumo,
+            art. 49 and 51; d.lgs. 70/2003, art. 7). The identity comes from
+            the directory row (privacy_controller, privacy_address, phone,
+            email_admin, vat_number) and the text from conditions_text, both
+            written in by js/conditions.js. Italian and English blocks: the
+            one of the current language shows (data-lang, base.css).
+        -->
+        <section class="panel prose">
+            <div data-lang="it">
+                <h2>La struttura</h2>
+                <p><span class="legal-name">[RAGIONE SOCIALE]</span>, <span class="legal-address">[INDIRIZZO]</span>, telefono <span class="legal-phone">[TELEFONO]</span>, email <span class="legal-email">[EMAIL]</span>, partita IVA <span class="legal-vat">[PARTITA IVA]</span>. Eventuali reclami vanno inviati agli stessi recapiti.</p>
+
+                <h2>Come funziona la richiesta</h2>
+                <p>Il modulo invia una richiesta di prenotazione: non è vincolante finché la struttura non la conferma con un'email. Solo con la conferma nasce il contratto, alle condizioni riportate in questa pagina e nell'email stessa. Il prezzo mostrato nel modulo e nelle email è il totale comprensivo delle imposte; per gli hotel la tassa di soggiorno, se dovuta, si paga in struttura.</p>
+
+                <h2>Condizioni della struttura</h2>
+                <p class="prose-text conditions-text" hidden></p>
+                <p class="muted conditions-missing">La struttura non ha ancora pubblicato le proprie condizioni (acconti, pagamenti, cancellazioni): per informazioni usa i recapiti sopra.</p>
+
+                <h2>Diritto di recesso</h2>
+                <p>Per le prenotazioni di alloggio e di ristorazione con una data o un periodo specifici non esiste il diritto di recesso previsto per i contratti a distanza (Codice del consumo, art. 59, comma 1, lettera n). Valgono le condizioni di cancellazione della struttura riportate sopra; una richiesta ancora in attesa di conferma si può ritirare in qualsiasi momento dal link personale ricevuto via email.</p>
+            </div>
+
+            <div data-lang="en">
+                <h2>The venue</h2>
+                <p><span class="legal-name">[COMPANY NAME]</span>, <span class="legal-address">[ADDRESS]</span>, phone <span class="legal-phone">[PHONE]</span>, email <span class="legal-email">[EMAIL]</span>, VAT number <span class="legal-vat">[VAT NUMBER]</span>. Complaints go to the same contacts.</p>
+
+                <h2>How a request works</h2>
+                <p>The form sends a booking request: it is not binding until the venue confirms it by email. The contract arises only with that confirmation, under the conditions on this page and in the email itself. The price shown in the form and in the emails is the total including taxes; for hotels the tourist tax, where due, is paid at the venue.</p>
+
+                <h2>Conditions of the venue</h2>
+                <p class="prose-text conditions-text" hidden></p>
+                <p class="muted conditions-missing">The venue has not published its conditions yet (deposits, payments, cancellations): use the contacts above for information.</p>
+
+                <h2>Right of withdrawal</h2>
+                <p>Bookings of accommodation and catering for a specific date or period carry no right of withdrawal under the distance-contract rules (Italian Consumer Code, art. 59, par. 1, letter n). The cancellation conditions of the venue above apply; a request still awaiting confirmation can be withdrawn at any time from the personal link received by email.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p><a href="/privacy.html" data-tenant-href="/privacy" data-i18n="common.privacy">Informativa privacy</a> · <a href="/" data-tenant-href="/" data-i18n="common.backToForm">Torna alla prenotazione</a></p>
+    </footer>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, TenantEnv } from './types';
 import { embedOriginOf, venueConfigOf } from './config';
-import { anonymiseExpiredRequests } from './retention';
+import { anonymiseExpiredRequests, purgeSecurityTables } from './retention';
 import { admin } from './routes/admin';
 import { page, publicRoutes } from './routes/public';
 import { requester } from './routes/requester';
@@ -42,6 +42,22 @@ app.use('*', async (c, next) => {
 app.get('/api/health', (c) => c.json({ ok: true }));
 app.route('/api/admin', session);
 
+/** Who runs the deployment, for the root legal page (legal.html): d.lgs. 70/2003 art. 7. */
+app.get('/api/legal', (c) => c.json({ name: c.env.PROCESSOR_NAME ?? '', address: c.env.PROCESSOR_ADDRESS ?? '', email: c.env.PROCESSOR_EMAIL ?? '', vat: c.env.PROCESSOR_VAT ?? '' }));
+
+/**
+ * RFC 9116: where to report a vulnerability. Built from the deployment's
+ * contact so the template ships no address; Expires is rolling (one year),
+ * which the RFC allows for a generated file.
+ */
+app.get('/.well-known/security.txt', (c) => {
+    const email = c.env.PROCESSOR_EMAIL;
+    if (!email) return c.text('not found', 404);
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const canonical = `${new URL(c.req.url).origin}/.well-known/security.txt`;
+    return c.text(`Contact: mailto:${email}\nExpires: ${expires}\nPreferred-Languages: it, en\nCanonical: ${canonical}\n`);
+});
+
 // Everything else belongs to one venue (resolveTenant runs once per request: the
 // second registration only covers the paths the first pattern does not).
 app.use('/:slug', resolveTenant());
@@ -58,11 +74,22 @@ app.onError((error, c) => {
     return c.json({ error: 'internal' }, 500);
 });
 
-/** Daily data retention job, one venue after the other; a failing venue does not stop the next. */
+/**
+ * Daily data retention job: the security tables of the directory, then, one
+ * venue after the other, the guests' data past the retention and the venue's
+ * own security tables. A failing database does not stop the next.
+ */
 export async function runRetention(env: Bindings, now: Date): Promise<void> {
+    try {
+        await purgeSecurityTables(env.DIRECTORY);
+    } catch (error) {
+        console.error('retention: directory housekeeping failed', error);
+    }
     for (const tenant of await activeTenants(env.DIRECTORY)) {
         try {
-            await anonymiseExpiredRequests(tenantDatabase(env, tenant), venueConfigOf(tenant), now);
+            const db = tenantDatabase(env, tenant);
+            await anonymiseExpiredRequests(db, venueConfigOf(tenant), now);
+            await purgeSecurityTables(db);
         } catch (error) {
             console.error(`retention: tenant "${tenant.slug}" failed`, error);
         }

@@ -1,5 +1,5 @@
 {
-    "name": "booking-casamita",
+    "name": "booking",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -14,7 +14,8 @@
         "migrate:remote": "node scripts/migrate-all.mjs --remote",
         "migrate:all": "node scripts/migrate-all.mjs",
         "tenant:add": "node scripts/tenant-add.mjs",
-        "tenant:password": "node scripts/tenant-password.mjs"
+        "tenant:password": "node scripts/tenant-password.mjs",
+        "tenant:remove": "node scripts/tenant-remove.mjs"
     },
     "dependencies": {
         "hono": "^4.6.0"

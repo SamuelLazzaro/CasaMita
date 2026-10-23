@@ -43,6 +43,12 @@
     font-size: 1.05rem;
 }
 
+/* Text typed by a venue (booking conditions): the line breaks and the blank
+   lines between paragraphs are the only formatting it has. */
+.prose-text {
+    white-space: pre-line;
+}
+
 /* ----------------------------------------------------------------- forms */
 
 .form {

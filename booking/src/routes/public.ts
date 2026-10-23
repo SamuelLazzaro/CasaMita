@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { BookingType, RequestRow, TenantEnv } from '../types';
 import { COOKIE_REQUESTER, createSession, hashToken, REQUESTER_SESSION_S, writeSessionCookie } from '../auth';
-import { embedOriginOf } from '../config';
+import { embedOriginOf, httpUrlOf } from '../config';
 import { romeNow } from '../dates';
 import { notifyCancelledByGuest, notifyRequestSubmitted } from '../notifications';
 import { attemptAllowed } from '../ratelimit';
@@ -45,15 +45,20 @@ publicRoutes.get('/', (c) => page(c, '/index.html'));
 publicRoutes.get('/admin', (c) => page(c, '/admin.html'));
 publicRoutes.get('/area', (c) => page(c, '/area.html'));
 publicRoutes.get('/privacy', (c) => page(c, '/privacy.html'));
+publicRoutes.get('/conditions', (c) => page(c, '/conditions.html'));
 
 /**
- * Configuration subset the frontend needs: the form to render, and the data
- * controller the privacy notice names (art. 13 GDPR), per venue.
+ * Configuration subset the frontend needs: the form to render, the accent
+ * colour, the data controller the privacy notice names (art. 13 GDPR), the
+ * processor running the deployment, and the identity and booking conditions
+ * the consumer must see (Codice del consumo art. 49), per venue.
  */
 publicRoutes.get('/api/config', (c) => {
     const { tenant, venue } = c.var;
     const privacy = { controller: tenant.privacy_controller ?? '', address: tenant.privacy_address ?? '', email: tenant.privacy_email ?? tenant.email_admin ?? '', retentionDays: venue.retentionDays, since: tenant.created_at.slice(0, 10) };
-    return c.json({ slug: tenant.slug, type: venue.type, name: venue.name, defaultLang: venue.defaultLang, facility: venue.facility, restaurant: venue.restaurant, privacy });
+    const legal = { name: tenant.privacy_controller ?? '', address: tenant.privacy_address ?? '', phone: tenant.phone ?? '', email: tenant.email_admin ?? '', vat: tenant.vat_number ?? '', conditionsUrl: httpUrlOf(tenant.conditions_url), conditionsText: tenant.conditions_text ?? '' };
+    const processor = { name: c.env.PROCESSOR_NAME ?? '', email: c.env.PROCESSOR_EMAIL ?? '' };
+    return c.json({ slug: tenant.slug, type: venue.type, name: venue.name, defaultLang: venue.defaultLang, accent: venue.accent, facility: venue.facility, restaurant: venue.restaurant, privacy, legal, processor });
 });
 
 /** Hotel: rooms left per type for a stay. Public, so guests see availability before asking. */

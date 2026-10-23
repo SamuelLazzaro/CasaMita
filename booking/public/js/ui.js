@@ -17,6 +17,36 @@ export function applyTenantLinks() {
 }
 
 /**
+ * Points the booking-conditions links at the venue's own page when the
+ * directory has one (conditions_url), opened in a new tab; otherwise they
+ * keep the hosted page applyTenantLinks gave them (/<slug>/conditions).
+ * @param {{legal?: {conditionsUrl: string|null}}} config - GET /api/config
+ * @returns {void}
+ */
+export function applyConditionsLinks(config) {
+    const externalUrl = config.legal?.conditionsUrl ?? null;
+    if (externalUrl === null) return;
+    for (const link of document.querySelectorAll('a[data-conditions-link]')) {
+        link.href = externalUrl;
+        link.target = '_blank';
+        link.rel = 'noopener';
+    }
+}
+
+/**
+ * Writes a value into every element of a class, but only when the venue
+ * provided one, so an empty column keeps the placeholder visible. Classes
+ * rather than ids: the bilingual pages repeat each span once per language.
+ * @param {string} className
+ * @param {string} value
+ * @returns {void}
+ */
+export function fillAll(className, value) {
+    if (value === '') return;
+    for (const element of document.getElementsByClassName(className)) element.textContent = value;
+}
+
+/**
  * Shows a status message; kind 'ok' and 'error' color it, anything else is neutral.
  * @param {HTMLElement} element - the role="status" paragraph
  * @param {string} message - already translated text
@@ -71,11 +101,25 @@ export function fillSelect(select, options, selectedValue = '') {
 
 /**
  * Applies the venue to the page: accent theme and name in the header.
- * @param {{type: string, name: string}} config
+ *
+ * The palette of the booking type comes from data-booking-type (base.css).
+ * A venue with its own colour in the directory overrides it: the hex value
+ * goes into the --accent custom property of <html> and data-accent tells the
+ * CSS to derive the darker and lighter variants from it.
+ * @param {{type: string, name: string, accent?: string|null}} config
  * @returns {void}
  */
 export function applyVenue(config) {
-    document.documentElement.dataset.bookingType = config.type;
+    const root = document.documentElement;
+    root.dataset.bookingType = config.type;
+    const hasOwnAccent = typeof config.accent === 'string' && config.accent !== '';
+    if (hasOwnAccent) {
+        root.style.setProperty('--accent', config.accent);
+        root.dataset.accent = '';
+    } else {
+        root.style.removeProperty('--accent');
+        delete root.dataset.accent;
+    }
     const venueName = document.getElementById('venue-name');
     if (venueName !== null) venueName.textContent = config.name;
 }

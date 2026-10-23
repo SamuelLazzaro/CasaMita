@@ -1,5 +1,7 @@
+import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { venueConfigOf } from '../src/config';
+import { app } from '../src/index';
 import { daysAhead, dbOf, FACILITY, get, HOTEL, hotelBody, postJson, RESTAURANT, ROOM_A, setStatus, setTenant, today, tokenOf, UNKNOWN_ROOM } from './helpers';
 
 describe('GET /:slug/api/config', () => {
@@ -26,15 +28,51 @@ describe('GET /:slug/api/config', () => {
         }
     });
 
+    it('exposes the identity, the booking conditions and the processor the guest must be told about', async () => {
+        type Legal = { legal: { name: string; address: string; phone: string; email: string; vat: string; conditionsUrl: string | null; conditionsText: string }; processor: { name: string; email: string } };
+        const before = (await (await get('/api/config')).json()) as Legal;
+        expect(before.legal).toEqual({ name: '', address: '', phone: '', email: 'owner@example.com', vat: '', conditionsUrl: null, conditionsText: '' });
+        expect(before.processor).toEqual({ name: 'Test Provider', email: 'security@provider.example' });
+        await setTenant(HOTEL, { privacy_controller: 'Hotel Test S.r.l.', privacy_address: 'Via Roma 1, Milano', phone: '+39 02 1234567', vat_number: 'IT01234567890', conditions_url: 'https://www.hotel-test.example/condizioni', conditions_text: 'Acconto 30%.\n\nCancellazione gratuita fino a 7 giorni prima.' });
+        try {
+            const config = (await (await get('/api/config')).json()) as Legal;
+            expect(config.legal).toMatchObject({ name: 'Hotel Test S.r.l.', address: 'Via Roma 1, Milano', phone: '+39 02 1234567', vat: 'IT01234567890', conditionsUrl: 'https://www.hotel-test.example/condizioni' });
+            expect(config.legal.conditionsText).toContain('Acconto 30%.');
+            // A malformed address is not a link: the hosted page applies.
+            await setTenant(HOTEL, { conditions_url: 'condizioni.pdf' });
+            expect(((await (await get('/api/config')).json()) as Legal).legal.conditionsUrl).toBeNull();
+        } finally {
+            await setTenant(HOTEL, { privacy_controller: null, privacy_address: null, phone: null, vat_number: null, conditions_url: null, conditions_text: null });
+        }
+    });
+
+    it('exposes the accent colour of the venue, lowercase, and null without one', async () => {
+        const before = (await (await get('/api/config')).json()) as { accent: string | null };
+        expect(before.accent).toBeNull();
+        await setTenant(HOTEL, { accent: ' #237A87 ' });
+        try {
+            const config = (await (await get('/api/config')).json()) as { accent: string | null };
+            expect(config.accent).toBe('#237a87');
+        } finally {
+            await setTenant(HOTEL, { accent: null });
+        }
+    });
+
     it('falls back to safe defaults on malformed settings', () => {
-        const config = venueConfigOf({ type: 'spa', name: '', default_lang: 'fr', facility_open: null, facility_close: null, lunch_open: '25:00', lunch_close: '14:00', dinner_open: null, dinner_close: null, retention_days: -5 });
+        const config = venueConfigOf({ type: 'spa', name: '', default_lang: 'fr', facility_open: null, facility_close: null, lunch_open: '25:00', lunch_close: '14:00', dinner_open: null, dinner_close: null, retention_days: -5, accent: 'teal' });
         expect(config.type).toBe('hotel');
         expect(config.name).toBe('Booking');
         expect(config.defaultLang).toBe('it');
         expect(config.restaurant.lunch.open).toBe('12:00');
         expect(config.retentionDays).toBe(90);
+        // Only '#rrggbb' is a colour: a name, a short form or a value with alpha are ignored.
+        expect(config.accent).toBeNull();
+        expect(venueConfigOf({ ...MALFORMED_SETTINGS, accent: '#fff' }).accent).toBeNull();
+        expect(venueConfigOf({ ...MALFORMED_SETTINGS, accent: '#237a87ff' }).accent).toBeNull();
     });
 });
+
+const MALFORMED_SETTINGS = { type: 'spa', name: '', default_lang: 'fr', facility_open: null, facility_close: null, lunch_open: '25:00', lunch_close: '14:00', dinner_open: null, dinner_close: null, retention_days: -5, accent: null };
 
 describe('venue resolution', () => {
     it('answers 404 for unknown, malformed, reserved and suspended slugs', async () => {
@@ -51,8 +89,23 @@ describe('venue resolution', () => {
         expect((await get('/api/config', RESTAURANT)).status).toBe(200);
     });
 
+    it('serves the root legal page data and security.txt from the deployment identity', async () => {
+        const legal = await app.request('/api/legal', {}, env);
+        expect(legal.status).toBe(200);
+        expect(await legal.json()).toEqual({ name: 'Test Provider', address: 'Via Test 1, Milano', email: 'security@provider.example', vat: 'IT00000000000' });
+        const security = await app.request('https://book.example.com/.well-known/security.txt', {}, env);
+        expect(security.status).toBe(200);
+        const body = await security.text();
+        expect(body).toContain('Contact: mailto:security@provider.example');
+        expect(body).toContain('Canonical: https://book.example.com/.well-known/security.txt');
+        expect(body).toMatch(/Expires: \d{4}-\d{2}-\d{2}T/);
+        // Root words are not venues.
+        expect((await get('/api/config', 'legal')).status).toBe(404);
+        expect((await get('/api/config', 'privacy')).status).toBe(404);
+    });
+
     it('serves the pages of the venue under its prefix', async () => {
-        for (const path of ['', '/', '/admin', '/area', '/privacy']) {
+        for (const path of ['', '/', '/admin', '/area', '/privacy', '/conditions']) {
             const response = await get(path);
             expect(response.status, path).toBe(200);
             expect(response.headers.get('content-type'), path).toContain('text/html');

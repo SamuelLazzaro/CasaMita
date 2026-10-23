@@ -51,6 +51,17 @@ su D1 reale. Pensato per il piano gratuito di Workers.
       per struttura) e la fase 3 (script `tenant:add`, `tenant:password`,
       `migrate:all`) e la fase 4 (guida di installazione riscritta per il
       modello multi-cliente).
+- [ ] Iterazione 5, da fare in futuro (decisioni del 23 ottobre 2026): questo
+      modulo resta il modello neutro, senza ID di database né nomi di clienti;
+      il deploy che serve tutte le strutture (un solo Worker, nome `booking`,
+      account Cloudflare del fornitore, piano Free finché bastano i database)
+      va spostato in un repo privato a parte, togliendo `booking/` dal repo del
+      sito del primo cliente; uno script `sync-deploy` copierà i file del
+      modulo nel repo di deploy escludendo `wrangler.jsonc`, `.dev.vars`,
+      `node_modules` e `.wrangler`. Ogni personalizzazione chiesta da un
+      cliente diventa un'opzione per struttura nel direttorio, mai codice
+      dedicato. Le modifiche richieste dal contratto con le strutture sono
+      elencate in `docs/adempimenti-normativi-web.docx`, sezione 7.
 
 ## Struttura
 
@@ -78,9 +89,11 @@ booking/
 │   ├── index.html        # form pubblico (hotel / ristorante; avviso per facility)
 │   ├── booking.html      # pagina personale del cliente (/booking/<token>)
 │   ├── admin.html        # dashboard del gestore
-│   ├── privacy.html      # informativa art. 13 GDPR (template da compilare)
-│   ├── css/              # base / layout / components / password-toggle / phone-input / dashboard / main (@import)
-│   └── js/               # constants / translations / i18n / utils / tenant / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / phone-input + phone-countries / main / booking / admin / area / privacy
+│   ├── privacy.html      # informativa art. 13 GDPR, it/en (titolare e responsabile dal direttorio e dalle vars)
+│   ├── conditions.html   # condizioni di prenotazione della struttura, it/en (identità, testo, esclusione del recesso)
+│   ├── legal.html        # note legali del deploy alla radice (/legal): chi gestisce il servizio, dati di sicurezza
+│   ├── css/              # base / layout / components / password-toggle / phone-input / dialog / dashboard / main (@import)
+│   └── js/               # constants / translations / i18n / utils / tenant / api / ui / form-* / calendar-* / slot-calendar / add-shortcut / password-toggle / phone-input + phone-countries / dialog / main / booking / admin / area / privacy
 └── test/                 # vitest + @cloudflare/vitest-pool-workers
 ```
 
@@ -105,22 +118,37 @@ usano `src/password.ts` per l'hash, lo stesso codice del Worker.
 ```bash
 npm run tenant:add -- hotel-rossi --type hotel --name "Hotel Rossi" --username rossi --remote
 npm run tenant:password -- rossi --remote
+npm run tenant:remove -- hotel-rossi --remote --yes
 npm run migrate:all -- --remote
 npm run test:scripts
 ```
 
 - `tenant:add <slug> --type --name --username`: crea il database D1 della
-  struttura (`booking-<slug>`; con `--local` non crea nulla, lo fa `wrangler
+  struttura (`booking-<slug>`, con sede richiesta in Europa occidentale,
+  `--location weur`; con `--local` non crea nulla, lo fa `wrangler
   dev` al primo uso), aggiunge il binding `DB_<SLUG>` a `wrangler.jsonc`
   conservando i commenti, applica le migrazioni, scrive la riga di `tenants`
   e il primo utente con una password generata (20 caratteri, stampata una
   sola volta). Opzioni: `--lang`, `--email-sender`, `--email-admin`,
   `--retention-days`, `--embed-origin`, `--privacy-controller`,
-  `--privacy-address`, `--privacy-email`. Con `--remote` rifiuta di superare
+  `--privacy-address`, `--privacy-email`, `--accent` (colore `#rrggbb`),
+  `--phone`, `--vat`, `--conditions-url`. Il testo delle condizioni ospitate
+  si scrive dopo: `npx wrangler d1 execute booking-directory --remote
+  --command "UPDATE tenants SET conditions_text = '...' WHERE slug = '...'"`.
+  Con `--remote` rifiuta di superare
   i 10 database del piano Free, salvo `--allow-many-databases`. Poi
   `npm run deploy`: il binding nuovo è attivo solo da lì.
 - `tenant:password <username>`: nuova password generata, sblocco
   dell'account, fine di tutte le sessioni dell'utente.
+- `tenant:remove <slug> --yes`: chiusura di una struttura a fine contratto,
+  nell'ordine promesso dall'accordo sul trattamento (restituzione, poi
+  cancellazione): esporta il database in `backup-<slug>-<data>.sql` (la copia
+  da consegnare alla struttura, contiene dati personali: non committarla),
+  cancella utenti e riga dal direttorio, cancella il database D1 e toglie il
+  binding da `wrangler.jsonc`, scrive `removal-<slug>-<data>.txt` con il
+  resoconto per l'attestazione scritta. Senza `--yes` mostra solo il piano;
+  `--keep-database` lascia database e binding (preavviso). Poi
+  `npm run deploy`.
 - `migrate:all`: applica le migrazioni in sospeso a tutti i database di
   `wrangler.jsonc` (direttorio compreso); `migrate:local` e `migrate:remote`
   sono scorciatoie.
@@ -157,12 +185,18 @@ Configurazione per struttura (colonne di `tenants`):
 | `retention_days` | giorni dopo la fine della prenotazione prima dell'anonimizzazione dei dati del cliente (`0` = mai) |
 | `embed_origin` | origine del sito della struttura autorizzata a incorporare il form (`NULL` = disabilitato) |
 | `privacy_controller`, `privacy_address`, `privacy_email` | titolare del trattamento mostrato nell'informativa (fase 2) |
+| `accent` | colore della struttura, `#rrggbb` (migrazione 0002 del direttorio): il JS lo scrive in `--accent` su `<html>` e `base.css` ne ricava le varianti scure e la tinta; `NULL` = palette della tipologia. Scegliere un colore abbastanza scuro per il testo bianco |
+| `phone`, `vat_number` | telefono e partita IVA della struttura (migrazione 0003): con `privacy_controller`, `privacy_address` ed `email_admin` formano l'identità mostrata nella pagina delle condizioni e nel piè di pagina delle email ai clienti (Codice del consumo art. 49 e 51.7; d.lgs. 70/2003 art. 7) |
+| `conditions_url`, `conditions_text` | condizioni di prenotazione: l'indirizzo della pagina sul sito della struttura, oppure il testo (paragrafi separati da riga vuota) mostrato in `/<slug>/conditions`. Il modulo le linka prima dell'invio e le email le riportano |
 | `status` | `active` o `suspended` |
 
 Variabili del deploy (`wrangler.jsonc`, chiave `vars`): `PASSWORD_HASH_ITERATIONS`
 (iterazioni PBKDF2 dei nuovi hash: `10000` sul piano Free, `600000` sul Paid;
-gli hash esistenti si aggiornano al login successivo) e `PASSWORD_BREACH_CHECK`
-(`off` salta il controllo Have I Been Pwned). Secret (mai nel file,
+gli hash esistenti si aggiornano al login successivo), `PASSWORD_BREACH_CHECK`
+(`off` salta il controllo Have I Been Pwned) e `PROCESSOR_NAME`,
+`PROCESSOR_ADDRESS`, `PROCESSOR_EMAIL`, `PROCESSOR_VAT` (chi gestisce il
+deploy: pagina `/legal`, responsabile del trattamento nelle informative,
+contatto di `security.txt`; informazioni pubbliche). Secret (mai nel file,
 `wrangler secret put`): `ADMIN_SECRET`, `BREVO_API_KEY`.
 
 I valori attuali rispettano i limiti del piano Workers **Free** (10 ms di
@@ -179,8 +213,10 @@ rinominarla aggiorna entrambi nello stesso batch; eliminarla è rifiutato (409
 confermata, di quella tipologia (va prima annullata), e cancella con sé i suoi
 periodi di prezzo. Ridurre il numero di camere sotto le prenotazioni confermate
 è permesso: la risposta riporta in `overbooked` le camere mancanti nella notte
-più piena e la dashboard lo segnala. La migrazione 0004 non crea tipologie:
-il database di una struttura nuova parte senza camere.
+più piena e la dashboard lo segnala. Un database nuovo parte senza tipologie:
+le crea il gestore. Solo su un'installazione aggiornata dal vecchio
+`rooms.csv` (che ha già prenotazioni, prezzi base o periodi) la migrazione
+0004 importa le sue quattro tipologie con i prezzi base già impostati.
 
 Una tipologia risulta occupata **solo** dalle prenotazioni approvate che si
 sovrappongono al soggiorno (check-out escluso). Il form pubblico mostra le
@@ -191,8 +227,9 @@ una tipologia esaurita.
 
 | Metodo e percorso | Descrizione |
 |---|---|
-| `GET /<slug>/`, `/<slug>/admin`, `/<slug>/area`, `/<slug>/privacy` | pagine della struttura (gli stessi file di `public/`) |
-| `GET /<slug>/api/config` | slug, tipologia, nome, lingua di default, finestre orarie |
+| `GET /<slug>/`, `/<slug>/admin`, `/<slug>/area`, `/<slug>/privacy`, `/<slug>/conditions` | pagine della struttura (gli stessi file di `public/`) |
+| `GET /<slug>/api/config` | slug, tipologia, nome, lingua di default, colore (`accent`, `null` se non impostato), finestre orarie, `privacy` (titolare per l'informativa), `legal` (identità, `conditionsUrl`, `conditionsText`), `processor` (chi gestisce il deploy) |
+| `GET /api/legal`, `GET /.well-known/security.txt` | alla radice, senza struttura: identità del gestore del deploy dalle vars `PROCESSOR_*` (pagina `/legal`) e contatto per le segnalazioni di sicurezza (RFC 9116); 404 senza `PROCESSOR_EMAIL` |
 | `GET /<slug>/api/availability?check_in&check_out` | hotel: camere rimaste per tipologia |
 | `POST /<slug>/api/requests` | invio richiesta (hotel, ristorante); campo honeypot `website`; 5 invii per IP ogni 10 minuti |
 | `GET /<slug>/booking/:token` | pagina personale del cliente |
@@ -212,7 +249,14 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
   lui destinata, mai nella copia al gestore.
 - Anonimizzazione automatica (cron giornaliero, struttura per struttura) dei
   dati identificativi dopo `retention_days` dalla fine della prenotazione,
-  art. 5.1.e GDPR.
+  art. 5.1.e GDPR. Lo stesso job elimina, nel direttorio e in ogni struttura,
+  i contatori anti-abuso scaduti (chiave per IP, dopo 24 ore) e le voci del
+  registro di audit più vecchie di 12 mesi (`src/retention.ts`,
+  `purgeSecurityTables`): gli IP dei tentativi di accesso non restano per
+  sempre.
+- I database D1 delle strutture (e il direttorio) vanno creati con
+  l'indicazione di sede `weur` (Europa occidentale), come fa `tenant:add`:
+  la sede non si cambia dopo la creazione.
 - Password degli utenti della dashboard: hash PBKDF2-HMAC-SHA256 con sale,
   numero di iterazioni salvato nell'hash e configurabile; politica OWASP
   (almeno 12 caratteri, nessuna regola di composizione, rifiuto delle
@@ -223,8 +267,17 @@ frontend traduce con le chiavi `error.<codice>` di `public/js/translations.js`.
   iterazioni invece delle 600.000 di OWASP (con 20.000 il login misurava
   9-10 ms di CPU, sul limite): deroga dichiarata, da chiudere alzando
   `PASSWORD_HASH_ITERATIONS` col piano Paid.
-- `public/privacy.html` è un template: compilare i segnaposto prima della
-  pubblicazione.
+- Informativa (`privacy.html`), condizioni di prenotazione (`conditions.html`)
+  e note legali (`legal.html`) sono bilingui: ogni blocco è scritto due volte
+  con `data-lang="it"` e `"en"`, `base.css` mostra quello della lingua della
+  pagina. Titolare, identità e responsabile arrivano dal direttorio e dalle
+  vars `PROCESSOR_*`: senza valori restano i segnaposto.
+- Il modulo chiede la presa visione dell'informativa, non un consenso: la
+  base giuridica è il contratto (art. 6.1.b GDPR). Prima dell'invio avverte
+  che la richiesta non vincola finché la struttura non la conferma e linka le
+  condizioni; le email ai clienti riportano identità della struttura e link
+  alle condizioni (Codice del consumo art. 49 e 51.7); `conditions.html`
+  dichiara l'esclusione del recesso (art. 59.1.n).
 
 ## Dashboard del gestore (`/admin`)
 
@@ -239,7 +292,12 @@ con password attuale, nuova e conferma (`js/tenant.js` ricava lo slug dal
 percorso, `api.js` lo antepone a ogni chiamata); il cambio chiude le altre
 sessioni dell'utente. I campi password hanno il bottone "mostra / nascondi" (copia del
 componente `components/password-toggle`, file `password-toggle.css` /
-`password-toggle.js`); al submit il campo torna nascosto. Sezioni:
+`password-toggle.js`); al submit il campo torna nascosto. Tutte le finestre
+della dashboard e dell'area società (prenotazione, dettagli, tipologia,
+prezzo del giorno, export, password, società, richiesta) usano il componente
+`components/dialog` (file `dialog.css` / `dialog.js`, `ui.js` ne crea
+un'istanza per `<dialog>` alla prima apertura): titolo e bottone ✕ restano
+fermi, scorre solo il corpo, che a ogni apertura riparte dall'alto. Sezioni:
 
 - **Calendario**: per l'hotel viste settimana e mese a celle giornaliere
   (un soggiorno non ha un orario); per ristorante e impianto anche la vista
@@ -461,3 +519,8 @@ passo per pubblicare il deploy (Cloudflare, Brevo) e registrare una
 struttura con `tenant:add` (hotel come esempio), incorporare il form nel suo
 sito, configurazione a carico del gestore, manutenzione, limiti dei piani
 gratuiti. `docs/piano-paid.md`: cosa cambia passando al piano Paid.
+`docs/contratto-servizio-e-nomina-responsabile.docx`: modello di contratto con
+la struttura (condizioni di servizio più accordo sul trattamento dei dati, art.
+28 GDPR, con allegati compilati sul modulo). `docs/adempimenti-normativi-web.docx`:
+cosa deve comparire nelle pagine, nel sito che incorpora il modulo e nel codice
+per GDPR, ePrivacy e Codice del consumo, con le modifiche ancora da fare.

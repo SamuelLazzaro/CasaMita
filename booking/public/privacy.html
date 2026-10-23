@@ -12,7 +12,7 @@
     <header class="site-header">
         <div class="site-header-inner">
             <div>
-                <h1>Informativa privacy</h1>
+                <h1 data-i18n="common.privacy">Informativa privacy</h1>
                 <p class="subtitle" id="venue-name">Sistema di prenotazione</p>
             </div>
         </div>
@@ -22,45 +22,94 @@
         <!--
             Privacy notice required by art. 13 GDPR (Reg. EU 2016/679). The
             data of the controller come from the venue's directory row
-            (privacy_controller, privacy_address, privacy_email, retention_days)
-            and are written into the spans below by js/privacy.js. Italian
-            only: an English version would be a second block or page.
+            (privacy_controller, privacy_address, privacy_email,
+            retention_days), the processor from the PROCESSOR_* vars of the
+            deployment: js/privacy.js writes them into the spans by class.
+            Italian and English blocks, one shows (data-lang, base.css).
         -->
         <section class="panel prose">
-            <h2>Titolare del trattamento</h2>
-            <p><span id="privacy-controller">[RAGIONE SOCIALE]</span>, <span id="privacy-address">[INDIRIZZO]</span>, email <span id="privacy-email">[EMAIL DI CONTATTO]</span>.</p>
+            <div data-lang="it">
+                <h2>Titolare del trattamento</h2>
+                <p><span class="privacy-controller">[RAGIONE SOCIALE]</span>, <span class="privacy-address">[INDIRIZZO]</span>, email <span class="privacy-email">[EMAIL DI CONTATTO]</span>.</p>
 
-            <h2>Dati trattati e finalità</h2>
-            <p>Per gestire la richiesta di prenotazione raccogliamo nome, cognome, email, numero di telefono, le date e i dettagli della prenotazione e le eventuali note che scrivi. I dati servono esclusivamente a valutare la richiesta, confermarla o rifiutarla, comunicare con te in merito e tenere traccia delle prenotazioni effettuate.</p>
+                <h2>Responsabile del trattamento</h2>
+                <p>Il sistema di prenotazione è gestito per conto del titolare da <span class="privacy-processor-name">[NOME DEL FORNITORE]</span>, email <span class="privacy-processor-email">[EMAIL DEL FORNITORE]</span>, responsabile del trattamento ai sensi dell'art. 28 GDPR, che si avvale dei fornitori elencati sotto.</p>
 
-            <h2>Base giuridica</h2>
-            <p>Il trattamento è necessario all'esecuzione di misure precontrattuali adottate su tua richiesta e all'esecuzione del contratto di prenotazione (art. 6, par. 1, lett. b, GDPR).</p>
+                <h2>Dati trattati e finalità</h2>
+                <p>Per gestire la richiesta di prenotazione raccogliamo nome, cognome, email, numero di telefono, le date e i dettagli della prenotazione e le eventuali note che scrivi; per gli hotel anche il prezzo del soggiorno e, se registrati dalla struttura, gli importi pagati. I dati servono esclusivamente a valutare la richiesta, confermarla o rifiutarla, comunicare con te in merito e tenere traccia delle prenotazioni effettuate.</p>
+                <p>Le note sono a testo libero: ti chiediamo di non inserirvi informazioni sulla salute o altre categorie particolari di dati, salvo quanto necessario alla prenotazione (per esempio un'allergia per un tavolo al ristorante). Quanto scrivi è usato solo per quella prenotazione.</p>
 
-            <h2>Conservazione</h2>
-            <p>I dati identificativi (nome, cognome, email, telefono, note) vengono cancellati automaticamente <span id="privacy-retention">[RETENTION_DAYS]</span> giorni dopo la fine della prenotazione, anche se rifiutata o annullata. Restano, in forma anonima, solo date e dettagli della prenotazione per finalità statistiche.</p>
+                <h2>Base giuridica</h2>
+                <p>Il trattamento è necessario all'esecuzione di misure precontrattuali adottate su tua richiesta e all'esecuzione del contratto di prenotazione (art. 6, par. 1, lett. b, GDPR). Non è richiesto un consenso.</p>
 
-            <h2>Destinatari</h2>
-            <ul>
-                <li><strong>Cloudflare, Inc.</strong>: hosting dell'applicazione e del database (data center nell'Unione europea e trasferimenti coperti dalle clausole contrattuali standard).</li>
-                <li><strong>Brevo (Sendinblue SAS, Francia)</strong>: invio delle email automatiche di riepilogo e di esito della prenotazione.</li>
-            </ul>
-            <p>I dati non vengono diffusi né ceduti ad altri soggetti.</p>
+                <h2>Conservazione</h2>
+                <p>I dati identificativi (nome, cognome, email, telefono, note) vengono cancellati automaticamente <span class="privacy-retention">[RETENTION_DAYS]</span> giorni dopo la fine della prenotazione, anche se rifiutata o annullata. Restano, in forma anonima, solo date e dettagli della prenotazione per finalità statistiche. Per la sicurezza del servizio l'indirizzo IP di chi invia il modulo resta in un contatore anti-abuso per 24 ore al massimo.</p>
 
-            <h2>Cookie e archiviazione locale</h2>
-            <p>Le pagine pubbliche non usano cookie. La lingua scelta viene salvata nel <em>localStorage</em> del browser (chiave <strong>booking-lang</strong>), senza alcun tracciamento. L'area riservata usa un cookie tecnico di sessione, strettamente necessario all'accesso.</p>
+                <h2>Destinatari e trasferimenti</h2>
+                <ul>
+                    <li><strong>Cloudflare, Inc.</strong> (Stati Uniti), sub-responsabile: esecuzione dell'applicazione e conservazione del database. Il database è creato con richiesta di sede in Europa occidentale; l'applicazione viene eseguita nel data center Cloudflare più vicino a chi la usa, anche fuori dall'Unione europea. I trasferimenti verso gli Stati Uniti si basano sulla decisione di adeguatezza della Commissione europea per il Data Privacy Framework UE-USA, a cui Cloudflare è certificata, e in subordine sulle clausole contrattuali tipo della Commissione; copia delle garanzie: <a href="https://www.cloudflare.com/cloudflare-customer-dpa/" target="_blank" rel="noopener">accordo sul trattamento dei dati di Cloudflare</a>.</li>
+                    <li><strong>Brevo SAS</strong> (Parigi, Francia), sub-responsabile: invio delle email automatiche di riepilogo e di esito della prenotazione. I dati sono conservati nell'Unione europea; alcuni fornitori di Brevo possono trattarli fuori dall'Unione sulla base delle clausole contrattuali tipo e del Data Privacy Framework.</li>
+                </ul>
+                <p>I dati non vengono diffusi né ceduti ad altri soggetti.</p>
 
-            <h2>I tuoi diritti</h2>
-            <p>Puoi chiedere l'accesso, la rettifica, la cancellazione, la limitazione del trattamento e la portabilità dei dati scrivendo a <span id="privacy-email-rights">[EMAIL DI CONTATTO]</span>. Hai inoltre il diritto di proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).</p>
+                <h2>Società e loro referenti (impianti sportivi)</h2>
+                <p>Se la struttura è un impianto sportivo, le prenotazioni sono richieste da società registrate dal gestore: della società trattiamo denominazione, email e telefono del referente e le prenotazioni, per la durata del rapporto con la struttura. Il link personale di accesso è riservato al referente.</p>
 
-            <h2>Natura del conferimento</h2>
-            <p>Il conferimento dei dati è facoltativo, ma senza di essi non è possibile gestire la richiesta di prenotazione.</p>
+                <h2>Cookie e archiviazione locale</h2>
+                <p>Le pagine pubbliche non usano cookie. La lingua scelta viene salvata nel <em>localStorage</em> del browser (chiave <strong>booking-lang</strong>), senza alcun tracciamento. L'area riservata usa un cookie tecnico di sessione, strettamente necessario all'accesso. Sono tutti strumenti tecnici: servono solo a erogare il servizio richiesto e non richiedono consenso.</p>
 
-            <p class="muted">Informativa in vigore dal <span id="privacy-since">[DATA]</span>.</p>
+                <h2>I tuoi diritti</h2>
+                <p>Puoi chiedere l'accesso, la rettifica, la cancellazione, la limitazione del trattamento e la portabilità dei dati scrivendo a <span class="privacy-email">[EMAIL DI CONTATTO]</span>. Hai inoltre il diritto di proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it).</p>
+
+                <h2>Natura del conferimento</h2>
+                <p>Il conferimento dei dati è un requisito necessario per la richiesta di prenotazione: senza di essi non è possibile gestirla.</p>
+
+                <p class="muted">Informativa in vigore dal <span class="privacy-since">[DATA]</span>.</p>
+            </div>
+
+            <div data-lang="en">
+                <h2>Data controller</h2>
+                <p><span class="privacy-controller">[COMPANY NAME]</span>, <span class="privacy-address">[ADDRESS]</span>, email <span class="privacy-email">[CONTACT EMAIL]</span>.</p>
+
+                <h2>Data processor</h2>
+                <p>The booking system is run on behalf of the controller by <span class="privacy-processor-name">[PROVIDER NAME]</span>, email <span class="privacy-processor-email">[PROVIDER EMAIL]</span>, data processor under art. 28 GDPR, who relies on the providers listed below.</p>
+
+                <h2>Data and purposes</h2>
+                <p>To handle your booking request we collect your first and last name, email, phone number, the dates and details of the booking and any notes you write; for hotels also the price of the stay and, when the venue records them, the amounts paid. The data serve only to assess the request, confirm or decline it, communicate with you about it and keep track of the bookings made.</p>
+                <p>The notes are free text: please do not write health information or other special categories of data there, beyond what the booking needs (for example an allergy for a restaurant table). What you write is used for that booking only.</p>
+
+                <h2>Legal basis</h2>
+                <p>The processing is necessary for pre-contractual steps taken at your request and for the performance of the booking contract (art. 6(1)(b) GDPR). No consent is required.</p>
+
+                <h2>Retention</h2>
+                <p>Identifying data (name, email, phone, notes) are deleted automatically <span class="privacy-retention">[RETENTION_DAYS]</span> days after the end of the booking, even if declined or cancelled. Only the dates and details of the booking remain, anonymised, for statistics. For the security of the service the IP address of whoever submits the form stays in an anti-abuse counter for at most 24 hours.</p>
+
+                <h2>Recipients and transfers</h2>
+                <ul>
+                    <li><strong>Cloudflare, Inc.</strong> (United States), sub-processor: runs the application and stores the database. The database is created with a Western Europe location request; the application runs in the Cloudflare data centre closest to the person using it, possibly outside the European Union. Transfers to the United States rely on the European Commission's adequacy decision for the EU-US Data Privacy Framework, under which Cloudflare is certified, and otherwise on the Commission's standard contractual clauses; copy of the safeguards: <a href="https://www.cloudflare.com/cloudflare-customer-dpa/" target="_blank" rel="noopener">Cloudflare data processing addendum</a>.</li>
+                    <li><strong>Brevo SAS</strong> (Paris, France), sub-processor: sends the automatic summary and outcome emails. Data are stored in the European Union; some of Brevo's providers may process them outside the Union under the standard contractual clauses and the Data Privacy Framework.</li>
+                </ul>
+                <p>The data are not disclosed or sold to anyone else.</p>
+
+                <h2>Organisations and their contacts (sports facilities)</h2>
+                <p>If the venue is a sports facility, bookings are requested by organisations registered by the venue: of the organisation we process its name, the email and phone of its contact person and its bookings, for the duration of the relationship with the venue. The personal access link is meant for the contact person only.</p>
+
+                <h2>Cookies and local storage</h2>
+                <p>The public pages use no cookies. The chosen language is saved in the browser's <em>localStorage</em> (key <strong>booking-lang</strong>), with no tracking. The reserved area uses a technical session cookie, strictly necessary for signing in. All of them are technical: they only deliver the requested service and need no consent.</p>
+
+                <h2>Your rights</h2>
+                <p>You can ask for access, rectification, erasure, restriction of processing and portability of your data by writing to <span class="privacy-email">[CONTACT EMAIL]</span>. You also have the right to lodge a complaint with the Italian data protection authority (www.garanteprivacy.it).</p>
+
+                <h2>Provision of data</h2>
+                <p>Providing the data is a requirement of the booking request: without them it cannot be handled.</p>
+
+                <p class="muted">Notice in force since <span class="privacy-since">[DATE]</span>.</p>
+            </div>
         </section>
     </main>
 
     <footer class="site-footer">
-        <p><a href="/" data-tenant-href="/">Torna alla prenotazione</a></p>
+        <p><a href="/conditions.html" data-tenant-href="/conditions" data-conditions-link data-i18n="common.conditions">Condizioni di prenotazione</a> · <a href="/" data-tenant-href="/" data-i18n="common.backToForm">Torna alla prenotazione</a></p>
     </footer>
 </body>
 </html>

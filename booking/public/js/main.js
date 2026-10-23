@@ -8,7 +8,7 @@ import { initRestaurantForm } from './form-restaurant.js';
 import { initI18n, setLanguage, translate } from './i18n.js';
 import { startTapFeedback } from './tap-feedback.js';
 import { tenantSlug } from './tenant.js';
-import { applyTenantLinks, applyVenue, errorMessage, showStatus } from './ui.js';
+import { applyConditionsLinks, applyTenantLinks, applyVenue, errorMessage, showStatus } from './ui.js';
 
 startTapFeedback();
 applyTenantLinks();
@@ -53,6 +53,7 @@ async function init() {
         return;
     }
     applyVenue(config);
+    applyConditionsLinks(config);
     initI18n(config.defaultLang);
     loading.hidden = true;
 

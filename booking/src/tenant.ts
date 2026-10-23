@@ -16,8 +16,8 @@ import { venueConfigOf } from './config';
 /** Lowercase letters, digits and dashes, 2 to 40 characters, no dash at either end. */
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,38}[a-z0-9]$/;
 
-/** Path prefixes that are not venues: the directory API, the static assets and the root pages (sign-in, demo). */
-const RESERVED_SLUGS = new Set(['api', 'css', 'js', 'assets', 'admin', 'demo']);
+/** Path prefixes that are not venues: the directory API, the static assets and the root pages (sign-in, demo, legal notice). */
+const RESERVED_SLUGS = new Set(['api', 'css', 'js', 'assets', 'admin', 'demo', 'legal', 'privacy']);
 
 export function isValidSlug(value: string): boolean {
     return SLUG_RE.test(value) && !RESERVED_SLUGS.has(value);

@@ -39,6 +39,7 @@ type EmailTexts = {
     footerReply: string;
     footerReplyAdmin: string;
     privacy: string;
+    conditions: string;
     labels: { checkIn: string; checkOut: string; guests: string; adults: (count: number) => string; children: (count: number) => string; room: string; date: string; time: string; people: string; notes: string; status: string; total: string; discount: (percent: number, amount: string) => string; taxes: string; paid: string; balance: string };
     statuses: Record<string, string>;
 };
@@ -79,6 +80,7 @@ const TEXTS: Record<Lang, EmailTexts> = {
         footerReply: 'Per domande è possibile rispondere a questa email.',
         footerReplyAdmin: 'Rispondendo a questa email si scrive direttamente al cliente.',
         privacy: 'Informativa privacy',
+        conditions: 'Condizioni di prenotazione',
         labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Ospiti', adults: (count) => `${count} ${count === 1 ? 'adulto' : 'adulti'}`, children: (count) => `${count} ${count === 1 ? 'bambino' : 'bambini'}`, room: 'Camera', date: 'Data', time: 'Orario', people: 'Persone', notes: 'Note (scritte dal cliente)', status: 'Stato', total: 'Prezzo totale', discount: (percent, amount) => `Sconto ${percent}% per la durata del soggiorno: -${amount}`, taxes: 'Tasse incluse, tassa di soggiorno esclusa', paid: 'Importo già pagato', balance: 'Saldo da pagare' },
         statuses: { pending: 'in attesa', approved: 'confermata', rejected: 'rifiutata', cancelled: 'annullata' },
     },
@@ -117,6 +119,7 @@ const TEXTS: Record<Lang, EmailTexts> = {
         footerReply: 'You can reply to this email with any question.',
         footerReplyAdmin: 'Replying to this email writes directly to the guest.',
         privacy: 'Privacy notice',
+        conditions: 'Booking conditions',
         labels: { checkIn: 'Check-in', checkOut: 'Check-out', guests: 'Guests', adults: (count) => `${count} ${count === 1 ? 'adult' : 'adults'}`, children: (count) => `${count} ${count === 1 ? 'child' : 'children'}`, room: 'Room', date: 'Date', time: 'Time', people: 'People', notes: 'Notes (written by the guest)', status: 'Status', total: 'Total price', discount: (percent, amount) => `${percent}% length-of-stay discount: -${amount}`, taxes: 'Taxes included, tourist tax excluded', paid: 'Amount already paid', balance: 'Balance due' },
         statuses: { pending: 'pending', approved: 'confirmed', rejected: 'rejected', cancelled: 'cancelled' },
     },

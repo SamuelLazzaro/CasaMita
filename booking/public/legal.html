@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Note legali</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script type="module" src="/js/legal.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <div>
+                <h1 data-i18n="legal.title">Note legali</h1>
+                <p class="subtitle" data-i18n="legal.subtitle">Sistema di prenotazione</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!--
+            Root page of the deployment, no venue in the URL: who runs the
+            service (d.lgs. 70/2003, art. 7: name, address, contacts, VAT
+            number) and the privacy notice of the platform itself, i.e. the
+            security data the service keeps on its own behalf (IP addresses of
+            the sign-in attempts and of the form submissions, sign-in audit).
+            The bookings' data belong to each venue, which has its own notice.
+            The identity comes from the PROCESSOR_* vars through GET /api/legal
+            (js/legal.js). Italian and English blocks (data-lang, base.css).
+        -->
+        <section class="panel prose">
+            <div data-lang="it">
+                <h2>Chi gestisce il servizio</h2>
+                <p>Il servizio di prenotazione è gestito da <span class="processor-name">[NOME DEL FORNITORE]</span>, <span class="processor-address">[INDIRIZZO]</span>, email <span class="processor-email">[EMAIL]</span>, partita IVA <span class="processor-vat">[PARTITA IVA]</span>, per conto delle strutture che lo utilizzano. Per ogni prenotazione il titolare del trattamento è la struttura: la sua informativa è raggiungibile dal modulo di prenotazione e dalle email.</p>
+
+                <h2>Dati trattati dal servizio per la propria sicurezza</h2>
+                <p>Per proteggere il servizio da accessi abusivi registriamo l'indirizzo IP e l'orario dei tentativi di accesso alla dashboard e degli invii dal modulo di prenotazione. I contatori per indirizzo IP vengono cancellati entro 24 ore; il registro degli accessi alla dashboard, con gli accessi falliti e il loro indirizzo IP, viene conservato per 12 mesi. Base giuridica: il legittimo interesse del gestore del servizio alla sicurezza del sistema (art. 6, par. 1, lett. f, GDPR). Questi dati non vengono usati per altre finalità e non vengono comunicati a terzi, salvo l'hosting su piattaforma Cloudflare.</p>
+
+                <h2>Cookie</h2>
+                <p>Le pagine pubbliche non usano cookie. La dashboard e le aree riservate usano un cookie tecnico di sessione, strettamente necessario all'accesso, che non richiede consenso. La lingua scelta viene salvata nel <em>localStorage</em> del browser.</p>
+
+                <h2>I tuoi diritti</h2>
+                <p>Puoi chiedere l'accesso, la rettifica, la cancellazione e la limitazione del trattamento dei dati di sicurezza che ti riguardano scrivendo a <span class="processor-email">[EMAIL]</span>, e proporre reclamo al Garante per la protezione dei dati personali (www.garanteprivacy.it). Le segnalazioni di vulnerabilità del servizio vanno allo stesso indirizzo (vedi <code>/.well-known/security.txt</code>).</p>
+            </div>
+
+            <div data-lang="en">
+                <h2>Who runs the service</h2>
+                <p>The booking service is run by <span class="processor-name">[PROVIDER NAME]</span>, <span class="processor-address">[ADDRESS]</span>, email <span class="processor-email">[EMAIL]</span>, VAT number <span class="processor-vat">[VAT NUMBER]</span>, on behalf of the venues that use it. For every booking the data controller is the venue: its privacy notice is linked from the booking form and from the emails.</p>
+
+                <h2>Data the service keeps for its own security</h2>
+                <p>To protect the service from abuse we record the IP address and the time of the sign-in attempts to the dashboard and of the submissions from the booking form. The per-address counters are deleted within 24 hours; the dashboard sign-in log, with the failed attempts and their IP address, is kept for 12 months. Legal basis: the legitimate interest of the service operator in the security of the system (art. 6(1)(f) GDPR). These data are used for no other purpose and are not shared with third parties, apart from the hosting on the Cloudflare platform.</p>
+
+                <h2>Cookies</h2>
+                <p>The public pages use no cookies. The dashboard and the reserved areas use a technical session cookie, strictly necessary for signing in, which requires no consent. The chosen language is saved in the browser's <em>localStorage</em>.</p>
+
+                <h2>Your rights</h2>
+                <p>You can ask for access, rectification, erasure and restriction of the security data concerning you by writing to <span class="processor-email">[EMAIL]</span>, and lodge a complaint with the Italian data protection authority (www.garanteprivacy.it). Vulnerability reports go to the same address (see <code>/.well-known/security.txt</code>).</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <p><a href="/admin" data-i18n="legal.signIn">Accesso gestori</a></p>
+    </footer>
+</body>
+</html>

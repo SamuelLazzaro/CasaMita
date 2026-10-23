@@ -1,4 +1,5 @@
-import type { Bindings, Lang, RequestRow, TenantVariables } from './types';
+import type { Bindings, Lang, RequestRow, TenantRow, TenantVariables } from './types';
+import { httpUrlOf } from './config';
 import { emailTexts, requestDetails } from './texts';
 import { writeAudit } from './util';
 
@@ -58,10 +59,29 @@ export function personalLink(base: string, token: string): string {
     return `${base}/booking/${token}`;
 }
 
+/**
+ * What every email to a guest carries about the venue, so the confirmation
+ * on a durable medium names the trader and its conditions (Codice del
+ * consumo, art. 49 and 51.7): identity line (name, address, phone, VAT, the
+ * parts the directory has) and the booking conditions page.
+ */
+export type VenueLegal = { identity: string; conditionsUrl: string };
+
+export function venueLegalOf(tenant: Pick<TenantRow, 'privacy_controller' | 'privacy_address' | 'phone' | 'vat_number' | 'conditions_url'>, base: string): VenueLegal {
+    const phone = tenant.phone ? `tel. ${tenant.phone}` : '';
+    const vat = tenant.vat_number ? `P.IVA ${tenant.vat_number}` : '';
+    const identity = [tenant.privacy_controller ?? '', tenant.privacy_address ?? '', phone, vat].filter((part) => part !== '').join(', ');
+    return { identity, conditionsUrl: httpUrlOf(tenant.conditions_url) ?? `${base}/conditions` };
+}
+
 /** Plain-text body of the guest email (exported for tests); `base` is the venue's base URL. */
-export function guestBody(notification: Notification, base: string, venueName: string): string {
+export function guestBody(notification: Notification, base: string, venueName: string, legal?: VenueLegal): string {
     const texts = emailTexts(notification.lang);
-    return [texts.greeting(notification.recipient.name), '', notification.message, '', ...notification.details.map((row) => `  ${row}`), '', '—', texts.footerAuto(venueName), texts.footerReply, `${texts.privacy}: ${base}/privacy`].join('\n');
+    const footer = [texts.footerAuto(venueName), texts.footerReply];
+    if (legal?.identity) footer.push(legal.identity);
+    footer.push(`${texts.privacy}: ${base}/privacy`);
+    if (legal) footer.push(`${texts.conditions}: ${legal.conditionsUrl}`);
+    return [texts.greeting(notification.recipient.name), '', notification.message, '', ...notification.details.map((row) => `  ${row}`), '', '—', ...footer].join('\n');
 }
 
 /** Plain-text body of the owner email (exported for tests). */
@@ -89,7 +109,7 @@ async function deliver(c: NotificationContext, base: string, notification: Notif
     const sender = { name: venue.name, email: tenant.email_sender };
     const prefix = `[${venue.name}]`;
 
-    await sendBrevo(c.env, db, { sender, to: [{ email: notification.recipient.email, name: notification.recipient.name }], replyTo: { email: tenant.email_admin }, subject: `${prefix} ${notification.subject}`, textContent: guestBody(notification, base, venue.name) }, `"${notification.subject}" to ${notification.recipient.name}`);
+    await sendBrevo(c.env, db, { sender, to: [{ email: notification.recipient.email, name: notification.recipient.name }], replyTo: { email: tenant.email_admin }, subject: `${prefix} ${notification.subject}`, textContent: guestBody(notification, base, venue.name, venueLegalOf(tenant, base)) }, `"${notification.subject}" to ${notification.recipient.name}`);
 
     if (notification.adminMessage) {
         const adminSubject = notification.adminSubject ?? notification.subject;

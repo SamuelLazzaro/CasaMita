@@ -5,5 +5,7 @@ node_modules/
 .dev.vars.*
 !.dev.vars.example
 !.dev.vars.*.example
-# Database dumps (contain personal data and access tokens).
+# Database dumps (contain personal data and access tokens) and the removal
+# records written by tenant:remove (they name the dump and the users).
 backup*.sql
+removal-*.txt

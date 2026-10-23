@@ -5,7 +5,7 @@
 import { cancelBooking, fetchBooking, fetchConfig } from './api.js';
 import { currentLanguage, initI18n, onLanguageChange, translate } from './i18n.js';
 import { startTapFeedback } from './tap-feedback.js';
-import { appendDetail, applyTenantLinks, applyVenue, errorMessage, hideStatus, showStatus } from './ui.js';
+import { appendDetail, applyConditionsLinks, applyTenantLinks, applyVenue, errorMessage, hideStatus, showStatus } from './ui.js';
 import { formatEuro, formatLongDate, formatTimestamp } from './utils.js';
 
 startTapFeedback();
@@ -83,6 +83,7 @@ async function init() {
         return;
     }
     applyVenue(config);
+    applyConditionsLinks(config);
     initI18n(config.defaultLang);
     try {
         g_booking = await fetchBooking(g_token);

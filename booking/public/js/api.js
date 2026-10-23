@@ -43,10 +43,18 @@ function postJson(url, body) {
 }
 
 /**
- * @returns {Promise<{type: string, name: string, defaultLang: string, facility: object, restaurant: {lunch: {open: string, close: string}, dinner: {open: string, close: string}, stepMinutes: number}}>}
+ * @returns {Promise<{type: string, name: string, defaultLang: string, accent: string|null, facility: object, restaurant: {lunch: {open: string, close: string}, dinner: {open: string, close: string}, stepMinutes: number}, privacy: {controller: string, address: string, email: string, retentionDays: number, since: string}, legal: {name: string, address: string, phone: string, email: string, vat: string, conditionsUrl: string|null, conditionsText: string}, processor: {name: string, email: string}}>}
  */
 export function fetchConfig() {
     return requestJson(tenantPath('/api/config'));
+}
+
+/**
+ * Who runs the deployment (root legal page, no venue).
+ * @returns {Promise<{name: string, address: string, email: string, vat: string}>}
+ */
+export function fetchLegal() {
+    return requestJson('/api/legal');
 }
 
 /**

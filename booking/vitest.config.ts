@@ -31,6 +31,11 @@ export default defineWorkersConfig(async () => {
                             // Override any real key loaded from .dev.vars: tests
                             // must never send emails (empty = sending disabled).
                             BREVO_API_KEY: '',
+                            // The deployment's identity (root legal page, security.txt).
+                            PROCESSOR_NAME: 'Test Provider',
+                            PROCESSOR_ADDRESS: 'Via Test 1, Milano',
+                            PROCESSOR_EMAIL: 'security@provider.example',
+                            PROCESSOR_VAT: 'IT00000000000',
                         },
                     },
                 },

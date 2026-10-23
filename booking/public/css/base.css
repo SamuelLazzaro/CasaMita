@@ -77,14 +77,12 @@
     --transition-tap: 0.25s ease;
 }
 
-/* Casa Mita instance: the teal palette of the website (styles/main.css of
-   the site), so the embedded form blends in with the page around it. */
 :root[data-booking-type="hotel"] {
-    --accent: #237a87;
-    --accent-dark: #1b5f6a;
-    --accent-text: #1b5f6a;
-    --accent-text-dark: #24333a;
-    --accent-tint: #e4f0f2;
+    --accent: #1d4ed8;
+    --accent-dark: #1e40af;
+    --accent-text: #1e40af;
+    --accent-text-dark: #1e3a8a;
+    --accent-tint: #e8eefc;
     --confirmed: #1d4ed8;
     --confirmed-tint: #dbeafe;
 }
@@ -105,8 +103,28 @@
     --accent-tint: #fbeaea;
 }
 
+/* A venue with its own colour (column `accent` of the directory): js/ui.js
+   writes the hex value into --accent as an inline style of <html>, which wins
+   over the type palettes above, and sets data-accent so the role variants are
+   derived from it here. One value per venue instead of five; the colour must
+   be dark enough for white text on it. */
+:root[data-accent] {
+    --accent-dark: color-mix(in srgb, var(--accent), black 22%);
+    --accent-text: color-mix(in srgb, var(--accent), black 22%);
+    --accent-text-dark: color-mix(in srgb, var(--accent), black 45%);
+    --accent-tint: color-mix(in srgb, var(--accent), white 88%);
+}
+
 * {
     box-sizing: border-box;
+}
+
+/* Bilingual prose pages (privacy notice, booking conditions, legal notice):
+   each block is written twice in the HTML, data-lang="it" and "en", and only
+   the one of the page language shows (js/i18n.js keeps <html lang> current). */
+html:not([lang="en"]) [data-lang="en"],
+html[lang="en"] [data-lang="it"] {
+    display: none;
 }
 
 /* The hidden attribute must win over any author display rule (.field, .form,
