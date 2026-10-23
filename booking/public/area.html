@@ -69,11 +69,13 @@
         </div>
 
         <dialog id="dialog-request" class="dialog" aria-labelledby="request-dialog-title">
-            <div class="dialog-content">
-                <div class="dialog-header">
-                    <h2 id="request-dialog-title" data-i18n="area.newRequest">Nuova richiesta</h2>
-                    <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                </div>
+            <div class="dialog-header">
+                <h2 class="dialog-title" id="request-dialog-title" data-i18n="area.newRequest">Nuova richiesta</h2>
+                <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                    <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="dialog-body">
                 <p class="hint" data-i18n="area.requestHint">La richiesta resta in attesa finché la struttura non la conferma. Riceverai un'email con l'esito.</p>
                 <form id="area-facility-form" class="form" novalidate>
                     <div class="field"><label for="area-facility-date" data-i18n="field.date">Data</label><input type="date" id="area-facility-date" name="date" required></div>
@@ -89,11 +91,13 @@
         </dialog>
 
         <dialog id="dialog-details" class="dialog" aria-labelledby="details-title">
-            <div class="dialog-content">
-                <div class="dialog-header">
-                    <h2 id="details-title" data-i18n="details.title">Prenotazione</h2>
-                    <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                </div>
+            <div class="dialog-header">
+                <h2 class="dialog-title" id="details-title" data-i18n="details.title">Prenotazione</h2>
+                <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                    <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="dialog-body">
                 <div id="details-badge"></div>
                 <dl class="details" id="details-list"></dl>
                 <div class="actions" id="details-actions"></div>

@@ -247,12 +247,14 @@
             </div>
 
             <dialog id="dialog-booking" class="dialog" aria-labelledby="booking-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <!-- Title and hint follow the mode (new / edit): admin.js writes them. -->
-                        <h2 id="booking-dialog-title">Nuova prenotazione</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <!-- Title and hint follow the mode (new / edit): admin.js writes them. -->
+                    <h2 class="dialog-title" id="booking-dialog-title">Nuova prenotazione</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <p class="hint" id="booking-hint">La prenotazione nasce già confermata. Il cliente riceve l'email di conferma.</p>
 
                     <form id="direct-hotel-form" class="form" novalidate hidden>
@@ -362,11 +364,13 @@
             </dialog>
 
             <dialog id="dialog-details" class="dialog" aria-labelledby="details-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="details-title" data-i18n="details.title">Prenotazione</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="details-title" data-i18n="details.title">Prenotazione</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <div id="details-badge"></div>
                     <dl class="details" id="details-list"></dl>
                     <div class="actions" id="details-actions"></div>
@@ -387,11 +391,13 @@
             </dialog>
 
             <dialog id="dialog-room" class="dialog" aria-labelledby="room-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="room-dialog-title">Nuova tipologia</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="room-dialog-title">Nuova tipologia</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <form id="room-form" class="form" novalidate>
                         <input type="hidden" id="room-id" name="id">
                         <div class="field"><label for="room-name" data-i18n="rooms.name">Tipologia</label><input type="text" id="room-name" name="name" maxlength="60" required></div>
@@ -412,11 +418,13 @@
 
             <!-- Hotel: the price of one room type on one day, opened from the price calendar. -->
             <dialog id="dialog-price" class="dialog" aria-labelledby="price-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="price-dialog-title" data-i18n="priceDay.title">Prezzo del giorno</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="price-dialog-title" data-i18n="priceDay.title">Prezzo del giorno</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <p id="price-day-summary" class="price-day-summary"></p>
                     <p id="price-day-current" class="hint"></p>
                     <form id="price-day-form" class="form" novalidate>
@@ -436,11 +444,13 @@
 
             <!-- Hotel: CSV export of the stays touching a date range. -->
             <dialog id="dialog-export" class="dialog" aria-labelledby="export-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="export-dialog-title" data-i18n="export.title">Esporta prenotazioni in CSV</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="export-dialog-title" data-i18n="export.title">Esporta prenotazioni in CSV</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <form id="export-form" class="form" novalidate>
                         <div class="field-row">
                             <div class="field"><label for="export-from" data-i18n="export.from">Dal giorno</label><input type="date" id="export-from" name="from" required></div>
@@ -455,11 +465,13 @@
 
             <!-- Password change of the signed-in user: current password again, new one twice. -->
             <dialog id="dialog-password" class="dialog" aria-labelledby="password-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="password-dialog-title" data-i18n="admin.passwordTitle">Cambia password</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="password-dialog-title" data-i18n="admin.passwordTitle">Cambia password</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <form id="password-form" class="form">
                         <div class="field">
                             <label for="current-password" data-i18n="field.currentPassword">Password attuale</label>
@@ -499,11 +511,13 @@
             </dialog>
 
             <dialog id="dialog-requester" class="dialog" aria-labelledby="requester-dialog-title">
-                <div class="dialog-content">
-                    <div class="dialog-header">
-                        <h2 id="requester-dialog-title">Nuova società</h2>
-                        <button type="button" class="btn btn-text" data-close aria-label="Chiudi" data-i18n-label="common.close">✕</button>
-                    </div>
+                <div class="dialog-header">
+                    <h2 class="dialog-title" id="requester-dialog-title">Nuova società</h2>
+                    <button type="button" class="dialog-close" data-dialog-close aria-label="Chiudi" data-i18n-label="common.close">
+                        <svg class="dialog-close-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <div class="dialog-body">
                     <form id="requester-form" class="form" novalidate>
                         <input type="hidden" id="requester-id" name="id">
                         <div class="field-row">

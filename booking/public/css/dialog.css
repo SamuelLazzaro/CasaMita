@@ -1,0 +1,204 @@
+/* ═══════════════════════════════════════════════════════════
+   Dialog — standalone, dependency-free modal popup
+
+   A <dialog> laid out as a flex column: a header (title plus
+   close button) that never moves and a body that is the only
+   part scrolling. The native element scrolls as a whole, so a
+   long form would carry the title and the close button away:
+   here the <dialog> clips its overflow and the `.dialog-body`
+   gets the scrollbar instead. Any element after the body
+   (a footer with the actions) stays fixed too, for free.
+
+   `display: flex` is set on `.dialog[open]` only: the browser
+   hides a closed <dialog> with `display: none`, which an
+   unconditional author `display` would override and show every
+   popup of the page at load.
+
+   While the body is scrolled down the JS keeps `.is-scrolled`
+   on the <dialog>: the header gains a shadow so the content is
+   seen sliding under it. Without the JS the rule never matches.
+
+   Theming: override the --dlg-* properties on `.dialog` itself
+   or on any ancestor. Every property carries a self-contained
+   default, so the component works with no design system behind it.
+   ═══════════════════════════════════════════════════════════ */
+
+/* While a modal dialog is open the page behind it must not scroll: a
+   wheel or a swipe on the backdrop would otherwise move the content under
+   the popup. The root loses its overflow for as long as any dialog is
+   modal, so the lock follows every way of closing (Esc, close()) with no
+   JS. The gutter stays reserved meanwhile, so hiding the classic desktop
+   scrollbar does not shift the page by its width. */
+html:has(dialog:modal) {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+}
+
+.dialog {
+    /* ── Geometry ─────────────────────────────────────────── */
+    --dlg-width: min(92vw, 560px);
+    --dlg-max-height: 90vh;
+    --dlg-radius: 8px;
+    --dlg-padding-x: 1.5rem;
+    --dlg-header-padding-y: 1rem;
+    --dlg-body-padding-y: 1.25rem;
+    --dlg-header-gap: 1rem;
+
+    /* ── Appearance ───────────────────────────────────────── */
+    --dlg-bg: #ffffff;
+    --dlg-color: inherit;
+    --dlg-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    --dlg-backdrop: rgba(0, 0, 0, 0.45);
+    --dlg-header-border: 1px solid rgba(127, 127, 127, 0.25);
+    --dlg-header-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --dlg-title-size: 1.1rem;
+    --dlg-title-weight: 600;
+    --dlg-transition: 0.15s ease;
+
+    /* ── Close button ─────────────────────────────────────── */
+    --dlg-close-size: 2.25rem;
+    --dlg-close-icon-size: 1.25rem;
+    --dlg-close-radius: 4px;
+    --dlg-close-color: currentColor;
+    --dlg-close-opacity: 0.6;
+    --dlg-close-opacity-active: 1;
+    --dlg-close-bg: transparent;
+    --dlg-close-bg-active: rgba(127, 127, 127, 0.14);
+    --dlg-focus-color: currentColor;
+    --dlg-focus-width: 2px;
+
+    box-sizing: border-box;
+    width: var(--dlg-width);
+    max-width: 100%;
+    max-height: var(--dlg-max-height);
+    margin: auto;
+    padding: 0;
+    border: none;
+    border-radius: var(--dlg-radius);
+    background: var(--dlg-bg);
+    color: var(--dlg-color);
+    box-shadow: var(--dlg-shadow);
+    /* The body scrolls, not the dialog: the header stays put and the
+       rounded corners are not cut by a full-height scrollbar. */
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+.dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.dialog::backdrop {
+    background: var(--dlg-backdrop);
+}
+
+/* ── Header: title and close button, never scrolls ─────────── */
+.dialog-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--dlg-header-gap);
+    padding: var(--dlg-header-padding-y) var(--dlg-padding-x);
+    border-bottom: var(--dlg-header-border);
+    /* Above the body, so its shadow is drawn over the scrolled content. */
+    position: relative;
+    z-index: 1;
+    transition: box-shadow var(--dlg-transition);
+}
+
+.dialog.is-scrolled .dialog-header {
+    box-shadow: var(--dlg-header-shadow);
+}
+
+.dialog-title {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--dlg-title-size);
+    font-weight: var(--dlg-title-weight);
+    line-height: 1.3;
+}
+
+.dialog-close {
+    /* Local reset: the component must not rely on a global one. */
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: none;
+    font: inherit;
+    color: var(--dlg-close-color);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    flex: 0 0 auto;
+    width: var(--dlg-close-size);
+    height: var(--dlg-close-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dlg-close-bg);
+    border-radius: var(--dlg-close-radius);
+    opacity: var(--dlg-close-opacity);
+    transition: opacity var(--dlg-transition), background-color var(--dlg-transition);
+}
+
+/* Hover only on devices with a precise pointer: on touch screens
+   it would stick after the tap. */
+@media (pointer: fine) {
+    .dialog-close:hover {
+        opacity: var(--dlg-close-opacity-active);
+        background: var(--dlg-close-bg-active);
+    }
+}
+
+/* Twin of the hover for touch (`.is-tapped`, put on the button by a
+   tap-feedback module during the tap) and for keyboard focus
+   (`html.is-keyboard-input`, kept on <html> by the same module while
+   the keyboard is in use). Both are opt-in: without such a module
+   the rule simply never matches. */
+.dialog-close.is-tapped,
+html.is-keyboard-input .dialog-close:focus-visible {
+    opacity: var(--dlg-close-opacity-active);
+    background: var(--dlg-close-bg-active);
+}
+
+.dialog-close:focus-visible {
+    outline: var(--dlg-focus-width) solid var(--dlg-focus-color);
+    outline-offset: -2px;
+}
+
+.dialog-close-icon {
+    display: block;
+    width: var(--dlg-close-icon-size);
+    height: var(--dlg-close-icon-size);
+    pointer-events: none;
+}
+
+/* ── Body: the only part that scrolls ──────────────────────── */
+.dialog-body {
+    flex: 1 1 auto;
+    /* A flex item refuses to shrink below its content height unless told
+       so: without this the body would grow past the dialog instead of
+       scrolling. */
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--dlg-body-padding-y) var(--dlg-padding-x);
+}
+
+/* The padding of the body already spaces the first and last child. */
+.dialog-body > :first-child {
+    margin-top: 0;
+}
+
+.dialog-body > :last-child {
+    margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dialog-header,
+    .dialog-close {
+        transition: none;
+    }
+}

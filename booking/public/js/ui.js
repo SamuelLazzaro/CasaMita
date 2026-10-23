@@ -1,5 +1,6 @@
 /* ui.js — DOM helpers shared by the pages: status messages, selects, venue theme. */
 import { STATUS_ERROR_CLASS, STATUS_OK_CLASS } from './constants.js';
+import { Dialog } from './dialog.js';
 import { translate } from './i18n.js';
 import { tenantPath, tenantSlug } from './tenant.js';
 import { limitToCents, priceInputValue } from './utils.js';
@@ -94,17 +95,23 @@ export function appendDetail(list, label, value) {
     list.append(term, definition);
 }
 
+/** @type {WeakMap<HTMLDialogElement, Dialog>} one component instance per <dialog>, created at its first opening */
+const g_dialogs = new WeakMap();
+
 /**
- * Opens a <dialog> as modal and wires its close button once.
+ * Opens a <dialog> as modal through the dialog component (js/dialog.js):
+ * fixed header, scrolling body brought back to the top, close buttons
+ * wired once. Closing stays native: callers keep using dialog.close().
  * @param {HTMLDialogElement} dialog
  * @returns {void}
  */
 export function openDialog(dialog) {
-    if (dialog.dataset.wired === undefined) {
-        dialog.dataset.wired = 'true';
-        for (const button of dialog.querySelectorAll('[data-close]')) button.addEventListener('click', () => dialog.close());
+    let instance = g_dialogs.get(dialog);
+    if (instance === undefined) {
+        instance = new Dialog(dialog);
+        g_dialogs.set(dialog, instance);
     }
-    if (!dialog.open) dialog.showModal();
+    instance.open();
 }
 
 /**
